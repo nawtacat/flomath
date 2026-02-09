@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SAT Math Live Class Application</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      color: #0f172a;
+      background-color: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      background: radial-gradient(circle at top, #e0f2ff, #eef2ff 45%, #f8fafc 70%);
+      padding: 2rem;
+    }
+
+    main {
+      width: min(960px, 100%);
+      background: #ffffff;
+      border-radius: 24px;
+      padding: clamp(1.5rem, 3vw, 3rem);
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.75rem);
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      color: #475569;
+      margin-top: 0.5rem;
+      font-size: 1rem;
+    }
+
+    section + section {
+      margin-top: 2rem;
+    }
+    .video-section {
+      text-align: center;
+    }
+    .video-wrapper {
+      margin: 1rem auto 0;
+      width: 100%;
+      max-width: 720px;
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+    }
+    .video-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .pill {
+      display: inline-block;
+      background: #e0f2ff;
+      padding: 0.4rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      color: #2563eb;
+      font-weight: 600;
+    }
+
+    form {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #0f172a;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #cbd5f5;
+      padding: 0.85rem;
+      font: inherit;
+      resize: vertical;
+      background: #f8fafc;
+      transition: border 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      outline: none;
+    }
+
+    .small-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    button {
+      border: none;
+      border-radius: 16px;
+      padding: 0.95rem 1.1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      cursor: pointer;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    button:not(:disabled):hover {
+      transform: translateY(-1px);
+    }
+
+    .message {
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
+      font-weight: 600;
+      display: none;
+      margin-top: 1rem;
+    }
+
+    .message.success {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .message.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.9rem;
+      color: #475569;
+      text-align: center;
+    }
+    .chat-link {
+      margin-top: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 600;
+      color: #2563eb;
+      text-decoration: none;
+    }
+    .chat-link img {
+      height: 40px;
+      width: auto;
+      border-radius: 10px;
+    }
+    .pricing-note {
+      font-weight: 600;
+      margin-top: 1rem;
+      text-align: center;
+    }
+    .pricing-grid {
+      margin-top: 1rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .pricing-box {
+      border-radius: 18px;
+      border: 1px solid #cbd5f5;
+      padding: 1.25rem;
+      background: #f8fafc;
+      box-shadow: 0 15px 30px rgba(15, 23, 42, 0.1);
+      text-align: center;
+      font-weight: 600;
+      min-height: 240px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .pricing-box.highlight {
+      background: #e0ecff;
+      border-color: #7c3aed;
+      box-shadow: 0 20px 30px rgba(124, 58, 237, 0.2);
+    }
+    .pricing-box.active {
+      border-color: #2563eb;
+      box-shadow: 0 20px 30px rgba(37, 99, 235, 0.25);
+      opacity: 1;
+    }
+    .pricing-box.muted {
+      opacity: 0.5;
+    }
+    }
+    .pricing-title {
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #475569;
+      margin-bottom: 0.35rem;
+    }
+    .price {
+      font-size: 2rem;
+      margin: 0.4rem 0 0.4rem;
+      color: #2563eb;
+    }
+    .pricing-sub {
+      font-size: 0.9rem;
+      color: #475569;
+      margin-bottom: 0.5rem;
+    }
+    .pricing-box ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      font-size: 0.95rem;
+    }
+    .pricing-btn {
+      margin-top: 1rem;
+      border: none;
+      border-radius: 999px;
+      padding: 0.65rem 1.2rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .pricing-btn:hover {
+      transform: translateY(-2px);
+    }
+    .selected-package {
+      margin-top: 0.5rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="pill">Live, interactive &middot; SAT Math focus</p>
+      <h1>Join Florian Math for SAT Math live sessions</h1>
+      <p>Let me know what you’re aiming for, and I’ll save you a spot in the next cohort. I keep the lessons small so we can actually dig into the problems you care about.</p>
+    </header>
+
+    <section class="video-section">
+      <h2>Meet me, Aram A.</h2>
+      <p>This quick 30-second clip is me saying hi and sharing what the Florian Math SAT Math lessons feel like—kind of an invite so you can see if we click before you jump in.</p>
+      <div class="video-wrapper">
+        <iframe
+          src="https://www.youtube.com/embed/nQt1m5FDWHU"
+          title="Florian Math SAT Math introduction"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </section>
+
+    <section>
+      <h2>What to expect</h2>
+      <p>
+        Every week we spend 90 minutes together working through the key SAT Math topics—Algebra, functions, geometry, data, the whole mix. Classes stay capped at 10 people so you actually get time to ask questions, and I pace the session on the fly depending on what everyone is still confused about.
+      </p>
+      <ul>
+        <li>I adjust the pace based on where each person lands after their most recent practice or test.</li>
+        <li>You get weekly problem sets plus my feedback so you can see where your strengths and slips are.</li>
+        <li>Recordings and extra drills stay in Google Classroom so you can revisit them whenever you need.</li>
+      </ul>
+      <p>
+        We coordinate everything through Google Classroom with Google Chat check-ins, and every live lesson happens on Google Meet so you can ask questions in real time or hop on a quick follow-up if you need it.
+      </p>
+      <p class="pricing-note">First lesson is free. After that, pick the block that fits your rhythm and I’ll help you arrange the bank transfer over Google Chat.</p>
+      <p class="pricing-note">Selecting a package just captures your current preference—you can change your mind before the payment is confirmed.</p>
+      <div class="pricing-grid">
+        <article class="pricing-box">
+          <p class="pricing-title">10-lesson block</p>
+          <p class="price">$80</p>
+          <p class="pricing-sub">10 live lessons · 90 minutes each</p>
+          <ul>
+            <li>Weekly practice sets + personalized comments</li>
+            <li>Google Classroom + chat updates</li>
+          </ul>
+          <button class="pricing-btn" type="button" data-package="10-lesson block">This is my current pick</button>
+        </article>
+        <article class="pricing-box highlight">
+          <p class="pricing-title">3-lesson block</p>
+          <p class="price">$30</p>
+          <p class="pricing-sub">Short refresh—great for practice boosts</p>
+          <ul>
+            <li>3 live lessons · 90 minutes each</li>
+            <li>Same support via Classroom + Chat</li>
+          </ul>
+          <button class="pricing-btn" type="button" data-package="3-lesson block">This is my current pick</button>
+        </article>
+      </div>
+      <p id="selected-package" class="selected-package">Selected package: none yet</p>
+    </section>
+
+    <section>
+      <h2>Application form</h2>
+      <form id="application-form">
+        <input type="hidden" name="packageChoice" id="package-choice" value="" />
+        <div class="small-grid">
+          <label>
+            Full name
+            <input type="text" name="fullName" placeholder="Jordan Lee" required />
+          </label>
+          <label>
+            Email address
+            <input type="email" name="email" placeholder="you@email.com" required />
+          </label>
+        </div>
+
+        <div class="small-grid">
+          <label>
+            Phone
+            <input type="tel" name="phone" placeholder="(555) 123-4567" />
+          </label>
+          <label>
+            Current grade
+            <select name="grade" required>
+              <option value="">Select grade</option>
+              <option>9</option>
+              <option>10</option>
+              <option>11</option>
+              <option>12</option>
+              <option>Gap year / College</option>
+            </select>
+          </label>
+        </div>
+
+        <label>
+          High school / affiliation
+          <input type="text" name="school" placeholder="Example High School" />
+        </label>
+
+        <div class="small-grid">
+          <label>
+            Target test date
+            <input type="date" name="testDate" required />
+          </label>
+          <label>
+            Math topic you want most support with
+            <input type="text" name="mathFocus" placeholder="Advanced geometry" required />
+          </label>
+        </div>
+
+        <label>
+          Availability window (pick the days you can join live)
+          <select name="availability" required>
+            <option value="">Select availability</option>
+            <option>Weeknights (Mon-Thurs)</option>
+            <option>Weekend mornings</option>
+            <option>Weekend afternoons</option>
+            <option>Flexible / hybrid</option>
+          </select>
+        </label>
+
+        <label>
+          What is your biggest SAT Math challenge right now?
+          <textarea name="challenge" rows="3" placeholder="Describe a topic or mindset challenge" required></textarea>
+        </label>
+
+        <label>
+          Describe a recent problem you struggled with (optional)
+          <textarea name="problem" rows="4" placeholder="Include the question type or tool you used."></textarea>
+        </label>
+
+        <button type="submit" id="submit-button">Submit application</button>
+        <div id="form-message" class="message" role="status"></div>
+      </form>
+    </section>
+
+    <footer>
+      <p>I store your application in Firestore so I can respond within 24 hours. If anything on the form misbehaves, just reply to the confirmation email and I’ll fix it.</p>
+      <p>
+        Questions? Email <a href="mailto:aram.asatryan.arman@gmail.com">aram.asatryan.arman@gmail.com</a> or send a quick
+        message on <a href="https://chat.google.com/" target="_blank" rel="noreferrer">Google Chat</a>—that’s how I’ll keep in touch with you throughout the lessons.
+      </p>
+      <a class="chat-link" href="https://chat.google.com/" target="_blank" rel="noreferrer">
+        <img src="https://cdn-public.softwarereviews.com/production/logos/offerings/7715/large/Google_chat_2_logo.png?1767118750" alt="Google Chat" />
+        Text me on Google Chat
+      </a>
+    </footer>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      serverTimestamp,
+    } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyAbnPpcIt88B0jIAoLUdC71zmQDvR_fdu8',
+      authDomain: 'physmathacademy-722b3.firebaseapp.com',
+      projectId: 'physmathacademy-722b3',
+      storageBucket: 'physmathacademy-722b3.appspot.com',
+      appId: '1:1093640992262:web:35b1bf4d2364bcf745f587',
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const form = document.getElementById('application-form');
+    const messageEl = document.getElementById('form-message');
+    const submitButton = document.getElementById('submit-button');
+    const packageChoiceInput = document.getElementById('package-choice');
+    const selectedPackageText = document.getElementById('selected-package');
+    const pricingButtons = document.querySelectorAll('.pricing-btn');
+    const pricingBoxes = document.querySelectorAll('.pricing-box');
+
+    pricingButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const packageName = button.dataset.package;
+        packageChoiceInput.value = packageName;
+        if (selectedPackageText) {
+          selectedPackageText.textContent = `Selected package: ${packageName}`;
+        }
+        pricingBoxes.forEach((box) => {
+          const isCurrent = box.contains(button);
+          box.classList.toggle('active', isCurrent);
+          box.classList.toggle('muted', !isCurrent);
+        });
+      });
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      submitButton.disabled = true;
+      messageEl.style.display = 'none';
+
+      const formData = new FormData(form);
+      const payload = {
+        fullName: formData.get('fullName'),
+        email: formData.get('email'),
+        phone: formData.get('phone'),
+        grade: formData.get('grade'),
+        school: formData.get('school'),
+        testDate: formData.get('testDate'),
+        mathFocus: formData.get('mathFocus'),
+        availability: formData.get('availability'),
+        challenge: formData.get('challenge'),
+        problem: formData.get('problem'),
+        packageChoice: formData.get('packageChoice'),
+        submittedAt: serverTimestamp(),
+      };
+
+      try {
+        await addDoc(collection(db, 'SATapps'), payload);
+        messageEl.textContent = 'Application submitted successfully! We will reach out within one business day.';
+        messageEl.className = 'message success';
+        messageEl.style.display = 'block';
+        form.reset();
+      } catch (error) {
+        console.error('Firestore save failed:', error);
+        messageEl.textContent = 'Something went wrong while saving your info. Please try again or email us directly.';
+        messageEl.className = 'message error';
+        messageEl.style.display = 'block';
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
