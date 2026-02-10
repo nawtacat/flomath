@@ -339,6 +339,15 @@
                     <span style="width: 90px;">Aesthetic FPS</span>
                     <input type="number" id="global-fps" onchange="updateGlobalMotion('aestheticFps', this.value)" value="60" style="margin-bottom: 0;">
                 </div>
+                <div class="property-row" style="margin-bottom: 10px;">
+                    <span style="width: 90px;">Speed Curve</span>
+                    <select id="global-easing" onchange="updateGlobalMotion('easing', this.value)" style="flex:1; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                        <option value="ease-out">Ease Out (Fast start)</option>
+                        <option value="ease-in">Ease In (Slow start)</option>
+                        <option value="ease-in-out">Ease In-Out</option>
+                        <option value="linear">Linear (Constant)</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -1046,8 +1055,22 @@
         progress = Math.max(0, Math.min(1, progress));
 
         let easedProgress = progress;
-        if (easing === 'ease-out') {
-            easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+        switch(easing) {
+            case 'ease-in':
+                easedProgress = progress * progress * progress; // Cubic ease-in
+                break;
+            case 'ease-out':
+                easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+                break;
+            case 'ease-in-out':
+                easedProgress = progress < 0.5 
+                    ? 4 * progress * progress * progress 
+                    : 1 - Math.pow(-2 * progress + 2, 3) / 2; // Cubic ease-in-out
+                break;
+            case 'linear':
+            default:
+                // Eased progress is just linear progress
+                break;
         }
 
         let finalProgress = easedProgress;
@@ -1093,7 +1116,13 @@
 
     function updateGlobalMotionControlsUI() {
         const panel = document.getElementById('global-zoom-controls');
-        panel.style.display = state.globalTransform.keyframes.length >= 2 ? 'block' : 'none';
+        const show = state.globalTransform.keyframes.length >= 2;
+        panel.style.display = show ? 'block' : 'none';
+        if (show) {
+            document.getElementById('global-duration').value = state.globalTransform.duration;
+            document.getElementById('global-fps').value = state.globalTransform.aestheticFps;
+            document.getElementById('global-easing').value = state.globalTransform.easing;
+        }
     }
 
     function updateGlobalTransformPanel() {
