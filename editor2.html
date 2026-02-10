@@ -505,9 +505,57 @@
         frameRate: 60,
         startTime: 0,
         displayProgress: 0,
-        lastFrameTimestamp: 0
+        lastFrameTimestamp: 0,
+        currentTransform: { scale: 1, offsetX: 0, offsetY: 0 },
+        startTransform: { scale: 1, offsetX: 0, offsetY: 0 },
+        targetTransform: { scale: 1, offsetX: 0, offsetY: 0 }
     };
 
+
+    function getZoomEasedProgress(easing, t) {
+        switch (easing) {
+            case 'easeOutCubic':
+                return 1 - Math.pow(1 - t, 3);
+            case 'easeOutQuad':
+            default:
+                return t * (2 - t);
+        }
+    }
+
+    function updateZoomAnimation(timestamp) {
+        if (!zoomAnimation.active) {
+            zoomAnimation.startTime = 0;
+            zoomAnimation.lastFrameTimestamp = timestamp;
+            return;
+        }
+
+        const frameIntervalMs = 1000 / Math.max(1, zoomAnimation.frameRate);
+        if (timestamp - zoomAnimation.lastFrameTimestamp < frameIntervalMs && zoomAnimation.lastFrameTimestamp !== 0) {
+            return;
+        }
+        zoomAnimation.lastFrameTimestamp = timestamp;
+
+        if (zoomAnimation.startTime === 0) {
+            zoomAnimation.startTime = timestamp;
+        }
+
+        const elapsed = (timestamp - zoomAnimation.startTime) / 1000;
+        const rawProgress = Math.min(1, elapsed / Math.max(0.001, zoomAnimation.duration));
+        const eased = getZoomEasedProgress(zoomAnimation.easing, rawProgress);
+        zoomAnimation.displayProgress = eased;
+
+        const scaleDelta = zoomAnimation.targetTransform.scale - zoomAnimation.startTransform.scale;
+        const offsetXDelta = zoomAnimation.targetTransform.offsetX - zoomAnimation.startTransform.offsetX;
+        const offsetYDelta = zoomAnimation.targetTransform.offsetY - zoomAnimation.startTransform.offsetY;
+
+        zoomAnimation.currentTransform.scale = zoomAnimation.startTransform.scale + scaleDelta * eased;
+        zoomAnimation.currentTransform.offsetX = zoomAnimation.startTransform.offsetX + offsetXDelta * eased;
+        zoomAnimation.currentTransform.offsetY = zoomAnimation.startTransform.offsetY + offsetYDelta * eased;
+
+        if (rawProgress >= 1) {
+            zoomAnimation.active = false;
+        }
+    }
 
     // --- Classes ---
 
