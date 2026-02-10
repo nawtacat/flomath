@@ -1069,25 +1069,26 @@
         if (!startKf || !endKf) return defaultTransform;
 
         const { duration, easing, aestheticFps } = state.globalTransform;
-        const keyframeDuration = Math.max(0.001, endKf.time - startKf.time);
-
+        
+        const segmentDuration = Math.max(0.001, endKf.time - startKf.time);
         const durationOverride = parseFloat(duration);
-        const durationInSeconds = durationOverride > 0 ? Math.max(0.001, durationOverride) : keyframeDuration;
+        const motionDuration = (!isNaN(durationOverride) && durationOverride > 0) 
+            ? durationOverride 
+            : segmentDuration;
 
-        let rawProgress = (time - startKf.time) / durationInSeconds;
-        rawProgress = Math.max(0, Math.min(1, rawProgress));
+        let progress = (time - startKf.time) / motionDuration;
+        progress = Math.max(0, Math.min(1, progress));
 
-        const fpsValue = parseFloat(aestheticFps);
-        if (!Number.isNaN(fpsValue) && fpsValue > 0) {
-            const totalFrames = Math.floor(durationInSeconds * fpsValue);
-            if (totalFrames > 0 && rawProgress < 1) {
-                const currentFrame = Math.floor(rawProgress * totalFrames);
-                rawProgress = currentFrame / totalFrames;
+        const fps = parseFloat(aestheticFps);
+        if (!isNaN(fps) && fps > 0) {
+            const totalFrames = Math.floor(motionDuration * fps);
+            if (totalFrames > 0) {
+                progress = Math.floor(progress * totalFrames) / totalFrames;
             }
         }
 
         const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
-        const finalProgress = easingFn(rawProgress);
+        const finalProgress = easingFn(progress);
 
         const scale = startKf.scale + (endKf.scale - startKf.scale) * finalProgress;
         const x = startKf.x + (endKf.x - startKf.x) * finalProgress;
