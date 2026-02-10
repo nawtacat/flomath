@@ -556,7 +556,8 @@
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // Draw Laye        state.layers.forEach(layer => {
+        // Draw Layers
+        state.layers.forEach(layer => {
             // Check visibility based on time
             if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
 
