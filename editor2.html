@@ -1046,17 +1046,19 @@
 
     function getGlobalTransform(time) {
         const kfs = state.globalTransform.keyframes;
-        const defaultTransform = { scale: 1, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, finalProgress: undefined };
+        // Default with finalProgress 0 to prevent audio glitching on init
+        const defaultTransform = { scale: 1, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, finalProgress: 0 };
 
-        if (kfs.length === 0) {
-            return defaultTransform;
-        }
+        if (kfs.length === 0) return defaultTransform;
 
+        // Ensure sorted
         kfs.sort((a, b) => a.time - b.time);
 
+        // Boundary checks (Before first keyframe or after last)
         if (time <= kfs[0].time) return { ...kfs[0], finalProgress: 0 };
         if (time >= kfs[kfs.length - 1].time) return { ...kfs[kfs.length - 1], finalProgress: 1 };
 
+        // Find the active segment
         let startKf, endKf;
         for (let i = 0; i < kfs.length - 1; i++) {
             if (time >= kfs[i].time && time < kfs[i+1].time) {
@@ -1070,28 +1072,41 @@
 
         const { duration, easing, aestheticFps } = state.globalTransform;
         
+        // Duration Logic
         const segmentDuration = Math.max(0.001, endKf.time - startKf.time);
         const durationOverride = parseFloat(duration);
         const motionDuration = (!isNaN(durationOverride) && durationOverride > 0) 
             ? durationOverride 
             : segmentDuration;
 
-        // Calculate raw progress first
-        let progress = (time - startKf.time) / motionDuration;
-        
+        // --- STEPPING LOGIC START ---
         const fps = parseFloat(aestheticFps);
-        if (!isNaN(fps) && fps > 0 && fps < 60) {
+        let progress;
+
+        // Apply stepping if fps is valid and reasonably low (e.g. < 120)
+        // We remove the strict "< 60" check to ensure it works even on high-refresh monitors if the user types 60
+        if (!isNaN(fps) && fps > 0 && fps < 120) {
             const frameDuration = 1 / fps;
-            const timeSinceStart = time - startKf.time;
+            // Use Math.max(0) to prevent negative time glitches
+            const timeSinceStart = Math.max(0, time - startKf.time);
+            
+            // Quantize time to the nearest frame floor
             const steppedTime = Math.floor(timeSinceStart / frameDuration) * frameDuration;
             progress = steppedTime / motionDuration;
+        } else {
+            // Smooth motion fallback
+            progress = (time - startKf.time) / motionDuration;
         }
-        
+        // --- STEPPING LOGIC END ---
+
+        // Clamp Progress 0-1
         progress = Math.max(0, Math.min(1, progress));
 
+        // Apply Easing
         const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
         const finalProgress = easingFn(progress);
 
+        // Interpolate Values
         const scale = startKf.scale + (endKf.scale - startKf.scale) * finalProgress;
         const x = startKf.x + (endKf.x - startKf.x) * finalProgress;
         const y = startKf.y + (endKf.y - startKf.y) * finalProgress;
