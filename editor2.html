@@ -329,7 +329,7 @@
                 <input type="number" id="global-prop-y" onchange="updateCurrentGlobalTransform('y', this.value)">
                 <button class="secondary" style="padding:2px 6px;" onclick="addGlobalKeyframe()">◆</button>
             </div>
-            <div id="global-zoom-controls" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+            <div id="global-zoom-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Motion Controls</label>
                 <div class="property-row" style="margin-bottom: 10px;">
                     <span style="width: 90px;">Duration (s)</span>
@@ -445,6 +445,9 @@
     const PIXELS_PER_SECOND = 50; // Timeline zoom
     
     const canvas = document.getElementById('editor-canvas');
+    const zoomClickSound = new Audio('https://flomath.space/audio/click.mp3');
+    zoomClickSound.preload = 'auto';
+
     const ctx = canvas.getContext('2d');
     const bufferCanvas = document.createElement('canvas');
     bufferCanvas.width = CANVAS_WIDTH;
@@ -472,6 +475,7 @@
             x: CANVAS_WIDTH / 2,
             y: CANVAS_HEIGHT / 2
         },
+        lastGlobalFinalProgress: undefined,
     };
 
     let animationFrameId;
@@ -613,6 +617,7 @@
         canvas.addEventListener('mousedown', handleCanvasMouseDown);
         canvas.addEventListener('mousemove', handleCanvasMouseMove);
         canvas.addEventListener('mouseup', handleCanvasMouseUp);
+        updateGlobalMotionControlsUI();
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
@@ -756,6 +761,16 @@
         // --- NEW PART ---
         // Get global transform and draw buffer to main canvas
         const transform = getGlobalTransform(state.currentTime);
+
+        // --- AUDIO CLICK LOGIC ---
+        if (transform.finalProgress !== undefined && transform.finalProgress !== state.lastGlobalFinalProgress) {
+            if (state.isPlaying) { // Only play during playback
+                zoomClickSound.currentTime = 0;
+                zoomClickSound.play().catch(e => {}); // Autoplay can be blocked by browser
+            }
+        }
+        state.lastGlobalFinalProgress = transform.finalProgress;
+
 
         // Clear main canvas
         ctx.fillStyle = '#111'; // Match viewport background
@@ -1022,7 +1037,7 @@
 
     function getGlobalTransform(time) {
         const kfs = state.globalTransform.keyframes;
-        const defaultTransform = { scale: 1, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
+        const defaultTransform = { scale: 1, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, finalProgress: undefined };
 
         if (kfs.length === 0) {
             return defaultTransform;
@@ -1030,8 +1045,8 @@
 
         kfs.sort((a, b) => a.time - b.time);
 
-        if (time <= kfs[0].time) return { ...kfs[0] };
-        if (time >= kfs[kfs.length - 1].time) return { ...kfs[kfs.length - 1] };
+        if (time <= kfs[0].time) return { ...kfs[0], finalProgress: 0 };
+        if (time >= kfs[kfs.length - 1].time) return { ...kfs[kfs.length - 1], finalProgress: 1 };
 
         let startKf, endKf;
         for (let i = 0; i < kfs.length - 1; i++) {
@@ -1085,7 +1100,7 @@
         const x = startKf.x + (endKf.x - startKf.x) * finalProgress;
         const y = startKf.y + (endKf.y - startKf.y) * finalProgress;
 
-        return { scale, x, y };
+        return { scale, x, y, finalProgress };
     }
 
     function updateCurrentGlobalTransform(prop, value) {
