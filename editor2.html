@@ -503,6 +503,15 @@
         sourceSlotId: null
     };
 
+    const GLOBAL_EASING_FUNCTIONS = {
+        'linear': (t) => t,
+        'ease-in': (t) => Math.pow(t, 5),
+        'ease-out': (t) => 1 - Math.pow(1 - t, 5),
+        'ease-in-out': (t) => t < 0.5
+            ? 16 * Math.pow(t, 5)
+            : 1 - Math.pow(-2 * t + 2, 5) / 2
+    };
+
 
     // --- Classes ---
 
@@ -1057,43 +1066,26 @@
             }
         }
 
-        if (!startKf) return defaultTransform;
+        if (!startKf || !endKf) return defaultTransform;
 
         const { duration, easing, aestheticFps } = state.globalTransform;
-        const keyframeDuration = endKf.time - startKf.time;
+        const keyframeDuration = Math.max(0.001, endKf.time - startKf.time);
 
-        let progress = (time - startKf.time) / keyframeDuration;
+        const durationOverride = parseFloat(duration);
+        const progressDenominator = durationOverride > 0 ? Math.max(0.001, durationOverride) : keyframeDuration;
 
-        if (duration !== 'auto' && parseFloat(duration) > 0) {
-            progress = (time - startKf.time) / parseFloat(duration);
-        }
+        let progress = (time - startKf.time) / progressDenominator;
         progress = Math.max(0, Math.min(1, progress));
 
-        let easedProgress = progress;
-        switch(easing) {
-            case 'ease-in':
-                easedProgress = Math.pow(progress, 5); // Quintic ease-in
-                break;
-            case 'ease-out':
-                easedProgress = 1 - Math.pow(1 - progress, 5); // Quintic ease-out
-                break;
-            case 'ease-in-out':
-                easedProgress = progress < 0.5 
-                    ? 16 * Math.pow(progress, 5) 
-                    : 1 - Math.pow(-2 * progress + 2, 5) / 2; // Quintic ease-in-out
-                break;
-            case 'linear':
-            default:
-                // Eased progress is just linear progress
-                break;
-        }
+        const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
+        let easedProgress = easingFn(progress);
 
+        const fpsValue = parseFloat(aestheticFps);
         let finalProgress = easedProgress;
-        if (aestheticFps < 60 && aestheticFps > 0) {
-            const totalSteps = keyframeDuration * aestheticFps;
-            if (totalSteps > 0) {
-                finalProgress = Math.floor(easedProgress * totalSteps) / totalSteps;
-            }
+        if (fpsValue > 0) {
+            const totalSteps = Math.max(1, Math.round(keyframeDuration * fpsValue));
+            finalProgress = Math.floor(easedProgress * totalSteps) / totalSteps;
+            finalProgress = Math.max(0, Math.min(1, finalProgress));
         }
 
         const scale = startKf.scale + (endKf.scale - startKf.scale) * finalProgress;
