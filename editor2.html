@@ -203,15 +203,6 @@
             background: rgba(255, 255, 255, 0.02);
         }
 
-        #zoom-selection-overlay {
-            position: absolute;
-            border: 2px dashed rgba(23, 193, 255, 0.9);
-            background: rgba(23, 193, 255, 0.15);
-            pointer-events: none;
-            display: none;
-            z-index: 15;
-        }
-
         .layer-track.placeholder {
             height: 40px;
             border: 1px dashed #555;
@@ -321,40 +312,6 @@
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
         </div>
 
-        <div class="control-group" id="zoom-control-panel">
-            <label>Smart Zoom</label>
-            <p style="font-size:12px; color:#bbb; margin-bottom:8px;">
-                Region-Based Eased Zoom Control: pick a target area, set duration, frame rate, and easing so the zoom snaps in fast and gently settles.
-            </p>
-            <div class="property-row">
-                <span>Duration</span>
-                <input type="number" id="zoom-duration" min="0.2" step="0.1" value="2">
-                <span>sec</span>
-            </div>
-            <div class="property-row">
-                <span>Zoom factor</span>
-                <input type="number" id="zoom-factor" min="0.5" max="5" step="0.1" value="1">
-            </div>
-            <div class="property-row">
-                <span>Easing</span>
-                <select id="zoom-easing" style="flex:1; margin-left:8px;">
-                    <option value="easeOutQuad">Fast start / slow finish</option>
-                    <option value="easeOutCubic">Smooth cinematic</option>
-                </select>
-            </div>
-            <div class="property-row">
-                <span>Frame rate</span>
-                <input type="number" id="zoom-framerate" min="1" step="1" value="60">
-            </div>
-            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
-                <button class="secondary" id="btn-define-zoom-region">Define Zoom Region</button>
-                <button class="secondary" id="btn-start-zoom">Apply Zoom</button>
-                <button class="secondary" id="btn-reset-zoom">Reset Zoom</button>
-                <button class="secondary" id="btn-zoom-keyframe">Keyframe</button>
-            </div>
-            <div id="zoom-region-status" style="font-size:12px; color:#888; margin-top:8px;">Region not defined.</div>
-        </div>
-
         <div class="control-group" id="properties-panel" style="display:none;">
             <label>Properties (Keyframable)</label>
             <div style="margin-bottom:10px; font-weight:bold;" id="selected-layer-name">Layer</div>
@@ -410,8 +367,6 @@
     <div class="viewport">
         <!-- 1080x1920 scaled down to fit -->
         <canvas id="editor-canvas" width="1080" height="1920"></canvas>
-        <div id="zoom-selection-overlay"></div>
-        <button class="secondary" id="btn-whole-control" style="position:absolute; top:12px; right:12px; z-index:50;">Whole Control</button>
     </div>
 </div>
 
@@ -423,6 +378,7 @@
     </div>
     <div class="timeline-tracks" id="timeline-tracks">
         <div id="drop-indicator"></div>
+        <div id="global-zoom-track" class="layer-track" style="height:20px; background: #2a2a2d; border-bottom: 1px solid #555;"></div>
         <div class="scrubber-track" id="scrubber"></div>
         <div class="playhead" id="playhead"></div>
         <!-- Tracks go here -->
@@ -447,23 +403,14 @@
     const CANVAS_HEIGHT = 1920;
     const FPS = 60;
     const PIXELS_PER_SECOND = 50; // Timeline zoom
-    const ZOOM_FRAME_WIDTH = CANVAS_WIDTH;
-    const ZOOM_FRAME_HEIGHT = CANVAS_HEIGHT;
-    const MIN_SELECTION_SCALE = 0.3;
-    const MAX_SELECTION_SCALE = 1;
-    const ZOOM_RESIZE_ZONE = 40; // px from bottom for resize hit area
-
+    
     const canvas = document.getElementById('editor-canvas');
     const ctx = canvas.getContext('2d');
-    const zoomSelectionOverlay = document.getElementById('zoom-selection-overlay');
-    const zoomRegionStatus = document.getElementById('zoom-region-status');
-    const btnDefineZoomRegion = document.getElementById('btn-define-zoom-region');
-    const btnStartZoom = document.getElementById('btn-start-zoom');
-    const btnResetZoom = document.getElementById('btn-reset-zoom');
-    const zoomDurationInput = document.getElementById('zoom-duration');
-    const zoomFactorInput = document.getElementById('zoom-factor');
-    const zoomEasingSelect = document.getElementById('zoom-easing');
-    const zoomFramerateInput = document.getElementById('zoom-framerate');
+    const bufferCanvas = document.createElement('canvas');
+    bufferCanvas.width = CANVAS_WIDTH;
+    bufferCanvas.height = CANVAS_HEIGHT;
+    const bufferCtx = bufferCanvas.getContext('2d');
+
     
     let state = {
         currentTime: 0, // in seconds
@@ -474,7 +421,17 @@
         nextId: 1,
         layerSlots: [],
         nextSlotId: 1,
-        zoomKeyframes: []
+        globalTransform: {
+            keyframes: [], // { time, scale, x, y }
+            duration: 'auto', // 'auto' or seconds
+            easing: 'ease-out',
+            aestheticFps: 60
+        },
+        currentGlobalTransform: {
+            scale: 1,
+            x: CANVAS_WIDTH / 2,
+            y: CANVAS_HEIGHT / 2
+        },
     };
 
     let animationFrameId;
@@ -502,282 +459,6 @@
         sourceSlotId: null
     };
 
-    const zoomAnimation = {
-        active: false,
-        duration: 2,
-        zoomFactor: 1,
-        easing: 'easeOutQuad',
-        frameRate: 60,
-        startTime: 0,
-        displayProgress: 0,
-        lastFrameTimestamp: 0,
-        currentTransform: { scale: 1, offsetX: 0, offsetY: 0 },
-        startTransform: { scale: 1, offsetX: 0, offsetY: 0 },
-        targetTransform: { scale: 1, offsetX: 0, offsetY: 0 }
-    };
-
-    const wholeControlState = {
-        region: null,
-        editing: false
-    };
-
-    const wholeControlInteraction = {
-        mode: null,
-        startPos: { x: 0, y: 0 },
-        startRegion: null,
-        rectAtStart: null
-    };
-
-    function clamp(value, min, max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    function formatTimestamp(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        const ms = Math.floor((seconds % 1) * 100);
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-    }
-
-    function getZoomRegionRect(region = wholeControlState.region) {
-        if (!region) return null;
-        const width = ZOOM_FRAME_WIDTH * region.scale;
-        const height = ZOOM_FRAME_HEIGHT * region.scale;
-        const halfWidth = width / 2;
-        const halfHeight = height / 2;
-        return {
-            width,
-            height,
-            left: region.centerX - halfWidth,
-            top: region.centerY - halfHeight,
-            right: region.centerX + halfWidth,
-            bottom: region.centerY + halfHeight
-        };
-    }
-
-    function clampZoomRegion(region = wholeControlState.region) {
-        if (!region) return;
-        const rect = getZoomRegionRect(region);
-        if (!rect) return;
-        region.centerX = clamp(region.centerX, rect.width / 2, CANVAS_WIDTH - rect.width / 2);
-        region.centerY = clamp(region.centerY, rect.height / 2, CANVAS_HEIGHT - rect.height / 2);
-    }
-
-    function updateZoomOverlay() {
-        const region = wholeControlState.region;
-        if (!region) {
-            zoomSelectionOverlay.style.display = 'none';
-            return;
-        }
-        clampZoomRegion(region);
-        const rect = getZoomRegionRect(region);
-        if (!rect) {
-            zoomSelectionOverlay.style.display = 'none';
-            return;
-        }
-        const viewportRect = canvas.parentElement.getBoundingClientRect();
-        const scaleX = viewportRect.width / CANVAS_WIDTH;
-        const scaleY = viewportRect.height / CANVAS_HEIGHT;
-        zoomSelectionOverlay.style.display = 'block';
-        zoomSelectionOverlay.style.left = `${rect.left * scaleX}px`;
-        zoomSelectionOverlay.style.top = `${rect.top * scaleY}px`;
-        zoomSelectionOverlay.style.width = `${rect.width * scaleX}px`;
-        zoomSelectionOverlay.style.height = `${rect.height * scaleY}px`;
-        zoomSelectionOverlay.style.pointerEvents = wholeControlState.editing ? 'auto' : 'none';
-        zoomSelectionOverlay.style.cursor = wholeControlState.editing ? 'move' : 'default';
-    }
-
-    function defineZoomRegion() {
-        wholeControlState.region = {
-            centerX: CANVAS_WIDTH / 2,
-            centerY: CANVAS_HEIGHT / 2,
-            scale: 1
-        };
-        updateZoomOverlay();
-        zoomRegionStatus.innerText = `Region reset to 1080×1920; use Whole Control to resize and add keyframes.`;
-    }
-
-    function getTransformFromRegion(region, multiplier = 1) {
-        const scale = (1 / region.scale) * multiplier;
-        return {
-            scale,
-            offsetX: CANVAS_WIDTH / 2 - region.centerX * scale,
-            offsetY: CANVAS_HEIGHT / 2 - region.centerY * scale
-        };
-    }
-
-    function recordZoomKeyframe() {
-        if (!wholeControlState.region) {
-            defineZoomRegion();
-        }
-        const region = { ...wholeControlState.region };
-        const time = state.currentTime;
-        const existing = state.zoomKeyframes.find(kf => Math.abs(kf.time - time) < 0.05);
-        if (existing) {
-            existing.region = region;
-        } else {
-            state.zoomKeyframes.push({ time, region });
-        }
-        state.zoomKeyframes.sort((a, b) => a.time - b.time);
-        const count = state.zoomKeyframes.length;
-        if (count >= 2) {
-            zoomRegionStatus.innerText = `Keyframe saved at ${formatTimestamp(time)}. ${count} saved – start = ${formatTimestamp(state.zoomKeyframes[0].time)}, end = ${formatTimestamp(state.zoomKeyframes[count-1].time)}.`;
-        } else {
-            zoomRegionStatus.innerText = `Keyframe ${count} saved at ${formatTimestamp(time)}. Add one more to define the zoom range.`;
-        }
-        updateZoomOverlay();
-    }
-
-    function toggleWholeControlMode() {
-        wholeControlState.editing = !wholeControlState.editing;
-        const btn = document.getElementById('btn-whole-control');
-        if (wholeControlState.editing) {
-            if (!wholeControlState.region) defineZoomRegion();
-            btn.innerText = 'Exit Whole Control';
-            zoomRegionStatus.innerText = 'Whole Control active: drag inside to move or near the bottom to stretch.';
-        } else {
-            btn.innerText = 'Whole Control';
-            zoomRegionStatus.innerText = 'Whole Control disabled.';
-        }
-        updateZoomOverlay();
-    }
-
-    function startSmartZoom() {
-        if (state.zoomKeyframes.length < 2) {
-            zoomRegionStatus.innerText = 'Add at least two keyframes to define the zoom range before playing.';
-            return;
-        }
-        zoomAnimation.duration = Math.max(0.2, parseFloat(zoomDurationInput.value) || 2);
-        zoomAnimation.zoomFactor = parseFloat(zoomFactorInput.value) || 1;
-        zoomAnimation.easing = zoomEasingSelect.value || 'easeOutQuad';
-        zoomAnimation.frameRate = Math.max(1, parseInt(zoomFramerateInput.value) || 60);
-
-        const startKeyframe = state.zoomKeyframes[0];
-        const endKeyframe = state.zoomKeyframes[state.zoomKeyframes.length - 1];
-        const startTransform = getTransformFromRegion(startKeyframe.region);
-        const targetTransform = getTransformFromRegion(endKeyframe.region, zoomAnimation.zoomFactor);
-
-        zoomAnimation.startTransform = startTransform;
-        zoomAnimation.currentTransform = { ...startTransform };
-        zoomAnimation.targetTransform = targetTransform;
-        zoomAnimation.active = true;
-        zoomAnimation.startTime = 0;
-        zoomAnimation.lastFrameTimestamp = 0;
-        zoomAnimation.displayProgress = 0;
-        zoomRegionStatus.innerText = `Zooming from ${formatTimestamp(startKeyframe.time)} to ${formatTimestamp(endKeyframe.time)} in ${zoomAnimation.duration}s.`;
-    }
-
-    function resetSmartZoom() {
-        zoomAnimation.active = false;
-        zoomAnimation.currentTransform = { scale: 1, offsetX: 0, offsetY: 0 };
-        zoomAnimation.startTransform = { scale: 1, offsetX: 0, offsetY: 0 };
-        zoomAnimation.targetTransform = { scale: 1, offsetX: 0, offsetY: 0 };
-        zoomRegionStatus.innerText = 'Zoom reset.';
-        state.zoomKeyframes = [];
-        wholeControlState.region = null;
-        wholeControlState.editing = false;
-        const btn = document.getElementById('btn-whole-control');
-        if (btn) btn.innerText = 'Whole Control';
-        updateZoomOverlay();
-    }
-
-    function handleZoomOverlayPointerDown(event) {
-        if (!wholeControlState.editing) return;
-        const region = wholeControlState.region;
-        if (!region) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const pos = getPointerPos(event);
-        const rect = getZoomRegionRect(region);
-        if (!rect) return;
-        const withinHorizontal = pos.x >= rect.left && pos.x <= rect.right;
-        const inside = withinHorizontal && pos.y >= rect.top && pos.y <= rect.bottom;
-        const nearBottom = withinHorizontal && pos.y >= rect.bottom - ZOOM_RESIZE_ZONE && pos.y <= rect.bottom + ZOOM_RESIZE_ZONE;
-        if (!inside && !nearBottom) return;
-        wholeControlInteraction.mode = nearBottom ? 'resize' : 'move';
-        wholeControlInteraction.startPos = { ...pos };
-        wholeControlInteraction.startRegion = { ...region };
-        wholeControlInteraction.rectAtStart = { ...rect };
-    }
-
-    function handleZoomOverlayPointerMove(event) {
-        if (!wholeControlInteraction.mode) return;
-        event.preventDefault();
-        const pos = getPointerPos(event);
-        const region = wholeControlState.region;
-        if (!region || !wholeControlInteraction.startRegion || !wholeControlInteraction.rectAtStart) return;
-
-        if (wholeControlInteraction.mode === 'move') {
-            const dx = pos.x - wholeControlInteraction.startPos.x;
-            const dy = pos.y - wholeControlInteraction.startPos.y;
-            region.centerX = wholeControlInteraction.startRegion.centerX + dx;
-            region.centerY = wholeControlInteraction.startRegion.centerY + dy;
-            clampZoomRegion(region);
-        } else if (wholeControlInteraction.mode === 'resize') {
-            const deltaY = pos.y - wholeControlInteraction.startPos.y;
-            const startHeight = ZOOM_FRAME_HEIGHT * wholeControlInteraction.startRegion.scale;
-            const desiredHeight = clamp(startHeight + deltaY, ZOOM_FRAME_HEIGHT * MIN_SELECTION_SCALE, ZOOM_FRAME_HEIGHT * MAX_SELECTION_SCALE);
-            const newScale = desiredHeight / ZOOM_FRAME_HEIGHT;
-            region.scale = newScale;
-            const startTop = wholeControlInteraction.rectAtStart.top;
-            region.centerY = startTop + desiredHeight / 2;
-            region.centerX = wholeControlInteraction.startRegion.centerX;
-            clampZoomRegion(region);
-        }
-        updateZoomOverlay();
-    }
-
-    function handleZoomOverlayPointerUp() {
-        wholeControlInteraction.mode = null;
-        wholeControlInteraction.startRegion = null;
-        wholeControlInteraction.rectAtStart = null;
-    }
-
-
-    function getZoomEasedProgress(easing, t) {
-        switch (easing) {
-            case 'easeOutCubic':
-                return 1 - Math.pow(1 - t, 3);
-            case 'easeOutQuad':
-            default:
-                return t * (2 - t);
-        }
-    }
-
-    function updateZoomAnimation(timestamp) {
-        if (!zoomAnimation.active) {
-            zoomAnimation.startTime = 0;
-            zoomAnimation.lastFrameTimestamp = timestamp;
-            return;
-        }
-
-        const frameIntervalMs = 1000 / Math.max(1, zoomAnimation.frameRate);
-        if (timestamp - zoomAnimation.lastFrameTimestamp < frameIntervalMs && zoomAnimation.lastFrameTimestamp !== 0) {
-            return;
-        }
-        zoomAnimation.lastFrameTimestamp = timestamp;
-
-        if (zoomAnimation.startTime === 0) {
-            zoomAnimation.startTime = timestamp;
-        }
-
-        const elapsed = (timestamp - zoomAnimation.startTime) / 1000;
-        const rawProgress = Math.min(1, elapsed / Math.max(0.001, zoomAnimation.duration));
-        const eased = getZoomEasedProgress(zoomAnimation.easing, rawProgress);
-        zoomAnimation.displayProgress = eased;
-
-        const scaleDelta = zoomAnimation.targetTransform.scale - zoomAnimation.startTransform.scale;
-        const offsetXDelta = zoomAnimation.targetTransform.offsetX - zoomAnimation.startTransform.offsetX;
-        const offsetYDelta = zoomAnimation.targetTransform.offsetY - zoomAnimation.startTransform.offsetY;
-
-        zoomAnimation.currentTransform.scale = zoomAnimation.startTransform.scale + scaleDelta * eased;
-        zoomAnimation.currentTransform.offsetX = zoomAnimation.startTransform.offsetX + offsetXDelta * eased;
-        zoomAnimation.currentTransform.offsetY = zoomAnimation.startTransform.offsetY + offsetYDelta * eased;
-
-        if (rawProgress >= 1) {
-            zoomAnimation.active = false;
-        }
-    }
 
     // --- Classes ---
 
@@ -906,28 +587,21 @@
                 state.isPlaying = false;
                 updatePlayButton();
             }
-            updateTimelineUI();
-            updatePropertiesPanel(); // Update inputs as values animate
+            updateTimelineUI(); // Update inputs as values animate
+            updateAllPanels();
         }
 
-        updateZoomAnimation(timestamp);
         renderCanvas();
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
     function renderCanvas() {
         rebuildSlotAssignments();
-        // Clear
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        // Clear buffer canvas
+        bufferCtx.fillStyle = '#000';
+        bufferCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-        // Apply Smart Zoom transform
-        const transform = zoomAnimation.currentTransform;
-        ctx.save();
-        ctx.translate(transform.offsetX, transform.offsetY);
-        ctx.scale(transform.scale, transform.scale);
-
-        // Draw Layers
+        // Draw Layers to buffer
         const layersToRender = [...state.layers].sort((a, b) => {
             const slotA = getSlotIndexById(a.slotId);
             const slotB = getSlotIndexById(b.slotId);
@@ -939,9 +613,6 @@
             // Check visibility based on time
             if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
 
-            // Calculate animated properties
-            const relativeTime = state.currentTime - layer.startTime; // Keyframes are relative to layer start? No, let's make them absolute for simplicity in this MVP
-            // Actually, making keyframes absolute to the timeline is easier for the user.
             
             const x = layer.getValue('x', state.currentTime);
             let y = layer.getValue('y', state.currentTime);
@@ -967,21 +638,21 @@
                 }
             }
 
-            ctx.save();
-            ctx.globalAlpha = opacity;
-            ctx.translate(x, y);
-            ctx.rotate(rotation * Math.PI / 180);
-            ctx.scale(scale, scale);
+            bufferCtx.save();
+            bufferCtx.globalAlpha = opacity;
+            bufferCtx.translate(x, y);
+            bufferCtx.rotate(rotation * Math.PI / 180);
+            bufferCtx.scale(scale, scale);
 
             if (layer.type === 'text') {
-                ctx.font = 'bold 100px Arial';
-                ctx.fillStyle = layer.color;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(layer.content, 0, 0);
+                bufferCtx.font = 'bold 100px Arial';
+                bufferCtx.fillStyle = layer.color;
+                bufferCtx.textAlign = 'center';
+                bufferCtx.textBaseline = 'middle';
+                bufferCtx.fillText(layer.content, 0, 0);
             } else if (layer.type === 'image') {
                 const img = layer.content;
-                ctx.drawImage(img, -img.width/2, -img.height/2);
+                bufferCtx.drawImage(img, -img.width/2, -img.height/2);
             } else if (layer.type === 'video') {
                 const vid = layer.content;
                 // Sync video time
@@ -994,44 +665,67 @@
                     vid.currentTime = vidTime;
                 }
                 
-                ctx.drawImage(vid, -vid.videoWidth/2, -vid.videoHeight/2);
+                bufferCtx.drawImage(vid, -vid.videoWidth/2, -vid.videoHeight/2);
             }
 
             // Selection outline
             if (state.selectedLayerId === layer.id) {
-                ctx.strokeStyle = '#007acc';
-                ctx.lineWidth = 5;
-                ctx.beginPath();
+                bufferCtx.strokeStyle = '#007acc';
+                bufferCtx.lineWidth = 5;
+                bufferCtx.beginPath();
                 const w = layer.width || 100;
                 const h = layer.height || 100;
-                ctx.rect(-w/2, -h/2, w, h);
-                ctx.stroke();
+                bufferCtx.rect(-w/2, -h/2, w, h);
+                bufferCtx.stroke();
 
                 // Draw Resize Handles (Corners)
-                ctx.fillStyle = 'white';
+                bufferCtx.fillStyle = 'white';
                 const handleSize = 20 / scale; // Keep handles consistent visual size
                 const corners = [
                     {x: -w/2, y: -h/2}, {x: w/2, y: -h/2},
                     {x: w/2, y: h/2}, {x: -w/2, y: h/2}
                 ];
                 corners.forEach(c => {
-                    ctx.fillRect(c.x - handleSize/2, c.y - handleSize/2, handleSize, handleSize);
+                    bufferCtx.fillRect(c.x - handleSize/2, c.y - handleSize/2, handleSize, handleSize);
                 });
 
                 // Rotation Handle (Top)
-                ctx.beginPath();
-                ctx.moveTo(0, -h/2);
-                ctx.lineTo(0, -h/2 - 50/scale);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.arc(0, -h/2 - 50/scale, 10/scale, 0, Math.PI*2);
-                ctx.fill();
+                bufferCtx.beginPath();
+                bufferCtx.moveTo(0, -h/2);
+                bufferCtx.lineTo(0, -h/2 - 50/scale);
+                bufferCtx.stroke();
+                bufferCtx.beginPath();
+                bufferCtx.arc(0, -h/2 - 50/scale, 10/scale, 0, Math.PI*2);
+                bufferCtx.fill();
             }
 
-            ctx.restore();
+            bufferCtx.restore();
         });
 
+        // --- NEW PART ---
+        // Get global transform and draw buffer to main canvas
+        const transform = getGlobalTransform(state.currentTime);
+
+        // Clear main canvas
+        ctx.fillStyle = '#111'; // Match viewport background
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // Apply global transform
+        ctx.save();
+        // Center the view on the transformed point, and scale.
+        ctx.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        ctx.scale(transform.scale, transform.scale);
+        ctx.translate(-transform.x, -transform.y);
+
+        // Draw the pre-composited frame from the buffer
+        ctx.drawImage(bufferCanvas, 0, 0);
+
         ctx.restore();
+    }
+
+    function updateAllPanels() {
+        updatePropertiesPanel();
+        updateGlobalTransformPanel();
     }
 
     function createLayerSlot(name = null, insertIndex = state.layerSlots.length) {
@@ -1263,6 +957,102 @@
         }
     }
 
+    // --- Global Zoom & Transform ---
+
+    function getGlobalTransform(time) {
+        const kfs = state.globalTransform.keyframes;
+        const defaultTransform = { scale: 1, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
+
+        if (kfs.length === 0) {
+            return defaultTransform;
+        }
+
+        kfs.sort((a, b) => a.time - b.time);
+
+        if (time <= kfs[0].time) return { ...kfs[0] };
+        if (time >= kfs[kfs.length - 1].time) return { ...kfs[kfs.length - 1] };
+
+        let startKf, endKf;
+        for (let i = 0; i < kfs.length - 1; i++) {
+            if (time >= kfs[i].time && time < kfs[i+1].time) {
+                startKf = kfs[i];
+                endKf = kfs[i+1];
+                break;
+            }
+        }
+
+        if (!startKf) return defaultTransform;
+
+        const { duration, easing, aestheticFps } = state.globalTransform;
+        const keyframeDuration = endKf.time - startKf.time;
+
+        let progress = (time - startKf.time) / keyframeDuration;
+
+        if (duration !== 'auto' && parseFloat(duration) > 0) {
+            progress = (time - startKf.time) / parseFloat(duration);
+        }
+        progress = Math.max(0, Math.min(1, progress));
+
+        let easedProgress = progress;
+        if (easing === 'ease-out') {
+            easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+        }
+
+        let finalProgress = easedProgress;
+        if (aestheticFps < 60 && aestheticFps > 0) {
+            const totalSteps = keyframeDuration * aestheticFps;
+            if (totalSteps > 0) {
+                finalProgress = Math.floor(easedProgress * totalSteps) / totalSteps;
+            }
+        }
+
+        const scale = startKf.scale + (endKf.scale - startKf.scale) * finalProgress;
+        const x = startKf.x + (endKf.x - startKf.x) * finalProgress;
+        const y = startKf.y + (endKf.y - startKf.y) * finalProgress;
+
+        return { scale, x, y };
+    }
+
+    function updateCurrentGlobalTransform(prop, value) {
+        state.currentGlobalTransform[prop] = parseFloat(value);
+    }
+
+    function addGlobalKeyframe() {
+        const time = state.currentTime;
+        state.globalTransform.keyframes = state.globalTransform.keyframes.filter(k => Math.abs(k.time - time) > 0.01);
+        state.globalTransform.keyframes.push({
+            time: time,
+            scale: state.currentGlobalTransform.scale,
+            x: state.currentGlobalTransform.x,
+            y: state.currentGlobalTransform.y,
+        });
+        state.globalTransform.keyframes.sort((a, b) => a.time - b.time);
+        renderGlobalTimeline();
+        updateGlobalMotionControlsUI();
+    }
+
+    function updateGlobalMotion(prop, value) {
+        state.globalTransform[prop] = value;
+    }
+
+    function updateGlobalMotionControlsUI() {
+        const panel = document.getElementById('global-zoom-controls');
+        panel.style.display = state.globalTransform.keyframes.length >= 2 ? 'block' : 'none';
+    }
+
+    function updateGlobalTransformPanel() {
+        const transform = getGlobalTransform(state.currentTime);
+        document.getElementById('global-prop-scale').value = transform.scale.toFixed(2);
+        document.getElementById('global-prop-x').value = Math.round(transform.x);
+        document.getElementById('global-prop-y').value = Math.round(transform.y);
+
+        // Sync the staging object
+        state.currentGlobalTransform.scale = transform.scale;
+        state.currentGlobalTransform.x = transform.x;
+        state.currentGlobalTransform.y = transform.y;
+    }
+
+
     // --- Timeline UI ---
 
     function renderTimeline() {
@@ -1272,6 +1062,7 @@
 
         // Set width based on duration
         const width = state.duration * PIXELS_PER_SECOND;
+        renderGlobalTimeline();
         document.getElementById('scrubber').style.width = `${width}px`;
 
         rebuildSlotAssignments();
@@ -1338,6 +1129,21 @@
         updateTimelineUI();
     }
 
+    function renderGlobalTimeline() {
+        const track = document.getElementById('global-zoom-track');
+        if (!track) return;
+        track.innerHTML = ''; // Clear
+        track.style.width = `${state.duration * PIXELS_PER_SECOND}px`;
+
+        state.globalTransform.keyframes.forEach(kf => {
+            const marker = document.createElement('div');
+            marker.className = 'keyframe-marker';
+            marker.style.left = `${kf.time * PIXELS_PER_SECOND}px`;
+            marker.style.top = '5px';
+            marker.style.background = 'cyan';
+            track.appendChild(marker);
+        });
+    }
     function updateTimelineUI() {
         const playhead = document.getElementById('playhead');
         const timeDisplay = document.getElementById('time-display');
@@ -1364,7 +1170,7 @@
         const time = Math.max(0, offsetX / PIXELS_PER_SECOND);
         state.currentTime = time;
         updateTimelineUI();
-        updatePropertiesPanel();
+        updateAllPanels();
     });
 
     // --- Drag & Drop File Upload ---
@@ -1508,7 +1314,7 @@
         // Canvas Logic
         if (dragState.type.startsWith('canvas-')) {
             handleCanvasDrag(e);
-            updatePropertiesPanel();
+            updateAllPanels();
         }
     }
 
@@ -1699,7 +1505,7 @@
         state.currentTime = 0;
         updatePlayButton();
         updateTimelineUI();
-        updatePropertiesPanel();
+        updateAllPanels();
     };
 
     function updatePlayButton() {
@@ -1742,14 +1548,14 @@
                 clearInterval(frameInterval);
                 state.currentTime = state.duration;
                 renderCanvas();
-                updateTimelineUI();
-                updatePropertiesPanel();
+                updateTimelineUI(); // These are needed to show the final state before stopping
+                updateAllPanels();
                 if (progressCallback) progressCallback(1);
                 recorder.stop();
                 return;
             }
             state.currentTime = frame / FPS;
-            renderCanvas();
+            renderCanvas(); // This now includes global transform
             updateTimelineUI();
             updatePropertiesPanel();
             if (progressCallback) progressCallback(Math.min(1, frame / totalFrames));
@@ -1858,23 +1664,13 @@
             state.currentTime = 0;
             renderCanvas(); // Show first frame
             updateTimelineUI();
-            updatePropertiesPanel();
+            updateAllPanels();
             animationFrameId = requestAnimationFrame(gameLoop); // Restart main loop
         }
 
     };
 
     // Initialize
-    btnDefineZoomRegion.addEventListener('click', defineZoomRegion);
-    btnStartZoom.addEventListener('click', startSmartZoom);
-    btnResetZoom.addEventListener('click', resetSmartZoom);
-    document.getElementById('btn-zoom-keyframe').addEventListener('click', recordZoomKeyframe);
-    document.getElementById('btn-whole-control').addEventListener('click', toggleWholeControlMode);
-    zoomSelectionOverlay.addEventListener('pointerdown', handleZoomOverlayPointerDown);
-    window.addEventListener('pointermove', handleZoomOverlayPointerMove);
-    window.addEventListener('pointerup', handleZoomOverlayPointerUp);
-    window.addEventListener('resize', () => updateZoomOverlay());
-
     // Add global listeners for drag operations
     document.addEventListener('mouseup', () => {
         if (dragState.active) {
