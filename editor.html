@@ -1192,6 +1192,7 @@
         document.removeEventListener('mouseup', stopDrag);
         dragState.active = false;
         dragState.targetSlotIndex = -1;
+        dragState.isReordering = false;
     }
 
     // --- Canvas Interaction ---
@@ -1521,10 +1522,6 @@
     // Initialize
     // Add global listeners for drag operations
     document.addEventListener('mouseup', () => {
-        // Reset drag state on any mouseup event
-        dragState.isReordering = false;
-        dragState.targetSlotIndex = -1;
-
         if (dragState.active) {
             stopDrag();
         }
