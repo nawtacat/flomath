@@ -404,6 +404,7 @@
     <div class="timeline-controls">
         <button id="btn-play">Play</button>
         <button class="secondary" id="btn-stop">Stop</button>
+        <button class="secondary" onclick="addUniversalKeyframe()" title="Add Keyframe for selected layer or global zoom" style="margin-left: 10px;">◆ Add Keyframe</button>
         <span id="time-display" style="margin-left:auto; font-family:monospace;">00:00.00</span>
     </div>
     <div class="timeline-tracks" id="timeline-tracks">
@@ -967,6 +968,19 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         const val = document.getElementById(`prop-${prop}`).value;
         layer.addKeyframe(prop, state.currentTime, val);
+    }
+
+    function addUniversalKeyframe() {
+        if (state.selectedLayerId) {
+            // Add keyframes for all properties of the selected layer
+            const animatableProps = ['x', 'y', 'scale', 'rotation', 'opacity'];
+            animatableProps.forEach(prop => {
+                addKeyframe(prop);
+            });
+        } else {
+            // No layer selected, add a global zoom keyframe
+            addGlobalKeyframe();
+        }
     }
 
     function updateText(val) {
