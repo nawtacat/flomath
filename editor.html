@@ -557,9 +557,10 @@
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         // Draw Layers
-        state.layers.forEach(layer => {
+        for (let i = state.layers.length - 1; i >= 0; i--) {
+            const layer = state.layers[i];
             // Check visibility based on time
-            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
+            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
 
             // Calculate animated properties
             const relativeTime = state.currentTime - layer.startTime; // Keyframes are relative to layer start? No, let's make them absolute for simplicity in this MVP
@@ -1010,8 +1011,8 @@
             }
 
             if (dragState.isReordering) {
-                const tracks = Array.from(document.querySelectorAll('.layer-track'));
-                const timelineRect = document.getElementById('timeline-tracks').getBoundingClientRect();
+                const container = document.getElementById('timeline-tracks');
+                const tracks = Array.from(container.querySelectorAll('.layer-track'));
                 let targetIndex = tracks.length;
                 for (let i = 0; i < tracks.length; i++) {
                     const rect = tracks[i].getBoundingClientRect();
@@ -1022,10 +1023,14 @@
                 }
                 dragState.newOrderIndex = targetIndex;
                 const indicator = document.getElementById('drop-indicator');
-                const indicatorY = targetIndex === tracks.length
-                    ? timelineRect.top + tracks.length * (tracks[0]?.getBoundingClientRect().height || 30)
-                    : tracks[targetIndex].getBoundingClientRect().top;
-                indicator.style.top = `${indicatorY - timelineRect.top}px`;
+                let indicatorTop = 0;
+                if (targetIndex < tracks.length) {
+                    indicatorTop = tracks[targetIndex].offsetTop;
+                } else if (tracks.length) {
+                    const lastTrack = tracks[tracks.length - 1];
+                    indicatorTop = lastTrack.offsetTop + lastTrack.offsetHeight;
+                }
+                indicator.style.top = `${indicatorTop}px`;
                 indicator.style.display = 'block';
             } else {
                 const dTime = dx / PIXELS_PER_SECOND;
