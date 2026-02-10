@@ -1168,7 +1168,7 @@
     }
 
     function stopDrag() {
-        if (dragState.isReordering && dragState.targetSlotIndex >= 0) {
+        if (dragState.targetSlotIndex >= 0) {
             const layer = state.layers.find(l => l.id === dragState.layerId);
             if (layer) {
                 const slotCount = Math.max(state.layerSlots.length, 1);
