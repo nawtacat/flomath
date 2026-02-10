@@ -1118,6 +1118,19 @@
 
         if (dragState.type === 'move-timeline') {
             // Switch to reordering if drag is mostly vertical
+            const tracks = Array.from(document.querySelectorAll('.layer-track'));
+            const containerEl = dragState.timelineContainer || document.getElementById('timeline-tracks');
+            const timelineRect = containerEl.getBoundingClientRect();
+            let targetIndex = tracks.length;
+            for (let i = 0; i < tracks.length; i++) {
+                const rect = tracks[i].getBoundingClientRect();
+                if (e.clientY < rect.top + rect.height / 2) {
+                    targetIndex = i;
+                    break;
+                }
+            }
+            dragState.targetSlotIndex = targetIndex;
+
             if (!dragState.isReordering && Math.abs(dy) > 15 && Math.abs(dy) > Math.abs(dx)) {
                 dragState.isReordering = true;
                 dragState.sourceElement.classList.add('dragging-source');
@@ -1125,18 +1138,6 @@
             }
 
             if (dragState.isReordering) {
-                const tracks = Array.from(document.querySelectorAll('.layer-track'));
-                const containerEl = dragState.timelineContainer || document.getElementById('timeline-tracks');
-                const timelineRect = containerEl.getBoundingClientRect();
-                let targetIndex = tracks.length;
-                for (let i = 0; i < tracks.length; i++) {
-                    const rect = tracks[i].getBoundingClientRect();
-                    if (e.clientY < rect.top + rect.height / 2) {
-                        targetIndex = i;
-                        break;
-                    }
-                }
-                dragState.targetSlotIndex = targetIndex;
                 const indicator = document.getElementById('drop-indicator');
                 let indicatorTop = 0;
                 if (tracks.length === 0) {
