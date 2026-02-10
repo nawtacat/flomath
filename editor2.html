@@ -570,6 +570,17 @@
             renderTimeline(); // Update UI markers
         }
 
+        updateOrAddKeyframe(prop, time, value) {
+            const kfs = this.keyframes[prop];
+            const existing = kfs.find(k => Math.abs(k.time - time) < 0.01);
+            if (existing) {
+                existing.value = parseFloat(value);
+            } else {
+                kfs.push({ time: time, value: parseFloat(value) });
+                kfs.sort((a, b) => a.time - b.time);
+            }
+        }
+
         clone() {
             const newLayer = new Layer(this.type, this.name, this.content);
             // Deep copy serializable properties
@@ -952,15 +963,12 @@
     function updateProperty(prop, value) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        
-        // If we are just changing the input, we update the base value OR the keyframe at this exact time?
-        // For simplicity: If there are keyframes, we don't update base unless we are on a keyframe.
-        // But to make it "Robust", let's say changing a value updates the base property, 
-        // UNLESS we explicitly click "Add Keyframe". 
-        // However, to preview animation, we need to override the interpolated value temporarily?
-        // Let's just update the base property for now, which acts as the default if no keyframes exist.
-        
-        layer[prop] = parseFloat(value);
+
+        if (layer.keyframes[prop] && layer.keyframes[prop].length > 0) {
+            layer.addKeyframe(prop, state.currentTime, value);
+        } else {
+            layer[prop] = parseFloat(value);
+        }
     }
 
     function addKeyframe(prop) {
@@ -1059,6 +1067,10 @@
 
     function updateCurrentGlobalTransform(prop, value) {
         state.currentGlobalTransform[prop] = parseFloat(value);
+        // If keyframes exist, automatically update/add keyframe at current time
+        if (state.globalTransform.keyframes.length > 0) {
+            addGlobalKeyframe();
+        }
     }
 
     function addGlobalKeyframe() {
@@ -1378,6 +1390,9 @@
                 renderTimeline();
             }
         }
+        if (dragState.type && dragState.type.startsWith('canvas-')) {
+            renderTimeline();
+        }
         document.getElementById('drop-indicator').style.display = 'none';
         if (dragState.sourceElement) {
             dragState.sourceElement.classList.remove('dragging-source');
@@ -1485,13 +1500,13 @@
                 layerId: hitLayer.id,
                 startX: pos.x,
                 startY: pos.y,
-                initialX: hitLayer.x,
-                initialY: hitLayer.y,
-                initialRotation: hitLayer.rotation,
-                initialScale: hitLayer.scale,
+                initialX: hitLayer.getValue('x', state.currentTime),
+                initialY: hitLayer.getValue('y', state.currentTime),
+                initialRotation: hitLayer.getValue('rotation', state.currentTime),
+                initialScale: hitLayer.getValue('scale', state.currentTime),
                 // For rotation/scale calculations
-                initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
-                initialDist: Math.sqrt((pos.x - hitLayer.x)**2 + (pos.y - hitLayer.y)**2)
+                initialAngle: Math.atan2(pos.y - hitLayer.getValue('y', state.currentTime), pos.x - hitLayer.getValue('x', state.currentTime)),
+                initialDist: Math.sqrt((pos.x - hitLayer.getValue('x', state.currentTime))**2 + (pos.y - hitLayer.getValue('y', state.currentTime))**2)
             };
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
@@ -1512,28 +1527,38 @@
         const pos = getPointerPos(e);
         const layer = state.layers.find(l => l.id === dragState.layerId);
         
+        const setVal = (prop, val) => {
+            if (layer.keyframes[prop] && layer.keyframes[prop].length > 0) {
+                layer.updateOrAddKeyframe(prop, state.currentTime, val);
+            } else {
+                layer[prop] = val;
+            }
+        };
+
         if (dragState.type === 'canvas-drag') {
             const dx = pos.x - dragState.startX;
             const dy = pos.y - dragState.startY;
             
-            // Update property directly (or add keyframe if we wanted auto-keyframing)
-            // For now, update base property
-            layer.x = dragState.initialX + dx;
-            layer.y = dragState.initialY + dy;
+            setVal('x', dragState.initialX + dx);
+            setVal('y', dragState.initialY + dy);
         }
         else if (dragState.type === 'canvas-rotate') {
             // Calculate new angle
-            const currentAngle = Math.atan2(pos.y - layer.y, pos.x - layer.x);
+            const lx = layer.getValue('x', state.currentTime);
+            const ly = layer.getValue('y', state.currentTime);
+            const currentAngle = Math.atan2(pos.y - ly, pos.x - lx);
             const dAngle = currentAngle - dragState.initialAngle;
             // Convert to degrees
-            layer.rotation = dragState.initialRotation + (dAngle * 180 / Math.PI);
+            setVal('rotation', dragState.initialRotation + (dAngle * 180 / Math.PI));
         }
         else if (dragState.type === 'canvas-scale') {
             // Calculate new distance
-            const currentDist = Math.sqrt((pos.x - layer.x)**2 + (pos.y - layer.y)**2);
+            const lx = layer.getValue('x', state.currentTime);
+            const ly = layer.getValue('y', state.currentTime);
+            const currentDist = Math.sqrt((pos.x - lx)**2 + (pos.y - ly)**2);
             // Scale ratio
             const scaleRatio = currentDist / dragState.initialDist;
-            layer.scale = dragState.initialScale * scaleRatio;
+            setVal('scale', dragState.initialScale * scaleRatio);
         }
     }
 
