@@ -1072,15 +1072,15 @@
         let easedProgress = progress;
         switch(easing) {
             case 'ease-in':
-                easedProgress = progress * progress * progress; // Cubic ease-in
+                easedProgress = Math.pow(progress, 5); // Quintic ease-in
                 break;
             case 'ease-out':
-                easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+                easedProgress = 1 - Math.pow(1 - progress, 5); // Quintic ease-out
                 break;
             case 'ease-in-out':
                 easedProgress = progress < 0.5 
-                    ? 4 * progress * progress * progress 
-                    : 1 - Math.pow(-2 * progress + 2, 3) / 2; // Cubic ease-in-out
+                    ? 16 * Math.pow(progress, 5) 
+                    : 1 - Math.pow(-2 * progress + 2, 5) / 2; // Quintic ease-in-out
                 break;
             case 'linear':
             default:
@@ -1126,28 +1126,23 @@
     }
 
     function updateGlobalMotion(prop, value) {
+        if (prop === 'aestheticFps') value = parseFloat(value);
         state.globalTransform[prop] = value;
     }
 
     function updateGlobalMotionControlsUI() {
-        const show = state.globalTransform.keyframes.length >= 2;
-
         const durationInput = document.getElementById('global-duration');
         const fpsInput = document.getElementById('global-fps');
         const easingSelect = document.getElementById('global-easing');
 
-        durationInput.disabled = !show;
-        fpsInput.disabled = !show;
-        easingSelect.disabled = !show;
+        durationInput.disabled = false;
+        fpsInput.disabled = false;
+        easingSelect.disabled = false;
 
-        if (show) {
-            durationInput.value = state.globalTransform.duration;
-            durationInput.placeholder = 'auto';
-            fpsInput.value = state.globalTransform.aestheticFps;
-            easingSelect.value = state.globalTransform.easing;
-        } else {
-            durationInput.placeholder = 'Needs 2+ keyframes';
-        }
+        durationInput.value = state.globalTransform.duration;
+        durationInput.placeholder = 'auto';
+        fpsInput.value = state.globalTransform.aestheticFps;
+        easingSelect.value = state.globalTransform.easing;
     }
 
     function updateGlobalTransformPanel() {
