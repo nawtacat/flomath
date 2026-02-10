@@ -348,7 +348,7 @@
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
                 <button class="secondary" id="btn-define-zoom-region">Define Zoom Region</button>
-                <button class="secondary" id="btn-start-zoom">Start Smart Zoom</button>
+                <button class="secondary" id="btn-start-zoom">Apply Zoom</button>
                 <button class="secondary" id="btn-reset-zoom">Reset Zoom</button>
             </div>
             <div id="zoom-region-status" style="font-size:12px; color:#888; margin-top:8px;">Region not defined.</div>
@@ -517,13 +517,16 @@
 
     const zoomOverlayInteraction = {
         mode: null,
-        startY: 0,
+        startPos: { x: 0, y: 0 },
         startRegion: null
     };
 
     function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
     }
+
+    const MIN_ZOOM_SCALE = 0.1;
+    const MAX_ZOOM_SCALE = 1;
 
     function formatTimestamp(seconds) {
         const mins = Math.floor(seconds / 60);
@@ -539,28 +542,26 @@
             return;
         }
         const viewportRect = canvas.parentElement.getBoundingClientRect();
-        const left = (region.x / CANVAS_WIDTH) * viewportRect.width;
-        const top = (region.y / CANVAS_HEIGHT) * viewportRect.height;
-        const width = (region.width / CANVAS_WIDTH) * viewportRect.width;
-        const height = (region.height / CANVAS_HEIGHT) * viewportRect.height;
+        const width = CANVAS_WIDTH * region.scale;
+        const height = CANVAS_HEIGHT * region.scale;
+        const left = ((region.centerX - width / 2) / CANVAS_WIDTH) * viewportRect.width;
+        const top = ((region.centerY - height / 2) / CANVAS_HEIGHT) * viewportRect.height;
         zoomSelectionOverlay.style.display = 'block';
         zoomSelectionOverlay.style.left = `${left}px`;
         zoomSelectionOverlay.style.top = `${top}px`;
-        zoomSelectionOverlay.style.width = `${width}px`;
-        zoomSelectionOverlay.style.height = `${height}px`;
+        zoomSelectionOverlay.style.width = `${(width / CANVAS_WIDTH) * viewportRect.width}px`;
+        zoomSelectionOverlay.style.height = `${(height / CANVAS_HEIGHT) * viewportRect.height}px`;
     }
 
     function defineZoomRegion() {
         zoomToolState.selectionTime = state.currentTime;
-        const defaultHeight = CANVAS_HEIGHT / 2;
         zoomToolState.selectionRegion = {
-            x: 0,
-            y: (CANVAS_HEIGHT - defaultHeight) / 2,
-            width: CANVAS_WIDTH,
-            height: defaultHeight
+            centerX: CANVAS_WIDTH / 2,
+            centerY: CANVAS_HEIGHT / 2,
+            scale: 0.6
         };
         updateZoomOverlay();
-        zoomRegionStatus.innerText = `Region defined at ${formatTimestamp(state.currentTime)}; drag to reposition.`;
+        zoomRegionStatus.innerText = `Region defined at ${formatTimestamp(state.currentTime)}; drag or stretch to adjust.`;
     }
 
     function startSmartZoom() {
@@ -574,10 +575,10 @@
         zoomAnimation.frameRate = Math.max(1, parseInt(zoomFramerateInput.value) || 60);
 
         const region = zoomToolState.selectionRegion;
-        const baseScale = Math.min(CANVAS_WIDTH / region.width, CANVAS_HEIGHT / region.height);
+        const baseScale = 1 / region.scale;
         const targetScale = baseScale * zoomAnimation.zoomFactor;
-        const centerX = region.x + region.width / 2;
-        const centerY = region.y + region.height / 2;
+        const centerX = region.centerX;
+        const centerY = region.centerY;
 
         zoomAnimation.startTransform = { ...zoomAnimation.currentTransform };
         zoomAnimation.targetTransform = {
@@ -606,9 +607,11 @@
         event.stopPropagation();
         const pos = getPointerPos(event);
         const region = zoomToolState.selectionRegion;
-        const nearBottom = Math.abs(pos.y - (region.y + region.height)) < 20;
+        const height = CANVAS_HEIGHT * region.scale;
+        const bottom = region.centerY + height / 2;
+        const nearBottom = Math.abs(pos.y - bottom) < 30;
         zoomOverlayInteraction.mode = nearBottom ? 'resize' : 'move';
-        zoomOverlayInteraction.startY = pos.y;
+        zoomOverlayInteraction.startPos = { ...pos };
         zoomOverlayInteraction.startRegion = { ...region };
     }
 
@@ -618,11 +621,16 @@
         const pos = getPointerPos(event);
         const region = zoomToolState.selectionRegion;
         if (zoomOverlayInteraction.mode === 'move') {
-            const deltaY = pos.y - zoomOverlayInteraction.startY;
-            region.y = clamp(zoomOverlayInteraction.startRegion.y + deltaY, 0, CANVAS_HEIGHT - region.height);
+            const dx = pos.x - zoomOverlayInteraction.startPos.x;
+            const dy = pos.y - zoomOverlayInteraction.startPos.y;
+            const width = CANVAS_WIDTH * zoomOverlayInteraction.startRegion.scale;
+            const height = CANVAS_HEIGHT * zoomOverlayInteraction.startRegion.scale;
+            region.centerX = clamp(zoomOverlayInteraction.startRegion.centerX + dx, width / 2, CANVAS_WIDTH - width / 2);
+            region.centerY = clamp(zoomOverlayInteraction.startRegion.centerY + dy, height / 2, CANVAS_HEIGHT - height / 2);
         } else if (zoomOverlayInteraction.mode === 'resize') {
-            const proposedHeight = zoomOverlayInteraction.startRegion.height + (pos.y - zoomOverlayInteraction.startY);
-            region.height = clamp(proposedHeight, 20, CANVAS_HEIGHT - region.y);
+            const deltaY = pos.y - zoomOverlayInteraction.startPos.y;
+            const deltaScale = deltaY / CANVAS_HEIGHT;
+            region.scale = clamp(zoomOverlayInteraction.startRegion.scale + deltaScale, MIN_ZOOM_SCALE, MAX_ZOOM_SCALE);
         }
         updateZoomOverlay();
     }
