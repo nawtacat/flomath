@@ -203,6 +203,20 @@
             background: rgba(255, 255, 255, 0.02);
         }
 
+        .layer-track.placeholder {
+            height: 40px;
+            border: 1px dashed #555;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            letter-spacing: 0.05em;
+            font-size: 11px;
+            text-transform: uppercase;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
         .layer-block {
             position: absolute;
             height: 100%;
@@ -968,6 +982,13 @@
 
             container.appendChild(track);
         });
+
+        const placeholder = document.createElement('div');
+        placeholder.className = 'layer-track placeholder';
+        placeholder.dataset.slotIndex = state.layerSlots.length;
+        placeholder.textContent = 'Drop here to create a new layer';
+        placeholder.style.width = `${width}px`;
+        container.appendChild(placeholder);
 
         updateTimelineUI();
     }
