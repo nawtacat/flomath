@@ -1072,18 +1072,17 @@
         const keyframeDuration = Math.max(0.001, endKf.time - startKf.time);
 
         const durationOverride = parseFloat(duration);
-        const progressDenominator = durationOverride > 0 ? Math.max(0.001, durationOverride) : keyframeDuration;
+        const durationInSeconds = durationOverride > 0 ? Math.max(0.001, durationOverride) : keyframeDuration;
 
-        let progress = (time - startKf.time) / progressDenominator;
-        progress = Math.max(0, Math.min(1, progress));
+        const rawProgress = Math.max(0, Math.min(1, (time - startKf.time) / durationInSeconds));
 
         const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
-        let easedProgress = easingFn(progress);
+        const easedProgress = easingFn(rawProgress);
 
         const fpsValue = parseFloat(aestheticFps);
         let finalProgress = easedProgress;
-        if (fpsValue > 0) {
-            const totalSteps = Math.max(1, Math.round(keyframeDuration * fpsValue));
+        if (!Number.isNaN(fpsValue) && fpsValue > 0) {
+            const totalSteps = Math.max(1, Math.round(durationInSeconds * fpsValue));
             finalProgress = Math.floor(easedProgress * totalSteps) / totalSteps;
             finalProgress = Math.max(0, Math.min(1, finalProgress));
         }
