@@ -1675,7 +1675,7 @@
 
     function handleCanvasMouseDown(e) {
         const pos = getPointerPos(e);
-        if (wholeControlActive) {
+        if (wholeControlActive && !activeGlobalKeyframeRole) {
             startGlobalPan(e);
             return;
         }
@@ -1768,6 +1768,10 @@
                 initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
                 initialDist: Math.sqrt((pos.x - hitLayer.x)**2 + (pos.y - hitLayer.y)**2)
             };
+            if (wholeControlActive && activeGlobalKeyframeRole) {
+                dragState.applyGlobalFromLayer = true;
+                dragState.initialManualGlobalTransform = cloneTransform(manualGlobalTransform);
+            }
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
         } else {
@@ -1819,6 +1823,14 @@
             // For now, update base property
             layer.x = dragState.initialX + dx;
             layer.y = dragState.initialY + dy;
+            if (dragState.applyGlobalFromLayer && dragState.initialManualGlobalTransform) {
+                const deltaX = layer.x - dragState.initialX;
+                const deltaY = layer.y - dragState.initialY;
+                manualGlobalTransform.x = dragState.initialManualGlobalTransform.x + deltaX;
+                manualGlobalTransform.y = dragState.initialManualGlobalTransform.y + deltaY;
+                globalEditingOverride = cloneTransform(manualGlobalTransform);
+                syncActiveGlobalKeyframeFromManual();
+            }
         }
         else if (dragState.type === 'canvas-rotate') {
             // Calculate new angle
@@ -1833,6 +1845,12 @@
             // Scale ratio
             const scaleRatio = currentDist / dragState.initialDist;
             layer.scale = dragState.initialScale * scaleRatio;
+            if (dragState.applyGlobalFromLayer && dragState.initialManualGlobalTransform) {
+                const globalScaleRatio = layer.scale / dragState.initialScale;
+                manualGlobalTransform.scale = dragState.initialManualGlobalTransform.scale * globalScaleRatio;
+                globalEditingOverride = cloneTransform(manualGlobalTransform);
+                syncActiveGlobalKeyframeFromManual();
+            }
         }
     }
 
