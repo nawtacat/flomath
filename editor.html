@@ -197,6 +197,20 @@
             margin-top: 2px;
         }
 
+        .layer-track.placeholder {
+            height: 60px;
+            border: 1px dashed #444;
+            margin: 12px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            background: rgba(255, 255, 255, 0.02);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
         .layer-block {
             position: absolute;
             height: 100%;
@@ -399,23 +413,23 @@
     let lastTime = 0;
     let dragState = {
         active: false,
-        type: null, // 'resize-timeline', 'move-timeline', 'canvas-drag', 'canvas-scale', 'canvas-rotate'
-        layerId: null,
-        handle: null, // 'left' or 'right'
-        startX: 0,
-        startY: 0,
-        initialStartTime: 0,
-        initialDuration: 0,
-        initialX: 0,
-        initialY: 0,
-        initialScale: 1,
-        initialDist: 0,
-        initialAngle: 0,
-        initialRotation: 0,
-        isReordering: false,
-        sourceElement: null,
-        newOrderIndex: -1
-    };
+    type: null, // 'resize-timeline', 'move-timeline', 'canvas-drag', 'canvas-scale', 'canvas-rotate'
+    layerId: null,
+    handle: null, // 'left' or 'right'
+    startX: 0,
+    startY: 0,
+    initialStartTime: 0,
+    initialDuration: 0,
+    initialX: 0,
+    initialY: 0,
+    initialScale: 1,
+    initialDist: 0,
+    initialAngle: 0,
+    initialRotation: 0,
+    isReordering: false,
+    sourceElement: null,
+    newDisplayIndex: -1
+};
 
 
     // --- Classes ---
@@ -831,10 +845,13 @@
         const width = state.duration * PIXELS_PER_SECOND;
         document.getElementById('scrubber').style.width = `${width}px`;
 
-        state.layers.forEach(layer => {
+        const displayLayers = getDisplayOrder();
+
+        displayLayers.forEach((layer, displayIndex) => {
             const track = document.createElement('div');
             track.className = 'layer-track';
             track.dataset.layerId = layer.id;
+            track.dataset.displayIndex = displayIndex;
             track.style.width = `${width}px`;
 
             const block = document.createElement('div');
@@ -881,7 +898,23 @@
             container.appendChild(track);
         });
 
+        if (displayLayers.length === 0) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'layer-track placeholder';
+            placeholder.innerText = 'Drop a layer here to build your stack';
+            container.appendChild(placeholder);
+        }
+
         updateTimelineUI();
+    }
+
+    function getDisplayOrder() {
+        return [...state.layers].slice().reverse();
+    }
+
+    function getDisplayIndex(layerId) {
+        const order = getDisplayOrder();
+        return order.findIndex(layer => layer.id === layerId);
     }
 
     function updateTimelineUI() {
@@ -975,6 +1008,10 @@
             sourceElement: e.currentTarget // The block element
         };
 
+        const displayIndex = Math.max(0, getDisplayIndex(layerId));
+        dragState.newDisplayIndex = displayIndex;
+        dragState.timelineContainer = document.getElementById('timeline-tracks');
+
         document.addEventListener('mousemove', onDrag);
         document.addEventListener('mouseup', stopDrag);
     }
@@ -1010,8 +1047,9 @@
             }
 
             if (dragState.isReordering) {
-                const tracks = Array.from(document.querySelectorAll('.layer-track'));
-                const timelineRect = document.getElementById('timeline-tracks').getBoundingClientRect();
+                const tracks = Array.from(document.querySelectorAll('.layer-track:not(.placeholder)'));
+                const containerEl = dragState.timelineContainer || document.getElementById('timeline-tracks');
+                const timelineRect = containerEl.getBoundingClientRect();
                 let targetIndex = tracks.length;
                 for (let i = 0; i < tracks.length; i++) {
                     const rect = tracks[i].getBoundingClientRect();
@@ -1020,12 +1058,19 @@
                         break;
                     }
                 }
-                dragState.newOrderIndex = targetIndex;
+                dragState.newDisplayIndex = targetIndex;
                 const indicator = document.getElementById('drop-indicator');
-                const indicatorY = targetIndex === tracks.length
-                    ? timelineRect.top + tracks.length * (tracks[0]?.getBoundingClientRect().height || 30)
-                    : tracks[targetIndex].getBoundingClientRect().top;
-                indicator.style.top = `${indicatorY - timelineRect.top}px`;
+                let indicatorTop = 0;
+                if (tracks.length === 0) {
+                    indicatorTop = 0;
+                } else if (targetIndex === tracks.length) {
+                    const lastRect = tracks[tracks.length - 1].getBoundingClientRect();
+                    indicatorTop = lastRect.bottom - timelineRect.top;
+                } else {
+                    const targetRect = tracks[targetIndex].getBoundingClientRect();
+                    indicatorTop = targetRect.top - timelineRect.top;
+                }
+                indicator.style.top = `${Math.max(0, indicatorTop)}px`;
                 indicator.style.display = 'block';
             } else {
                 const dTime = dx / PIXELS_PER_SECOND;
@@ -1044,13 +1089,16 @@
     }
 
     function stopDrag() {
-        if (dragState.isReordering && dragState.newOrderIndex >= 0) {
-            const movingLayer = state.layers.find(l => l.id === dragState.layerId);
-            const others = state.layers.filter(l => l.id !== dragState.layerId);
-            const insertIndex = Math.min(dragState.newOrderIndex, others.length);
-            others.splice(insertIndex, 0, movingLayer);
-            state.layers = others;
-            renderTimeline();
+        if (dragState.isReordering && dragState.newDisplayIndex >= 0) {
+            const displayOrder = getDisplayOrder();
+            const movingLayer = displayOrder.find(l => l.id === dragState.layerId);
+            if (movingLayer) {
+                const reordered = displayOrder.filter(l => l.id !== dragState.layerId);
+                const insertIndex = Math.min(Math.max(0, dragState.newDisplayIndex), reordered.length);
+                reordered.splice(insertIndex, 0, movingLayer);
+                state.layers = reordered.slice().reverse();
+                renderTimeline();
+            }
         }
         document.getElementById('drop-indicator').style.display = 'none';
         if (dragState.sourceElement) {
@@ -1060,6 +1108,7 @@
         document.removeEventListener('mousemove', onDrag);
         document.removeEventListener('mouseup', stopDrag);
         dragState.active = false;
+        dragState.newDisplayIndex = -1;
     }
 
     // --- Canvas Interaction ---
@@ -1391,7 +1440,7 @@
     document.addEventListener('mouseup', () => {
         // Reset drag state on any mouseup event
         dragState.isReordering = false;
-        dragState.newOrderIndex = -1;
+        dragState.newDisplayIndex = -1;
 
         if (dragState.active) {
             stopDrag();
