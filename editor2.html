@@ -1130,13 +1130,23 @@
     }
 
     function updateGlobalMotionControlsUI() {
-        const panel = document.getElementById('global-zoom-controls');
         const show = state.globalTransform.keyframes.length >= 2;
-        panel.style.display = show ? 'block' : 'none';
+
+        const durationInput = document.getElementById('global-duration');
+        const fpsInput = document.getElementById('global-fps');
+        const easingSelect = document.getElementById('global-easing');
+
+        durationInput.disabled = !show;
+        fpsInput.disabled = !show;
+        easingSelect.disabled = !show;
+
         if (show) {
-            document.getElementById('global-duration').value = state.globalTransform.duration;
-            document.getElementById('global-fps').value = state.globalTransform.aestheticFps;
-            document.getElementById('global-easing').value = state.globalTransform.easing;
+            durationInput.value = state.globalTransform.duration;
+            durationInput.placeholder = 'auto';
+            fpsInput.value = state.globalTransform.aestheticFps;
+            easingSelect.value = state.globalTransform.easing;
+        } else {
+            durationInput.placeholder = 'Needs 2+ keyframes';
         }
     }
 
