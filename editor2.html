@@ -453,6 +453,10 @@
     const btnDefineZoomRegion = document.getElementById('btn-define-zoom-region');
     const btnStartZoom = document.getElementById('btn-start-zoom');
     const btnResetZoom = document.getElementById('btn-reset-zoom');
+    const zoomDurationInput = document.getElementById('zoom-duration');
+    const zoomFactorInput = document.getElementById('zoom-factor');
+    const zoomEasingSelect = document.getElementById('zoom-easing');
+    const zoomFramerateInput = document.getElementById('zoom-framerate');
     
     let state = {
         currentTime: 0, // in seconds
@@ -510,6 +514,122 @@
         startTransform: { scale: 1, offsetX: 0, offsetY: 0 },
         targetTransform: { scale: 1, offsetX: 0, offsetY: 0 }
     };
+
+    const zoomOverlayInteraction = {
+        mode: null,
+        startY: 0,
+        startRegion: null
+    };
+
+    function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    function formatTimestamp(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 100);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    }
+
+    function updateZoomOverlay() {
+        const region = zoomToolState.selectionRegion;
+        if (!region) {
+            zoomSelectionOverlay.style.display = 'none';
+            return;
+        }
+        const viewportRect = canvas.parentElement.getBoundingClientRect();
+        const left = (region.x / CANVAS_WIDTH) * viewportRect.width;
+        const top = (region.y / CANVAS_HEIGHT) * viewportRect.height;
+        const width = (region.width / CANVAS_WIDTH) * viewportRect.width;
+        const height = (region.height / CANVAS_HEIGHT) * viewportRect.height;
+        zoomSelectionOverlay.style.display = 'block';
+        zoomSelectionOverlay.style.left = `${left}px`;
+        zoomSelectionOverlay.style.top = `${top}px`;
+        zoomSelectionOverlay.style.width = `${width}px`;
+        zoomSelectionOverlay.style.height = `${height}px`;
+    }
+
+    function defineZoomRegion() {
+        zoomToolState.selectionTime = state.currentTime;
+        const defaultHeight = CANVAS_HEIGHT / 2;
+        zoomToolState.selectionRegion = {
+            x: 0,
+            y: (CANVAS_HEIGHT - defaultHeight) / 2,
+            width: CANVAS_WIDTH,
+            height: defaultHeight
+        };
+        updateZoomOverlay();
+        zoomRegionStatus.innerText = `Region defined at ${formatTimestamp(state.currentTime)}; drag to reposition.`;
+    }
+
+    function startSmartZoom() {
+        if (!zoomToolState.selectionRegion) {
+            zoomRegionStatus.innerText = 'Define a zoom region before starting the animation.';
+            return;
+        }
+        zoomAnimation.duration = Math.max(0.2, parseFloat(zoomDurationInput.value) || 2);
+        zoomAnimation.zoomFactor = parseFloat(zoomFactorInput.value) || 2;
+        zoomAnimation.easing = zoomEasingSelect.value || 'easeOutQuad';
+        zoomAnimation.frameRate = Math.max(1, parseInt(zoomFramerateInput.value) || 60);
+
+        const region = zoomToolState.selectionRegion;
+        const baseScale = Math.min(CANVAS_WIDTH / region.width, CANVAS_HEIGHT / region.height);
+        const targetScale = baseScale * zoomAnimation.zoomFactor;
+        const centerX = region.x + region.width / 2;
+        const centerY = region.y + region.height / 2;
+
+        zoomAnimation.startTransform = { ...zoomAnimation.currentTransform };
+        zoomAnimation.targetTransform = {
+            scale: targetScale,
+            offsetX: CANVAS_WIDTH / (2 * targetScale) - centerX,
+            offsetY: CANVAS_HEIGHT / (2 * targetScale) - centerY
+        };
+        zoomAnimation.active = true;
+        zoomAnimation.startTime = 0;
+        zoomAnimation.lastFrameTimestamp = 0;
+        zoomAnimation.displayProgress = 0;
+        zoomRegionStatus.innerText = `Zooming from ${formatTimestamp(zoomToolState.selectionTime ?? state.currentTime)} for ${zoomAnimation.duration}s`;
+    }
+
+    function resetSmartZoom() {
+        zoomAnimation.active = false;
+        zoomAnimation.currentTransform = { scale: 1, offsetX: 0, offsetY: 0 };
+        zoomAnimation.startTransform = { scale: 1, offsetX: 0, offsetY: 0 };
+        zoomAnimation.targetTransform = { scale: 1, offsetX: 0, offsetY: 0 };
+        zoomRegionStatus.innerText = 'Zoom reset.';
+    }
+
+    function handleZoomOverlayPointerDown(event) {
+        if (!zoomToolState.selectionRegion) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const pos = getPointerPos(event);
+        const region = zoomToolState.selectionRegion;
+        const nearBottom = Math.abs(pos.y - (region.y + region.height)) < 20;
+        zoomOverlayInteraction.mode = nearBottom ? 'resize' : 'move';
+        zoomOverlayInteraction.startY = pos.y;
+        zoomOverlayInteraction.startRegion = { ...region };
+    }
+
+    function handleZoomOverlayPointerMove(event) {
+        if (!zoomOverlayInteraction.mode) return;
+        event.preventDefault();
+        const pos = getPointerPos(event);
+        const region = zoomToolState.selectionRegion;
+        if (zoomOverlayInteraction.mode === 'move') {
+            const deltaY = pos.y - zoomOverlayInteraction.startY;
+            region.y = clamp(zoomOverlayInteraction.startRegion.y + deltaY, 0, CANVAS_HEIGHT - region.height);
+        } else if (zoomOverlayInteraction.mode === 'resize') {
+            const proposedHeight = zoomOverlayInteraction.startRegion.height + (pos.y - zoomOverlayInteraction.startY);
+            region.height = clamp(proposedHeight, 20, CANVAS_HEIGHT - region.y);
+        }
+        updateZoomOverlay();
+    }
+
+    function handleZoomOverlayPointerUp() {
+        zoomOverlayInteraction.mode = null;
+    }
 
 
     function getZoomEasedProgress(easing, t) {
@@ -699,6 +819,12 @@
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+        // Apply Smart Zoom transform
+        const transform = zoomAnimation.currentTransform;
+        ctx.save();
+        ctx.translate(transform.offsetX, transform.offsetY);
+        ctx.scale(transform.scale, transform.scale);
+
         // Draw Layers
         const layersToRender = [...state.layers].sort((a, b) => {
             const slotA = getSlotIndexById(a.slotId);
@@ -802,6 +928,8 @@
 
             ctx.restore();
         });
+
+        ctx.restore();
     }
 
     function createLayerSlot(name = null, insertIndex = state.layerSlots.length) {
@@ -1635,6 +1763,14 @@
     };
 
     // Initialize
+    btnDefineZoomRegion.addEventListener('click', defineZoomRegion);
+    btnStartZoom.addEventListener('click', startSmartZoom);
+    btnResetZoom.addEventListener('click', resetSmartZoom);
+    zoomSelectionOverlay.addEventListener('pointerdown', handleZoomOverlayPointerDown);
+    window.addEventListener('pointermove', handleZoomOverlayPointerMove);
+    window.addEventListener('pointerup', handleZoomOverlayPointerUp);
+    window.addEventListener('resize', () => updateZoomOverlay());
+
     // Add global listeners for drag operations
     document.addEventListener('mouseup', () => {
         if (dragState.active) {
