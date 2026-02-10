@@ -333,11 +333,11 @@
                 <label>Motion Controls</label>
                 <div class="property-row" style="margin-bottom: 10px;">
                     <span style="width: 90px;">Duration (s)</span>
-                    <input type="text" id="global-duration" onchange="updateGlobalMotion('duration', this.value)" placeholder="auto" style="margin-bottom: 0;">
+                    <input type="text" id="global-duration" oninput="updateGlobalMotion('duration', this.value)" placeholder="auto" style="margin-bottom: 0;">
                 </div>
                 <div class="property-row" style="margin-bottom: 10px;">
-                    <span style="width: 110px;" title="Controls how often the zoom updates. Lower values look more stepped; higher values look smoother.">Zoom Smoothness</span>
-                    <input type="number" id="global-fps" onchange="updateGlobalMotion('aestheticFps', this.value)" value="60" style="margin-bottom: 0;">
+                    <span style="width: 110px;" title="Controls how often the zoom updates. Lower values look more stepped; higher values look smoother.">Zoom Motion FPS</span>
+                    <input type="number" id="global-fps" oninput="updateGlobalMotion('aestheticFps', this.value)" value="60" style="margin-bottom: 0;">
                 </div>
                 <div class="property-row" style="margin-bottom: 10px;">
                     <span style="width: 90px;">Speed Curve</span>
