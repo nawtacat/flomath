@@ -145,12 +145,22 @@
             background: #1e1e1e;
         }
 
+        .global-keyframe-marker-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 12px;
+            width: 100%;
+            pointer-events: none;
+            z-index: 15;
+        }
+
         .scrubber-track {
             height: 20px;
             background: #333;
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 5;
             cursor: pointer;
             border-bottom: 1px solid #555;
         }
@@ -286,6 +296,85 @@
         }
         #drag-overlay h2 { color: white; font-size: 3em; text-shadow: 2px 2px 4px #000; }
 
+        /* Global Transform Overlay */
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .canvas-wrapper canvas {
+            position: relative;
+            z-index: 1;
+        }
+
+        #global-transform-overlay {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 20px rgba(0, 122, 204, 0.6);
+            transition: left 0.1s ease, top 0.1s ease, width 0.1s ease, height 0.1s ease;
+            pointer-events: none;
+            mix-blend-mode: screen;
+            z-index: 2;
+            cursor: move;
+        }
+
+        .global-transform-panel .property-row {
+            align-items: center;
+        }
+
+        .global-transform-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .global-transform-row span {
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        .global-transform-inputs input[type="range"] {
+            flex: 1;
+            margin-left: 10px;
+        }
+
+        .global-transform-inputs .value-input {
+            width: 70px;
+            margin-left: 10px;
+        }
+
+        .zoom-motion-panel .property-row span {
+            font-size: 12px;
+        }
+
+        .zoom-motion-panel .property-row input,
+        .zoom-motion-panel .property-row select {
+            width: 110px;
+            background: #333;
+            border: 1px solid var(--border);
+            color: white;
+        }
+
+        .global-keyframe-marker {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            top: 0;
+            background: #ffdd57;
+            z-index: 5;
+            pointer-events: none;
+            mix-blend-mode: screen;
+        }
+
+        .global-keyframe-marker.start { background: #4ee7ff; }
+        .global-keyframe-marker.end { background: #ff7ad1; }
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
 </head>
@@ -310,45 +399,6 @@
             <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
-        </div>
-
-        <div class="control-group">
-            <label>Global Zoom (Keyframable)</label>
-            <div class="property-row">
-                <span>Zoom</span>
-                <input type="number" step="0.1" id="global-prop-scale" onchange="updateCurrentGlobalTransform('scale', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addGlobalKeyframe()">◆</button>
-            </div>
-            <div class="property-row">
-                <span>Pan X</span>
-                <input type="number" id="global-prop-x" onchange="updateCurrentGlobalTransform('x', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addGlobalKeyframe()">◆</button>
-            </div>
-            <div class="property-row">
-                <span>Pan Y</span>
-                <input type="number" id="global-prop-y" onchange="updateCurrentGlobalTransform('y', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addGlobalKeyframe()">◆</button>
-            </div>
-            <div id="global-zoom-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
-                <label>Motion Controls</label>
-                <div class="property-row" style="margin-bottom: 10px;">
-                    <span style="width: 90px;">Duration (s)</span>
-                    <input type="text" id="global-duration" oninput="updateGlobalMotion('duration', this.value)" placeholder="auto" style="margin-bottom: 0;">
-                </div>
-                <div class="property-row" style="margin-bottom: 10px;">
-                    <span style="width: 110px;" title="Controls how often the zoom updates. Lower values look more stepped; higher values look smoother.">Zoom Motion FPS</span>
-                    <input type="number" id="global-fps" min="1" max="60" oninput="updateGlobalMotion('aestheticFps', this.value)" value="60" style="margin-bottom: 0;">
-                </div>
-                <div class="property-row" style="margin-bottom: 10px;">
-                    <span style="width: 90px;">Speed Curve</span>
-                    <select id="global-easing" onchange="updateGlobalMotion('easing', this.value)" style="flex:1; background:#333; color:white; border:1px solid var(--border); padding:5px;">
-                        <option value="ease-out">Ease Out (Fast start)</option>
-                        <option value="ease-in">Ease In (Slow start)</option>
-                        <option value="ease-in-out">Ease In-Out</option>
-                        <option value="linear">Linear (Constant)</option>
-                    </select>
-                </div>
-            </div>
         </div>
 
         <div class="control-group" id="properties-panel" style="display:none;">
@@ -401,11 +451,66 @@
                 </select>
             </div>
         </div>
+
+        <div class="control-group global-transform-panel">
+            <label>Global Transform Control</label>
+            <div class="global-transform-row">
+                <span>Scale</span>
+                <div class="global-transform-inputs">
+                    <input type="range" id="global-scale-range" min="0.3" max="3" step="0.05" value="1">
+                    <input type="number" id="global-scale-input" min="0.3" max="3" step="0.01" class="value-input">
+                </div>
+            </div>
+            <div class="global-transform-row">
+                <span>Offset X</span>
+                <input type="number" id="global-offset-x" class="value-input">
+            </div>
+            <div class="global-transform-row">
+                <span>Offset Y</span>
+                <input type="number" id="global-offset-y" class="value-input">
+            </div>
+            <div style="margin:6px 0 0;">
+                <button class="secondary" id="global-control-toggle" onclick="toggleGlobalTransformControl()">Enable Transform Control</button>
+                <span style="font-size:11px; color:#777; margin-left:8px;">Activate to drag/zoom the whole frame</span>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+                <button class="secondary" id="global-keyframe-start-btn" onclick="captureGlobalKeyframe('start')">Add Keyframe (Start)</button>
+                <button class="secondary" id="global-keyframe-end-btn" onclick="captureGlobalKeyframe('end')">Add Keyframe (End)</button>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:#999;">
+                <span id="global-start-status">Start: unset</span>
+                <span id="global-end-status">End: unset</span>
+            </div>
+        </div>
+
+        <div class="control-group zoom-motion-panel" style="display:none;">
+            <label>Zoom Motion Behavior</label>
+            <div class="property-row">
+                <span>Duration (s)</span>
+                <input type="number" id="zoom-duration-input" min="0.1" step="0.1">
+            </div>
+            <div class="property-row">
+                <span>Speed Curve</span>
+                <select id="zoom-curve-select">
+                    <option value="ease-out">Ease Out (default)</option>
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-in-out">Ease In/Out</option>
+                </select>
+            </div>
+            <div class="property-row">
+                <span>Motion FPS</span>
+                <input type="number" id="zoom-fps-input" min="6" max="120" step="1">
+            </div>
+        </div>
     </div>
 
     <div class="viewport">
-        <!-- 1080x1920 scaled down to fit -->
-        <canvas id="editor-canvas" width="1080" height="1920"></canvas>
+        <div class="canvas-wrapper">
+            <!-- 1080x1920 scaled down to fit -->
+            <canvas id="editor-canvas" width="1080" height="1920"></canvas>
+            <div id="global-transform-overlay" title="Drag to move frame, wheel to zoom"></div>
+        </div>
     </div>
 </div>
 
@@ -413,12 +518,11 @@
     <div class="timeline-controls">
         <button id="btn-play">Play</button>
         <button class="secondary" id="btn-stop">Stop</button>
-        <button class="secondary" onclick="addUniversalKeyframe()" title="Add Keyframe for selected layer or global zoom" style="margin-left: 10px;">◆ Add Keyframe</button>
         <span id="time-display" style="margin-left:auto; font-family:monospace;">00:00.00</span>
     </div>
     <div class="timeline-tracks" id="timeline-tracks">
+        <div id="global-keyframe-markers" class="global-keyframe-marker-layer"></div>
         <div id="drop-indicator"></div>
-        <div id="global-zoom-track" class="layer-track" style="height:20px; background: #2a2a2d; border-bottom: 1px solid #555;"></div>
         <div class="scrubber-track" id="scrubber"></div>
         <div class="playhead" id="playhead"></div>
         <!-- Tracks go here -->
@@ -445,15 +549,7 @@
     const PIXELS_PER_SECOND = 50; // Timeline zoom
     
     const canvas = document.getElementById('editor-canvas');
-    const zoomClickSound = new Audio('https://flomath.space/audio/click.mp3');
-    zoomClickSound.preload = 'auto';
-
     const ctx = canvas.getContext('2d');
-    const bufferCanvas = document.createElement('canvas');
-    bufferCanvas.width = CANVAS_WIDTH;
-    bufferCanvas.height = CANVAS_HEIGHT;
-    const bufferCtx = bufferCanvas.getContext('2d');
-
     
     let state = {
         currentTime: 0, // in seconds
@@ -463,19 +559,7 @@
         selectedLayerId: null,
         nextId: 1,
         layerSlots: [],
-        nextSlotId: 1,
-        globalTransform: {
-            keyframes: [], // { time, scale, x, y }
-            duration: 'auto', // 'auto' or seconds
-            easing: 'ease-out',
-            aestheticFps: 60
-        },
-        currentGlobalTransform: {
-            scale: 1,
-            x: CANVAS_WIDTH / 2,
-            y: CANVAS_HEIGHT / 2
-        },
-        lastGlobalFinalProgress: undefined,
+        nextSlotId: 1
     };
 
     let animationFrameId;
@@ -503,13 +587,32 @@
         sourceSlotId: null
     };
 
-    const GLOBAL_EASING_FUNCTIONS = {
-        'linear': (t) => t,
-        'ease-in': (t) => Math.pow(t, 5),
-        'ease-out': (t) => 1 - Math.pow(1 - t, 5),
-        'ease-in-out': (t) => t < 0.5
-            ? 16 * Math.pow(t, 5)
-            : 1 - Math.pow(-2 * t + 2, 5) / 2
+    const globalTransformOverlay = document.getElementById('global-transform-overlay');
+    const globalScaleRange = document.getElementById('global-scale-range');
+    const globalScaleInput = document.getElementById('global-scale-input');
+    const globalOffsetXInput = document.getElementById('global-offset-x');
+    const globalOffsetYInput = document.getElementById('global-offset-y');
+    const globalStartStatus = document.getElementById('global-start-status');
+    const globalEndStatus = document.getElementById('global-end-status');
+    const zoomDurationInput = document.getElementById('zoom-duration-input');
+    const zoomCurveSelect = document.getElementById('zoom-curve-select');
+    const zoomFpsInput = document.getElementById('zoom-fps-input');
+    const zoomMotionPanel = document.querySelector('.zoom-motion-panel');
+
+    const globalZoom = {
+        editingTransform: { scale: 1, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
+        manualOverride: false,
+        dragging: null,
+        controlActive: false,
+        keyframes: {
+            start: null,
+            end: null
+        },
+        motion: {
+            durationOverride: null,
+            speedCurve: 'ease-out',
+            aestheticFps: 60
+        }
     };
 
 
@@ -592,17 +695,6 @@
             renderTimeline(); // Update UI markers
         }
 
-        updateOrAddKeyframe(prop, time, value) {
-            const kfs = this.keyframes[prop];
-            const existing = kfs.find(k => Math.abs(k.time - time) < 0.01);
-            if (existing) {
-                existing.value = parseFloat(value);
-            } else {
-                kfs.push({ time: time, value: parseFloat(value) });
-                kfs.sort((a, b) => a.time - b.time);
-            }
-        }
-
         clone() {
             const newLayer = new Layer(this.type, this.name, this.content);
             // Deep copy serializable properties
@@ -623,10 +715,10 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         renderTimeline();
+        initGlobalZoomControls();
         canvas.addEventListener('mousedown', handleCanvasMouseDown);
         canvas.addEventListener('mousemove', handleCanvasMouseMove);
         canvas.addEventListener('mouseup', handleCanvasMouseUp);
-        updateGlobalMotionControlsUI();
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
@@ -639,6 +731,7 @@
         
         canvas.style.width = `${vW}px`;
         canvas.style.height = `${vH}px`;
+        updateGlobalTransformOverlay();
     }
 
     function gameLoop(timestamp) {
@@ -652,8 +745,8 @@
                 state.isPlaying = false;
                 updatePlayButton();
             }
-            updateTimelineUI(); // Update inputs as values animate
-            updateAllPanels();
+            updateTimelineUI();
+            updatePropertiesPanel(); // Update inputs as values animate
         }
 
         renderCanvas();
@@ -662,11 +755,22 @@
 
     function renderCanvas() {
         rebuildSlotAssignments();
-        // Clear buffer canvas
-        bufferCtx.fillStyle = '#000';
-        bufferCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.restore();
 
-        // Draw Layers to buffer
+        const globalTransform = getGlobalTransformForTime(state.currentTime);
+        syncGlobalEditingTransform(globalTransform);
+        updateGlobalTransformOverlay();
+
+        ctx.save();
+        ctx.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+        ctx.scale(globalTransform.scale, globalTransform.scale);
+        ctx.translate(-globalTransform.x, -globalTransform.y);
+
+        // Draw Layers
         const layersToRender = [...state.layers].sort((a, b) => {
             const slotA = getSlotIndexById(a.slotId);
             const slotB = getSlotIndexById(b.slotId);
@@ -675,132 +779,374 @@
         });
 
         layersToRender.forEach(layer => {
-            // Check visibility based on time
             if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
-
-            
             const x = layer.getValue('x', state.currentTime);
             let y = layer.getValue('y', state.currentTime);
             let scale = layer.getValue('scale', state.currentTime);
             let rotation = layer.getValue('rotation', state.currentTime);
             const opacity = layer.getValue('opacity', state.currentTime);
 
-            // Apply looping animations on top of keyframed values
             if (layer.loopingAnimation && layer.loopingAnimation !== 'none') {
                 switch(layer.loopingAnimation) {
                     case 'pulse':
-                        // Pulse 5% of size, twice per second
                         scale *= (1 + Math.sin(state.currentTime * Math.PI * 4) * 0.05);
                         break;
                     case 'spin':
-                        // Spin 90 degrees per second
                         rotation += (state.currentTime * 90);
                         break;
                     case 'float':
-                        // Float up and down by 20px, once every 2 seconds
                         y += (Math.sin(state.currentTime * Math.PI) * 20);
                         break;
                 }
             }
 
-            bufferCtx.save();
-            bufferCtx.globalAlpha = opacity;
-            bufferCtx.translate(x, y);
-            bufferCtx.rotate(rotation * Math.PI / 180);
-            bufferCtx.scale(scale, scale);
+            ctx.save();
+            ctx.globalAlpha = opacity;
+            ctx.translate(x, y);
+            ctx.rotate(rotation * Math.PI / 180);
+            ctx.scale(scale, scale);
 
             if (layer.type === 'text') {
-                bufferCtx.font = 'bold 100px Arial';
-                bufferCtx.fillStyle = layer.color;
-                bufferCtx.textAlign = 'center';
-                bufferCtx.textBaseline = 'middle';
-                bufferCtx.fillText(layer.content, 0, 0);
+                ctx.font = 'bold 100px Arial';
+                ctx.fillStyle = layer.color;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(layer.content, 0, 0);
             } else if (layer.type === 'image') {
                 const img = layer.content;
-                bufferCtx.drawImage(img, -img.width/2, -img.height/2);
+                ctx.drawImage(img, -img.width/2, -img.height/2);
             } else if (layer.type === 'video') {
                 const vid = layer.content;
-                // Sync video time
                 if (!vid.paused && !state.isPlaying) vid.pause();
                 if (state.isPlaying && vid.paused) vid.play();
-                
-                // Seek if drifted
                 const vidTime = state.currentTime - layer.startTime;
                 if (Math.abs(vid.currentTime - vidTime) > 0.3) {
                     vid.currentTime = vidTime;
                 }
-                
-                bufferCtx.drawImage(vid, -vid.videoWidth/2, -vid.videoHeight/2);
+                ctx.drawImage(vid, -vid.videoWidth/2, -vid.videoHeight/2);
             }
 
-            // Selection outline
             if (state.selectedLayerId === layer.id) {
-                bufferCtx.strokeStyle = '#007acc';
-                bufferCtx.lineWidth = 5;
-                bufferCtx.beginPath();
+                ctx.strokeStyle = '#007acc';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
                 const w = layer.width || 100;
                 const h = layer.height || 100;
-                bufferCtx.rect(-w/2, -h/2, w, h);
-                bufferCtx.stroke();
+                ctx.rect(-w/2, -h/2, w, h);
+                ctx.stroke();
 
-                // Draw Resize Handles (Corners)
-                bufferCtx.fillStyle = 'white';
-                const handleSize = 20 / scale; // Keep handles consistent visual size
+                ctx.fillStyle = 'white';
+                const handleSize = 20 / scale;
                 const corners = [
                     {x: -w/2, y: -h/2}, {x: w/2, y: -h/2},
                     {x: w/2, y: h/2}, {x: -w/2, y: h/2}
                 ];
                 corners.forEach(c => {
-                    bufferCtx.fillRect(c.x - handleSize/2, c.y - handleSize/2, handleSize, handleSize);
+                    ctx.fillRect(c.x - handleSize/2, c.y - handleSize/2, handleSize, handleSize);
                 });
 
-                // Rotation Handle (Top)
-                bufferCtx.beginPath();
-                bufferCtx.moveTo(0, -h/2);
-                bufferCtx.lineTo(0, -h/2 - 50/scale);
-                bufferCtx.stroke();
-                bufferCtx.beginPath();
-                bufferCtx.arc(0, -h/2 - 50/scale, 10/scale, 0, Math.PI*2);
-                bufferCtx.fill();
+                ctx.beginPath();
+                ctx.moveTo(0, -h/2);
+                ctx.lineTo(0, -h/2 - 50/scale);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, -h/2 - 50/scale, 10/scale, 0, Math.PI*2);
+                ctx.fill();
             }
 
-            bufferCtx.restore();
+            ctx.restore();
         });
-
-        // --- NEW PART ---
-        // Get global transform and draw buffer to main canvas
-        const transform = getGlobalTransform(state.currentTime);
-
-        // --- AUDIO CLICK LOGIC ---
-        if (transform.finalProgress !== undefined && transform.finalProgress !== state.lastGlobalFinalProgress) {
-            if (state.isPlaying) { // Only play during playback
-                zoomClickSound.currentTime = 0;
-                zoomClickSound.play().catch(e => {}); // Autoplay can be blocked by browser
-            }
-        }
-        state.lastGlobalFinalProgress = transform.finalProgress;
-
-
-        // Clear main canvas
-        ctx.fillStyle = '#111'; // Match viewport background
-        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-        // Apply global transform
-        ctx.save();
-        // Center the view on the transformed point, and scale.
-        ctx.translate(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
-        ctx.scale(transform.scale, transform.scale);
-        ctx.translate(-transform.x, -transform.y);
-
-        // Draw the pre-composited frame from the buffer
-        ctx.drawImage(bufferCanvas, 0, 0);
 
         ctx.restore();
     }
 
-    function updateAllPanels() {
-        updatePropertiesPanel();
-        updateGlobalTransformPanel();
+    // --- Global Zoom Helpers ---
+
+    function initGlobalZoomControls() {
+        updateGlobalTransformInputs();
+        zoomDurationInput.placeholder = 'Auto';
+        zoomFpsInput.value = globalZoom.motion.aestheticFps;
+        zoomCurveSelect.value = globalZoom.motion.speedCurve;
+
+        globalScaleRange.addEventListener('input', (e) => setGlobalScale(parseFloat(e.target.value)));
+        globalScaleInput.addEventListener('change', (e) => setGlobalScale(parseFloat(e.target.value)));
+        globalOffsetXInput.addEventListener('change', (e) => setGlobalOffset('x', parseFloat(e.target.value)));
+        globalOffsetYInput.addEventListener('change', (e) => setGlobalOffset('y', parseFloat(e.target.value)));
+
+        zoomDurationInput.addEventListener('change', handleZoomDurationChange);
+        zoomCurveSelect.addEventListener('change', handleZoomCurveChange);
+        zoomFpsInput.addEventListener('change', handleZoomFpsChange);
+
+        globalTransformOverlay.addEventListener('mousedown', startGlobalTransformDrag);
+        globalTransformOverlay.addEventListener('wheel', handleGlobalTransformWheel, { passive: false });
+
+        updateGlobalKeyframeStatus();
+        updateZoomMotionPanelState();
+    }
+
+    function toggleGlobalTransformControl() {
+        globalZoom.controlActive = !globalZoom.controlActive;
+        const toggle = document.getElementById('global-control-toggle');
+        if (toggle) {
+            toggle.innerText = globalZoom.controlActive ? 'Disable Transform Control' : 'Enable Transform Control';
+        }
+        globalTransformOverlay.style.pointerEvents = globalZoom.controlActive ? 'auto' : 'none';
+        globalTransformOverlay.style.borderColor = globalZoom.controlActive ? '#4ee7ff' : 'rgba(255, 255, 255, 0.8)';
+        if (!globalZoom.controlActive) {
+            globalZoom.manualOverride = false;
+        }
+        updateGlobalTransformOverlay();
+    }
+
+    function setGlobalScale(value) {
+        const sanitized = clamp(value, 0.3, 3);
+        globalZoom.editingTransform.scale = sanitized;
+        globalZoom.manualOverride = true;
+        updateGlobalTransformInputs();
+        updateGlobalTransformOverlay();
+    }
+
+    function setGlobalOffset(axis, value) {
+        const sanitized = axis === 'x' ? clamp(value, 0, CANVAS_WIDTH) : clamp(value, 0, CANVAS_HEIGHT);
+        globalZoom.editingTransform[axis] = sanitized;
+        globalZoom.manualOverride = true;
+        updateGlobalTransformInputs();
+        updateGlobalTransformOverlay();
+    }
+
+    function updateGlobalTransformInputs() {
+        globalScaleInput.value = globalZoom.editingTransform.scale.toFixed(2);
+        globalScaleRange.value = globalZoom.editingTransform.scale;
+        globalOffsetXInput.value = Math.round(globalZoom.editingTransform.x);
+        globalOffsetYInput.value = Math.round(globalZoom.editingTransform.y);
+    }
+
+    function startGlobalTransformDrag(e) {
+        if (!globalZoom.controlActive) return;
+        e.preventDefault();
+        const canvasRect = canvas.getBoundingClientRect();
+        globalZoom.dragging = {
+            startX: e.clientX,
+            startY: e.clientY,
+            initialX: globalZoom.editingTransform.x,
+            initialY: globalZoom.editingTransform.y,
+            scaleX: CANVAS_WIDTH / canvasRect.width,
+            scaleY: CANVAS_HEIGHT / canvasRect.height
+        };
+        document.addEventListener('mousemove', handleGlobalTransformDrag);
+        document.addEventListener('mouseup', stopGlobalTransformDrag);
+    }
+
+    function handleGlobalTransformDrag(e) {
+        if (!globalZoom.dragging) return;
+        e.preventDefault();
+        const dx = (e.clientX - globalZoom.dragging.startX) * globalZoom.dragging.scaleX;
+        const dy = (e.clientY - globalZoom.dragging.startY) * globalZoom.dragging.scaleY;
+        const newX = clamp(globalZoom.dragging.initialX + dx, 0, CANVAS_WIDTH);
+        const newY = clamp(globalZoom.dragging.initialY + dy, 0, CANVAS_HEIGHT);
+        globalZoom.manualOverride = true;
+        globalZoom.editingTransform.x = newX;
+        globalZoom.editingTransform.y = newY;
+        updateGlobalTransformInputs();
+        updateGlobalTransformOverlay();
+    }
+
+    function stopGlobalTransformDrag() {
+        globalZoom.dragging = null;
+        document.removeEventListener('mousemove', handleGlobalTransformDrag);
+        document.removeEventListener('mouseup', stopGlobalTransformDrag);
+    }
+
+    function handleGlobalTransformWheel(e) {
+        if (!globalZoom.controlActive) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.05 : 0.05;
+        setGlobalScale(globalZoom.editingTransform.scale + delta);
+    }
+
+    function captureGlobalKeyframe(kind) {
+        const time = state.currentTime;
+        const transform = { ...globalZoom.editingTransform };
+        if (kind === 'start') {
+            globalZoom.keyframes.start = { time, transform };
+        } else if (kind === 'end') {
+            globalZoom.keyframes.end = { time, transform };
+        }
+        ensureGlobalKeyframeOrder();
+        globalZoom.manualOverride = false;
+        updateGlobalKeyframeStatus();
+        updateZoomMotionPanelState();
+        renderTimeline();
+        renderCanvas();
+    }
+
+    function ensureGlobalKeyframeOrder() {
+        const start = globalZoom.keyframes.start;
+        const end = globalZoom.keyframes.end;
+        if (start && end && start.time > end.time) {
+            globalZoom.keyframes.start = end;
+            globalZoom.keyframes.end = start;
+        }
+    }
+
+    function updateGlobalKeyframeStatus() {
+        const start = globalZoom.keyframes.start;
+        const end = globalZoom.keyframes.end;
+        globalStartStatus.textContent = start ? `Start: ${formatTimestamp(start.time)}` : 'Start: unset';
+        globalEndStatus.textContent = end ? `End: ${formatTimestamp(end.time)}` : 'End: unset';
+    }
+
+    function updateZoomMotionPanelState() {
+        const hasPair = globalZoom.keyframes.start && globalZoom.keyframes.end;
+        zoomMotionPanel.style.display = hasPair ? 'block' : 'none';
+        if (!hasPair) return;
+        const timelineDuration = Math.max(0.1, Math.abs(globalZoom.keyframes.end.time - globalZoom.keyframes.start.time));
+        if (!globalZoom.motion.durationOverride) {
+            zoomDurationInput.value = timelineDuration.toFixed(2);
+        }
+        zoomCurveSelect.value = globalZoom.motion.speedCurve;
+        zoomFpsInput.value = globalZoom.motion.aestheticFps;
+    }
+
+    function handleZoomDurationChange(e) {
+        const value = parseFloat(e.target.value);
+        if (isNaN(value) || value <= 0) {
+            globalZoom.motion.durationOverride = null;
+        } else {
+            globalZoom.motion.durationOverride = value;
+        }
+    }
+
+    function handleZoomCurveChange(e) {
+        globalZoom.motion.speedCurve = e.target.value;
+    }
+
+    function handleZoomFpsChange(e) {
+        const value = parseInt(e.target.value, 10);
+        if (!isNaN(value) && value >= 6) {
+            globalZoom.motion.aestheticFps = value;
+        }
+    }
+
+    function syncGlobalEditingTransform(computedTransform) {
+        if (!globalZoom.manualOverride) {
+            globalZoom.editingTransform.scale = computedTransform.scale;
+            globalZoom.editingTransform.x = computedTransform.x;
+            globalZoom.editingTransform.y = computedTransform.y;
+            updateGlobalTransformInputs();
+        }
+    }
+
+    function getGlobalTransformForTime(time) {
+        const start = globalZoom.keyframes.start;
+        const end = globalZoom.keyframes.end;
+        if (!start && !end) {
+            return {
+                scale: globalZoom.editingTransform.scale,
+                x: globalZoom.editingTransform.x,
+                y: globalZoom.editingTransform.y
+            };
+        }
+        if (start && !end) return { ...start.transform };
+        if (!start && end) return { ...end.transform };
+
+        const startTime = Math.min(start.time, end.time);
+        const endTime = Math.max(start.time, end.time);
+        const clampedTime = clamp(time, startTime, endTime);
+        const timelineDuration = Math.max(0.01, endTime - startTime);
+        const baseProgress = clamp((clampedTime - startTime) / timelineDuration, 0, 1);
+        const curveFn = getSpeedCurveFunction(globalZoom.motion.speedCurve);
+        const eased = curveFn(baseProgress);
+        const durationFactor = getDurationFactor(timelineDuration);
+        let adjusted = Math.pow(eased, durationFactor);
+        adjusted = applyFrameRateQuantization(adjusted);
+        const interpolated = interpolateTransforms(start.transform, end.transform, adjusted);
+        return interpolated;
+    }
+
+    function getDurationFactor(timelineDuration) {
+        const override = globalZoom.motion.durationOverride;
+        const duration = override && override > 0 ? override : timelineDuration;
+        return clamp(duration / timelineDuration, 0.25, 3);
+    }
+
+    function getSpeedCurveFunction(name) {
+        const curves = {
+            'linear': (t) => t,
+            'ease-in': (t) => t * t,
+            'ease-out': (t) => 1 - Math.pow(1 - t, 3),
+            'ease-in-out': (t) => (t < 0.5) ? (2 * t * t) : (1 - Math.pow(-2 * t + 2, 2) / 2)
+        };
+        return curves[name] || curves['ease-out'];
+    }
+
+    function interpolateTransforms(from, to, progress) {
+        const lerp = (a, b) => a + (b - a) * progress;
+        return {
+            scale: lerp(from.scale, to.scale),
+            x: lerp(from.x, to.x),
+            y: lerp(from.y, to.y)
+        };
+    }
+
+    function applyFrameRateQuantization(progress) {
+        const fps = Math.max(1, globalZoom.motion.aestheticFps);
+        if (fps >= 60) return progress;
+        const steps = Math.max(1, Math.round(fps));
+        const stepSize = 1 / steps;
+        const quantized = Math.floor(progress / stepSize) * stepSize;
+        return Math.min(1, quantized);
+    }
+
+    function updateGlobalTransformOverlay() {
+        const overlay = globalTransformOverlay;
+        if (!overlay) return;
+        const wrapper = canvas.parentElement;
+        const canvasRect = canvas.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const offsetX = canvasRect.left - wrapperRect.left;
+        const offsetY = canvasRect.top - wrapperRect.top;
+        const scaleX = canvasRect.width / CANVAS_WIDTH;
+        const scaleY = canvasRect.height / CANVAS_HEIGHT;
+        const transform = globalZoom.editingTransform;
+        const viewWidth = CANVAS_WIDTH / transform.scale;
+        const viewHeight = CANVAS_HEIGHT / transform.scale;
+        const topLeftX = clamp(transform.x - viewWidth / 2, -CANVAS_WIDTH, 2 * CANVAS_WIDTH);
+        const topLeftY = clamp(transform.y - viewHeight / 2, -CANVAS_HEIGHT, 2 * CANVAS_HEIGHT);
+        overlay.style.width = `${viewWidth * scaleX}px`;
+        overlay.style.height = `${viewHeight * scaleY}px`;
+        overlay.style.left = `${offsetX + topLeftX * scaleX}px`;
+        overlay.style.top = `${offsetY + topLeftY * scaleY}px`;
+    }
+
+    function formatTimestamp(time) {
+        const mins = Math.floor(time / 60);
+        const secs = Math.floor(time % 60);
+        const ms = Math.floor((time % 1) * 100);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    }
+
+    function updateGlobalKeyframeMarkers() {
+        const container = document.getElementById('global-keyframe-markers');
+        if (!container) return;
+        const width = state.duration * PIXELS_PER_SECOND;
+        container.innerHTML = '';
+        container.style.width = `${width}px`;
+        const start = globalZoom.keyframes.start;
+        const end = globalZoom.keyframes.end;
+        if (start) container.appendChild(createGlobalMarker(start.time, 'start'));
+        if (end) container.appendChild(createGlobalMarker(end.time, 'end'));
+    }
+
+    function createGlobalMarker(time, type) {
+        const marker = document.createElement('div');
+        marker.className = `global-keyframe-marker ${type}`;
+        marker.style.left = `${time * PIXELS_PER_SECOND}px`;
+        return marker;
+    }
+
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
     }
 
     function createLayerSlot(name = null, insertIndex = state.layerSlots.length) {
@@ -996,12 +1342,15 @@
     function updateProperty(prop, value) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
-
-        if (layer.keyframes[prop] && layer.keyframes[prop].length > 0) {
-            layer.addKeyframe(prop, state.currentTime, value);
-        } else {
-            layer[prop] = parseFloat(value);
-        }
+        
+        // If we are just changing the input, we update the base value OR the keyframe at this exact time?
+        // For simplicity: If there are keyframes, we don't update base unless we are on a keyframe.
+        // But to make it "Robust", let's say changing a value updates the base property, 
+        // UNLESS we explicitly click "Add Keyframe". 
+        // However, to preview animation, we need to override the interpolated value temporarily?
+        // Let's just update the base property for now, which acts as the default if no keyframes exist.
+        
+        layer[prop] = parseFloat(value);
     }
 
     function addKeyframe(prop) {
@@ -1009,19 +1358,6 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         const val = document.getElementById(`prop-${prop}`).value;
         layer.addKeyframe(prop, state.currentTime, val);
-    }
-
-    function addUniversalKeyframe() {
-        if (state.selectedLayerId) {
-            // Add keyframes for all properties of the selected layer
-            const animatableProps = ['x', 'y', 'scale', 'rotation', 'opacity'];
-            animatableProps.forEach(prop => {
-                addKeyframe(prop);
-            });
-        } else {
-            // No layer selected, add a global zoom keyframe
-            addGlobalKeyframe();
-        }
     }
 
     function updateText(val) {
@@ -1042,133 +1378,6 @@
         }
     }
 
-    // --- Global Zoom & Transform ---
-
-    function getGlobalTransform(time) {
-        const kfs = state.globalTransform.keyframes;
-        // Default with finalProgress 0 to prevent audio glitching on init
-        const defaultTransform = { scale: 1, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, finalProgress: 0 };
-
-        if (kfs.length === 0) return defaultTransform;
-
-        // Ensure sorted
-        kfs.sort((a, b) => a.time - b.time);
-
-        // Boundary checks (Before first keyframe or after last)
-        if (time <= kfs[0].time) return { ...kfs[0], finalProgress: 0 };
-        if (time >= kfs[kfs.length - 1].time) return { ...kfs[kfs.length - 1], finalProgress: 1 };
-
-        // Find the active segment
-        let startKf, endKf;
-        for (let i = 0; i < kfs.length - 1; i++) {
-            if (time >= kfs[i].time && time < kfs[i+1].time) {
-                startKf = kfs[i];
-                endKf = kfs[i+1];
-                break;
-            }
-        }
-
-        if (!startKf || !endKf) return defaultTransform;
-
-        const { duration, easing, aestheticFps } = state.globalTransform;
-        
-        // Duration Logic
-        const segmentDuration = Math.max(0.001, endKf.time - startKf.time);
-        const durationOverride = parseFloat(duration);
-        const motionDuration = (!isNaN(durationOverride) && durationOverride > 0) 
-            ? durationOverride 
-            : segmentDuration;
-
-        // --- STEPPING LOGIC START ---
-        const fps = parseFloat(aestheticFps);
-        let progress;
-
-        // Apply stepping if fps is valid and reasonably low (e.g. < 120)
-        // We remove the strict "< 60" check to ensure it works even on high-refresh monitors if the user types 60
-        if (!isNaN(fps) && fps > 0 && fps < 120) {
-            const frameDuration = 1 / fps;
-            // Use Math.max(0) to prevent negative time glitches
-            const timeSinceStart = Math.max(0, time - startKf.time);
-            
-            // Quantize time to the nearest frame floor
-            const steppedTime = Math.floor(timeSinceStart / frameDuration) * frameDuration;
-            progress = steppedTime / motionDuration;
-        } else {
-            // Smooth motion fallback
-            progress = (time - startKf.time) / motionDuration;
-        }
-        // --- STEPPING LOGIC END ---
-
-        // Clamp Progress 0-1
-        progress = Math.max(0, Math.min(1, progress));
-
-        // Apply Easing
-        const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
-        const finalProgress = easingFn(progress);
-
-        // Interpolate Values
-        const scale = startKf.scale + (endKf.scale - startKf.scale) * finalProgress;
-        const x = startKf.x + (endKf.x - startKf.x) * finalProgress;
-        const y = startKf.y + (endKf.y - startKf.y) * finalProgress;
-
-        return { scale, x, y, finalProgress };
-    }
-
-    function updateCurrentGlobalTransform(prop, value) {
-        state.currentGlobalTransform[prop] = parseFloat(value);
-        // If keyframes exist, automatically update/add keyframe at current time
-        if (state.globalTransform.keyframes.length > 0) {
-            addGlobalKeyframe();
-        }
-    }
-
-    function addGlobalKeyframe() {
-        const time = state.currentTime;
-        state.globalTransform.keyframes = state.globalTransform.keyframes.filter(k => Math.abs(k.time - time) > 0.01);
-        state.globalTransform.keyframes.push({
-            time: time,
-            scale: state.currentGlobalTransform.scale,
-            x: state.currentGlobalTransform.x,
-            y: state.currentGlobalTransform.y,
-        });
-        state.globalTransform.keyframes.sort((a, b) => a.time - b.time);
-        renderGlobalTimeline();
-        updateGlobalMotionControlsUI();
-    }
-
-    function updateGlobalMotion(prop, value) {
-        if (prop === 'aestheticFps') value = parseFloat(value);
-        state.globalTransform[prop] = value;
-    }
-
-    function updateGlobalMotionControlsUI() {
-        const durationInput = document.getElementById('global-duration');
-        const fpsInput = document.getElementById('global-fps');
-        const easingSelect = document.getElementById('global-easing');
-
-        durationInput.disabled = false;
-        fpsInput.disabled = false;
-        easingSelect.disabled = false;
-
-        durationInput.value = state.globalTransform.duration;
-        durationInput.placeholder = 'auto';
-        fpsInput.value = state.globalTransform.aestheticFps;
-        easingSelect.value = state.globalTransform.easing;
-    }
-
-    function updateGlobalTransformPanel() {
-        const transform = getGlobalTransform(state.currentTime);
-        document.getElementById('global-prop-scale').value = transform.scale.toFixed(2);
-        document.getElementById('global-prop-x').value = Math.round(transform.x);
-        document.getElementById('global-prop-y').value = Math.round(transform.y);
-
-        // Sync the staging object
-        state.currentGlobalTransform.scale = transform.scale;
-        state.currentGlobalTransform.x = transform.x;
-        state.currentGlobalTransform.y = transform.y;
-    }
-
-
     // --- Timeline UI ---
 
     function renderTimeline() {
@@ -1178,7 +1387,6 @@
 
         // Set width based on duration
         const width = state.duration * PIXELS_PER_SECOND;
-        renderGlobalTimeline();
         document.getElementById('scrubber').style.width = `${width}px`;
 
         rebuildSlotAssignments();
@@ -1243,23 +1451,9 @@
         container.appendChild(placeholder);
 
         updateTimelineUI();
+        updateGlobalKeyframeMarkers();
     }
 
-    function renderGlobalTimeline() {
-        const track = document.getElementById('global-zoom-track');
-        if (!track) return;
-        track.innerHTML = ''; // Clear
-        track.style.width = `${state.duration * PIXELS_PER_SECOND}px`;
-
-        state.globalTransform.keyframes.forEach(kf => {
-            const marker = document.createElement('div');
-            marker.className = 'keyframe-marker';
-            marker.style.left = `${kf.time * PIXELS_PER_SECOND}px`;
-            marker.style.top = '5px';
-            marker.style.background = 'cyan';
-            track.appendChild(marker);
-        });
-    }
     function updateTimelineUI() {
         const playhead = document.getElementById('playhead');
         const timeDisplay = document.getElementById('time-display');
@@ -1285,8 +1479,10 @@
         
         const time = Math.max(0, offsetX / PIXELS_PER_SECOND);
         state.currentTime = time;
+        globalZoom.manualOverride = false;
         updateTimelineUI();
-        updateAllPanels();
+        updatePropertiesPanel();
+        renderCanvas();
     });
 
     // --- Drag & Drop File Upload ---
@@ -1430,7 +1626,7 @@
         // Canvas Logic
         if (dragState.type.startsWith('canvas-')) {
             handleCanvasDrag(e);
-            updateAllPanels();
+            updatePropertiesPanel();
         }
     }
 
@@ -1449,9 +1645,6 @@
                 assignLayerToSlot(layer, slot.id);
                 renderTimeline();
             }
-        }
-        if (dragState.type && dragState.type.startsWith('canvas-')) {
-            renderTimeline();
         }
         document.getElementById('drop-indicator').style.display = 'none';
         if (dragState.sourceElement) {
@@ -1560,13 +1753,13 @@
                 layerId: hitLayer.id,
                 startX: pos.x,
                 startY: pos.y,
-                initialX: hitLayer.getValue('x', state.currentTime),
-                initialY: hitLayer.getValue('y', state.currentTime),
-                initialRotation: hitLayer.getValue('rotation', state.currentTime),
-                initialScale: hitLayer.getValue('scale', state.currentTime),
+                initialX: hitLayer.x,
+                initialY: hitLayer.y,
+                initialRotation: hitLayer.rotation,
+                initialScale: hitLayer.scale,
                 // For rotation/scale calculations
-                initialAngle: Math.atan2(pos.y - hitLayer.getValue('y', state.currentTime), pos.x - hitLayer.getValue('x', state.currentTime)),
-                initialDist: Math.sqrt((pos.x - hitLayer.getValue('x', state.currentTime))**2 + (pos.y - hitLayer.getValue('y', state.currentTime))**2)
+                initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
+                initialDist: Math.sqrt((pos.x - hitLayer.x)**2 + (pos.y - hitLayer.y)**2)
             };
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
@@ -1587,38 +1780,28 @@
         const pos = getPointerPos(e);
         const layer = state.layers.find(l => l.id === dragState.layerId);
         
-        const setVal = (prop, val) => {
-            if (layer.keyframes[prop] && layer.keyframes[prop].length > 0) {
-                layer.updateOrAddKeyframe(prop, state.currentTime, val);
-            } else {
-                layer[prop] = val;
-            }
-        };
-
         if (dragState.type === 'canvas-drag') {
             const dx = pos.x - dragState.startX;
             const dy = pos.y - dragState.startY;
             
-            setVal('x', dragState.initialX + dx);
-            setVal('y', dragState.initialY + dy);
+            // Update property directly (or add keyframe if we wanted auto-keyframing)
+            // For now, update base property
+            layer.x = dragState.initialX + dx;
+            layer.y = dragState.initialY + dy;
         }
         else if (dragState.type === 'canvas-rotate') {
             // Calculate new angle
-            const lx = layer.getValue('x', state.currentTime);
-            const ly = layer.getValue('y', state.currentTime);
-            const currentAngle = Math.atan2(pos.y - ly, pos.x - lx);
+            const currentAngle = Math.atan2(pos.y - layer.y, pos.x - layer.x);
             const dAngle = currentAngle - dragState.initialAngle;
             // Convert to degrees
-            setVal('rotation', dragState.initialRotation + (dAngle * 180 / Math.PI));
+            layer.rotation = dragState.initialRotation + (dAngle * 180 / Math.PI);
         }
         else if (dragState.type === 'canvas-scale') {
             // Calculate new distance
-            const lx = layer.getValue('x', state.currentTime);
-            const ly = layer.getValue('y', state.currentTime);
-            const currentDist = Math.sqrt((pos.x - lx)**2 + (pos.y - ly)**2);
+            const currentDist = Math.sqrt((pos.x - layer.x)**2 + (pos.y - layer.y)**2);
             // Scale ratio
             const scaleRatio = currentDist / dragState.initialDist;
-            setVal('scale', dragState.initialScale * scaleRatio);
+            layer.scale = dragState.initialScale * scaleRatio;
         }
     }
 
@@ -1626,15 +1809,17 @@
 
     document.getElementById('btn-play').onclick = () => {
         state.isPlaying = !state.isPlaying;
+        globalZoom.manualOverride = false;
         updatePlayButton();
     };
 
     document.getElementById('btn-stop').onclick = () => {
         state.isPlaying = false;
         state.currentTime = 0;
+        globalZoom.manualOverride = false;
         updatePlayButton();
         updateTimelineUI();
-        updateAllPanels();
+        updatePropertiesPanel();
     };
 
     function updatePlayButton() {
@@ -1677,14 +1862,14 @@
                 clearInterval(frameInterval);
                 state.currentTime = state.duration;
                 renderCanvas();
-                updateTimelineUI(); // These are needed to show the final state before stopping
-                updateAllPanels();
+                updateTimelineUI();
+                updatePropertiesPanel();
                 if (progressCallback) progressCallback(1);
                 recorder.stop();
                 return;
             }
             state.currentTime = frame / FPS;
-            renderCanvas(); // This now includes global transform
+            renderCanvas();
             updateTimelineUI();
             updatePropertiesPanel();
             if (progressCallback) progressCallback(Math.min(1, frame / totalFrames));
@@ -1793,7 +1978,7 @@
             state.currentTime = 0;
             renderCanvas(); // Show first frame
             updateTimelineUI();
-            updateAllPanels();
+            updatePropertiesPanel();
             animationFrameId = requestAnimationFrame(gameLoop); // Restart main loop
         }
 
