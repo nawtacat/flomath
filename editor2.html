@@ -337,7 +337,7 @@
                 </div>
                 <div class="property-row" style="margin-bottom: 10px;">
                     <span style="width: 110px;" title="Controls how often the zoom updates. Lower values look more stepped; higher values look smoother.">Zoom Motion FPS</span>
-                    <input type="number" id="global-fps" oninput="updateGlobalMotion('aestheticFps', this.value)" value="60" style="margin-bottom: 0;">
+                    <input type="number" id="global-fps" min="1" max="60" oninput="updateGlobalMotion('aestheticFps', this.value)" value="60" style="margin-bottom: 0;">
                 </div>
                 <div class="property-row" style="margin-bottom: 10px;">
                     <span style="width: 90px;">Speed Curve</span>
@@ -1076,16 +1076,18 @@
             ? durationOverride 
             : segmentDuration;
 
+        // Calculate raw progress first
         let progress = (time - startKf.time) / motionDuration;
-        progress = Math.max(0, Math.min(1, progress));
-
+        
         const fps = parseFloat(aestheticFps);
-        if (!isNaN(fps) && fps > 0) {
-            const totalFrames = Math.floor(motionDuration * fps);
-            if (totalFrames > 0) {
-                progress = Math.floor(progress * totalFrames) / totalFrames;
-            }
+        if (!isNaN(fps) && fps > 0 && fps < 60) {
+            const frameDuration = 1 / fps;
+            const timeSinceStart = time - startKf.time;
+            const steppedTime = Math.floor(timeSinceStart / frameDuration) * frameDuration;
+            progress = steppedTime / motionDuration;
         }
+        
+        progress = Math.max(0, Math.min(1, progress));
 
         const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
         const finalProgress = easingFn(progress);
