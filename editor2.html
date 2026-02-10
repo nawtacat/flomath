@@ -336,7 +336,7 @@
                     <input type="text" id="global-duration" onchange="updateGlobalMotion('duration', this.value)" placeholder="auto" style="margin-bottom: 0;">
                 </div>
                 <div class="property-row" style="margin-bottom: 10px;">
-                    <span style="width: 90px;">Aesthetic FPS</span>
+                    <span style="width: 110px;" title="Controls how often the zoom updates. Lower values look more stepped; higher values look smoother.">Zoom Smoothness</span>
                     <input type="number" id="global-fps" onchange="updateGlobalMotion('aestheticFps', this.value)" value="60" style="margin-bottom: 0;">
                 </div>
                 <div class="property-row" style="margin-bottom: 10px;">
@@ -1074,17 +1074,20 @@
         const durationOverride = parseFloat(duration);
         const durationInSeconds = durationOverride > 0 ? Math.max(0.001, durationOverride) : keyframeDuration;
 
-        const rawProgress = (time - startKf.time) / durationInSeconds;
-        const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
-        const easedProgress = Math.max(0, Math.min(1, easingFn(Math.max(0, Math.min(1, rawProgress)))));
+        let rawProgress = (time - startKf.time) / durationInSeconds;
+        rawProgress = Math.max(0, Math.min(1, rawProgress));
 
         const fpsValue = parseFloat(aestheticFps);
-        let finalProgress = easedProgress;
         if (!Number.isNaN(fpsValue) && fpsValue > 0) {
-            const steps = Math.max(1, Math.round(durationInSeconds * fpsValue));
-            finalProgress = Math.floor(easedProgress * steps) / steps;
-            finalProgress = Math.max(0, Math.min(1, finalProgress));
+            const totalFrames = Math.floor(durationInSeconds * fpsValue);
+            if (totalFrames > 0 && rawProgress < 1) {
+                const currentFrame = Math.floor(rawProgress * totalFrames);
+                rawProgress = currentFrame / totalFrames;
+            }
         }
+
+        const easingFn = GLOBAL_EASING_FUNCTIONS[easing] || GLOBAL_EASING_FUNCTIONS.linear;
+        const finalProgress = easingFn(rawProgress);
 
         const scale = startKf.scale + (endKf.scale - startKf.scale) * finalProgress;
         const x = startKf.x + (endKf.x - startKf.x) * finalProgress;
