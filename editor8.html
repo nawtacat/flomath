@@ -644,6 +644,8 @@
         <div class="global-controls">
             <button id="btn-zoom-keyframe">Add Zoom Keyframe</button>
             <button id="btn-motion-keyframe" class="secondary">Add Motion Keyframe</button>
+            <button id="btn-delete-zoom-keyframe" class="secondary" disabled>Delete Zoom</button>
+            <button id="btn-delete-motion-keyframe" class="secondary" disabled>Delete Motion</button>
             <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
             <span id="zoom-status">Zoom start unset</span>
             <span id="motion-status">Motion start unset</span>
@@ -740,6 +742,8 @@
     const motionCurveSelect = document.getElementById('motion-curve-select');
     const motionFpsSlider = document.getElementById('motion-fps-slider');
     const motionFpsValue = document.getElementById('motion-fps-value');
+    const btnDeleteZoomKeyframe = document.getElementById('btn-delete-zoom-keyframe');
+    const btnDeleteMotionKeyframe = document.getElementById('btn-delete-motion-keyframe');
     const floatSettingsPanel = document.getElementById('float-settings');
     const floatDistanceValueEl = document.getElementById('float-distance-value');
     const floatPaceValueEl = document.getElementById('float-pace-value');
@@ -2123,6 +2127,7 @@
             const label = `Editing Keyframe ${activeGlobalKeyframeIndex + 1}`;
             const time = frame ? formatTimeLabel(frame.time) : '00:00.00';
             zoomStatusEl.innerText = `${label} @ ${time}`;
+            updateZoomDeleteButtonState();
             return;
         }
         if (globalZoom.keyframes.length === 0) {
@@ -2132,6 +2137,7 @@
             const last = globalZoom.keyframes[globalZoom.keyframes.length - 1];
             zoomStatusEl.innerText = `Zoom ${formatTimeLabel(first.time)} → ${formatTimeLabel(last.time)}`;
         }
+        updateZoomDeleteButtonState();
     }
 
     function showZoomToast(message) {
@@ -2142,6 +2148,11 @@
         zoomToastTimer = setTimeout(() => {
             zoomToastEl.classList.remove('visible');
         }, 1600);
+    }
+
+    function updateZoomDeleteButtonState() {
+        if (!btnDeleteZoomKeyframe) return;
+        btnDeleteZoomKeyframe.disabled = activeGlobalKeyframeIndex === null;
     }
 
     function ensureKeyframesSorted() {
@@ -2162,6 +2173,20 @@
         renderTimeline();
         updateZoomControlsPanelVisibility();
         updateZoomStatus();
+    }
+
+    function deleteZoomKeyframe() {
+        if (activeGlobalKeyframeIndex === null || !globalZoom.keyframes[activeGlobalKeyframeIndex]) {
+            showZoomToast('Select a zoom keyframe first');
+            return;
+        }
+        globalZoom.keyframes.splice(activeGlobalKeyframeIndex, 1);
+        activeGlobalKeyframeIndex = null;
+        globalEditingOverride = null;
+        renderTimeline();
+        updateZoomControlsPanelVisibility();
+        updateZoomStatus();
+        showZoomToast('Zoom keyframe deleted');
     }
 
     function syncActiveGlobalKeyframeFromManual() {
@@ -2214,6 +2239,7 @@
         if (zoomDurationSlider) zoomDurationSlider.disabled = !enabled;
         if (zoomCurveSelect) zoomCurveSelect.disabled = !enabled;
         if (zoomFpsSlider) zoomFpsSlider.disabled = !enabled;
+        updateZoomDeleteButtonState();
     }
 
     function renderGlobalZoomMarkers() {
@@ -2311,6 +2337,21 @@
             return;
         }
         addMotionKeyframe(layer);
+    }
+
+    function deleteMotionKeyframe() {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        if (!track || track.activeKeyframeIndex === null) {
+            showMotionToast('Select a motion keyframe first');
+            return;
+        }
+        track.keyframes.splice(track.activeKeyframeIndex, 1);
+        track.activeKeyframeIndex = null;
+        renderTimeline();
+        updateMotionStatus();
+        updateMotionControlsPanel();
+        showMotionToast('Motion keyframe deleted');
     }
 
     function addMotionKeyframe(layer) {
@@ -2492,20 +2533,31 @@
         const track = layer ? peekMotionTrack(layer.id) : null;
         if (!layer || !track || track.keyframes.length === 0) {
             motionStatusEl.innerText = 'Motion start unset';
+            updateMotionDeleteButtonState();
             return;
         }
         if (track.activeKeyframeIndex !== null && track.keyframes[track.activeKeyframeIndex]) {
             const frame = track.keyframes[track.activeKeyframeIndex];
             motionStatusEl.innerText = `Editing Motion ${track.activeKeyframeIndex + 1} @ ${formatTimeLabel(frame.time)}`;
+            updateMotionDeleteButtonState();
             return;
         }
         const first = track.keyframes[0];
         const last = track.keyframes[track.keyframes.length - 1];
         if (first && last) {
             motionStatusEl.innerText = `Motion ${formatTimeLabel(first.time)} → ${formatTimeLabel(last.time)}`;
+            updateMotionDeleteButtonState();
             return;
         }
         motionStatusEl.innerText = 'Motion keyframes ready';
+        updateMotionDeleteButtonState();
+    }
+
+    function updateMotionDeleteButtonState() {
+        if (!btnDeleteMotionKeyframe) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        btnDeleteMotionKeyframe.disabled = !track || track.activeKeyframeIndex === null;
     }
 
     function updateMotionControlsPanel() {
@@ -2535,6 +2587,7 @@
         if (motionFpsValue) {
             motionFpsValue.innerText = `${fpsVal}`;
         }
+        updateMotionDeleteButtonState();
     }
 
     function handleMotionDurationChange(e) {
@@ -3100,8 +3153,14 @@
     if (btnZoomKeyframe) {
         btnZoomKeyframe.addEventListener('click', handleZoomKeyframeClick);
     }
+    if (btnDeleteZoomKeyframe) {
+        btnDeleteZoomKeyframe.addEventListener('click', deleteZoomKeyframe);
+    }
     if (btnMotionKeyframe) {
         btnMotionKeyframe.addEventListener('click', handleMotionKeyframeClick);
+    }
+    if (btnDeleteMotionKeyframe) {
+        btnDeleteMotionKeyframe.addEventListener('click', deleteMotionKeyframe);
     }
     if (btnWholeControl) {
         btnWholeControl.addEventListener('click', toggleWholeControlMode);
