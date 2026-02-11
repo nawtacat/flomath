@@ -794,7 +794,7 @@
             const relativeTime = state.currentTime - layer.startTime; // Keyframes are relative to layer start? No, let's make them absolute for simplicity in this MVP
             // Actually, making keyframes absolute to the timeline is easier for the user.
             
-            const x = layer.getValue('x', state.currentTime);
+            let x = layer.getValue('x', state.currentTime);
             let y = layer.getValue('y', state.currentTime);
             let scale = layer.getValue('scale', state.currentTime);
             let rotation = layer.getValue('rotation', state.currentTime);
