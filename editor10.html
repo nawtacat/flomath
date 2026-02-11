@@ -3231,39 +3231,31 @@
 
         const layersInOrder = getLayersInRenderOrder();
         const reversedLayers = [...layersInOrder].reverse();
-        let hitLayer = null;
-        let hitType = 'canvas-drag';
+        const candidates = [];
         const HANDLE_HIT_RADIUS = 24;
         const BODY_HIT_PAD = 12;
-        for (const layer of reversedLayers) {
-            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
+
+        reversedLayers.forEach((layer, idx) => {
+            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
 
             const dx = pos.x - layer.getValue('x', state.currentTime);
             const dy = pos.y - layer.getValue('y', state.currentTime);
             const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
             const s = 1 / layer.getValue('scale', state.currentTime);
-
             const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
             const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
-
             const w = layer.width || 100;
             const h = layer.height || 100;
             const allowHandles = Math.max(w, h) > HANDLE_HIT_RADIUS;
-
             const rotX = 0;
             const rotY = -h / 2 - 50 / s;
-            const handleScale = Math.max(s, 0.4);
-            const handleThreshold = Math.min(HANDLE_HIT_RADIUS, HANDLE_HIT_RADIUS / handleScale);
+            const handleThreshold = Math.min(HANDLE_HIT_RADIUS, HANDLE_HIT_RADIUS / Math.max(s, 0.4));
             const innerMargin = Math.min(12, w / 4, h / 4);
             const insideSafeZone = innerMargin > 0 &&
                 Math.abs(localX) <= w / 2 - innerMargin &&
                 Math.abs(localY) <= h / 2 - innerMargin;
 
-            if (allowHandles && Math.sqrt((localX - rotX) ** 2 + (localY - rotY) ** 2) <= handleThreshold) {
-                hitLayer = layer;
-                hitType = 'canvas-rotate';
-                break;
-            }
+            const checkHandle = () => allowHandles && Math.sqrt((localX - rotX) ** 2 + (localY - rotY) ** 2) <= handleThreshold;
 
             const corners = [
                 { x: -w / 2, y: -h / 2 }, { x: w / 2, y: -h / 2 },
@@ -3271,19 +3263,42 @@
             ];
             const hitCorner = allowHandles && corners.some(c => Math.hypot(localX - c.x, localY - c.y) <= handleThreshold);
 
-            if (hitCorner) {
-                hitLayer = layer;
-                hitType = 'canvas-scale';
-                break;
-            }
-
-            if (insideSafeZone ||
+            let type = null;
+            if (checkHandle()) {
+                type = 'canvas-rotate';
+            } else if (hitCorner) {
+                type = 'canvas-scale';
+            } else if (insideSafeZone ||
                 (localX >= -w / 2 - BODY_HIT_PAD && localX <= w / 2 + BODY_HIT_PAD &&
                     localY >= -h / 2 - BODY_HIT_PAD && localY <= h / 2 + BODY_HIT_PAD)) {
-                hitLayer = layer;
-                hitType = 'canvas-drag';
-                break;
+                type = 'canvas-drag';
             }
+
+            if (type) {
+                candidates.push({
+                    layer,
+                    type,
+                    slotIndex: getSlotIndexById(layer.slotId),
+                    renderOrder: reversedLayers.length - idx
+                });
+            }
+        });
+
+        let hitLayer = null;
+        let hitType = 'canvas-drag';
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                if (a.slotIndex !== b.slotIndex) {
+                    return b.slotIndex - a.slotIndex;
+                }
+                const priority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
+                if (priority[a.type] !== priority[b.type]) {
+                    return priority[a.type] - priority[b.type];
+                }
+                return b.renderOrder - a.renderOrder;
+            });
+            hitLayer = candidates[0].layer;
+            hitType = candidates[0].type;
         }
 
         if (hitLayer) {
