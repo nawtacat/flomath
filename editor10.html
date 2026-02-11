@@ -2841,7 +2841,6 @@
     }
 
     function handleViewportZoomChange(e) {
-        if (state.selectedLayerId !== null) return;
         const value = parseFloat(e.target.value);
         if (Number.isNaN(value)) return;
         manualGlobalTransform.scale = Math.min(3, Math.max(0.3, value));
@@ -2851,7 +2850,6 @@
     }
 
     function handleViewportPanChange(e) {
-        if (state.selectedLayerId !== null) return;
         const value = parseFloat(e.target.value);
         if (Number.isNaN(value)) return;
         manualGlobalTransform.x = value;
@@ -3330,7 +3328,6 @@
     }
 
     function handleGlobalZoomWheel(e) {
-        if (state.selectedLayerId !== null) return;
         e.preventDefault();
         const deltaScale = 1 - e.deltaY * 0.001;
         const nextScale = manualGlobalTransform.scale * deltaScale;
