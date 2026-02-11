@@ -1933,6 +1933,7 @@
 
         const layersInOrder = getLayersInRenderOrder();
         const reversedLayers = [...layersInOrder].reverse();
+        const candidates = [];
         let hitLayer = null;
         let hitType = 'canvas-drag';
         const HANDLE_HIT_RADIUS = 24;
@@ -1962,16 +1963,14 @@
                 Math.abs(localX) <= w/2 - innerMargin &&
                 Math.abs(localY) <= h/2 - innerMargin;
             if (insideSafeZone) {
-                hitLayer = layer;
-                hitType = 'canvas-drag';
-                break;
+                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
+                continue;
             }
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
 
             if (allowHandles && distRot <= handleThreshold) {
-                hitLayer = layer;
-                hitType = 'canvas-rotate';
-                break;
+                candidates.push({ layer, type: 'canvas-rotate', order: candidates.length });
+                continue;
             }
 
             const cornerThreshold = handleThreshold;
@@ -1982,18 +1981,31 @@
             const hitCorner = corners.some(c => Math.hypot(localX - c.x, localY - c.y) <= cornerThreshold);
 
             if (allowHandles && hitCorner) {
-                hitLayer = layer;
-                hitType = 'canvas-scale';
-                break;
+                candidates.push({ layer, type: 'canvas-scale', order: candidates.length });
+                continue;
             }
-
+            if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD &&
+                localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
+                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
+            }
         }
 
-        if (hitLayer && hitLayer.katex && hitType === 'canvas-drag') {
-            const fallback = findLayerAtPoint(layersInOrder, pos, hitLayer.id);
-            if (fallback) {
-                hitLayer = fallback;
-            }
+        if (candidates.length > 0) {
+            const typePriority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
+            candidates.sort((a, b) => {
+                if (typePriority[a.type] !== typePriority[b.type]) {
+                    return typePriority[a.type] - typePriority[b.type];
+                }
+                const areaA = (a.layer.width || 100) * (a.layer.height || 100);
+                const areaB = (b.layer.width || 100) * (b.layer.height || 100);
+                if (areaA !== areaB) {
+                    return areaA - areaB;
+                }
+                return a.order - b.order;
+            });
+            const chosen = candidates[0];
+            hitLayer = chosen.layer;
+            hitType = chosen.type;
         }
 
         if (hitLayer) {
