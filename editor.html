@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Shorts Editor</title>
+    <title>Florian Editor</title>
     <style>
         :root {
             --bg-dark: #1e1e1e;
@@ -62,6 +62,136 @@
             align-items: center;
             position: relative;
             overflow: hidden;
+        }
+
+        .viewport.whole-control-active {
+            outline: 2px solid #0abf7a;
+            outline-offset: 4px;
+            cursor: move;
+        }
+
+        .global-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(12, 12, 12, 0.85);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 50;
+            font-size: 13px;
+        }
+
+        .global-controls button {
+            margin: 0;
+            padding: 6px 12px;
+        }
+
+        .global-controls button.toggle {
+            background: #444;
+        }
+
+        .global-controls button.toggle.active {
+            background: #0abf7a;
+        }
+
+        .global-controls #zoom-status {
+            font-size: 12px;
+            color: #8df;
+            white-space: nowrap;
+        }
+
+        .zoom-toast {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 6px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .zoom-toast.visible {
+            opacity: 1;
+        }
+
+        .zoom-controls-panel {
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+
+        .zoom-controls-panel.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .zoom-controls-panel .control-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .zoom-controls-panel .control-row input[type="range"] {
+            flex: 1;
+        }
+
+        .zoom-controls-panel .control-row span {
+            min-width: 40px;
+            text-align: right;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .global-zoom-marker {
+            position: absolute;
+            top: 5px;
+            width: 12px;
+            height: 26px;
+            background: #0abf7a;
+            transform: translateX(-50%);
+            border-radius: 4px;
+            z-index: 40;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .global-zoom-marker.start {
+            background: #0abf7a;
+        }
+
+        .global-zoom-marker.end {
+            background: #f0bc3d;
+        }
+
+        .global-zoom-marker.active {
+            box-shadow: 0 0 0 3px rgba(10, 191, 122, 0.45);
+            transform: translateX(-50%) scale(1.2);
+        }
+
+        .motion-marker {
+            position: absolute;
+            top: 38px;
+            width: 12px;
+            height: 26px;
+            background: #ff6b3d;
+            transform: translateX(-50%);
+            border-radius: 4px;
+            z-index: 40;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .motion-marker.active {
+            box-shadow: 0 0 0 3px rgba(255, 155, 112, 0.45);
+            transform: translateX(-50%) scale(1.2);
         }
 
         .timeline-container {
@@ -286,17 +416,55 @@
         }
         #drag-overlay h2 { color: white; font-size: 3em; text-shadow: 2px 2px 4px #000; }
 
+        #highlight-helper {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.65);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #fff;
+            pointer-events: none;
+            z-index: 60;
+            display: none;
+        }
+        #highlight-preview {
+            position: absolute;
+            border: 2px dashed rgba(255, 235, 59, 0.8);
+            pointer-events: none;
+            display: none;
+            z-index: 60;
+        }
+        #btn-highlight.active {
+            background: #f0bf00;
+            color: #111;
+        }
+
+        #katex-measure {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+            visibility: hidden;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
 </head>
 <body>
 
 <header>
     <div style="display:flex; align-items:center; gap:10px;">
-        <h1>Gemini Shorts Editor</h1>
+        <h1>Florian Editor</h1>
         <span style="font-size:12px; color:#888;">1080x1920</span>
     </div>
-    <div>
+    <div style="display:flex; gap:8px;">
+        <button id="btn-highlight" class="secondary">H</button>
         <button id="btn-export">Export Video</button>
     </div>
 </header>
@@ -308,8 +476,10 @@
             <button class="secondary" onclick="addTextLayer()">+ Text</button>
             <button class="secondary" onclick="document.getElementById('img-upload').click()">+ Image</button>
             <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
+            <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
+            <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
         </div>
 
         <div class="control-group" id="properties-panel" style="display:none;">
@@ -347,6 +517,54 @@
                 <input type="text" id="prop-text" oninput="updateText(this.value)">
                 <label>Color</label>
                 <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width:100%">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;">
+                    <input type="checkbox" id="prop-katex" onchange="updateKatexMode(this.checked)">
+                    Render as KaTeX
+                </label>
+            </div>
+
+            <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Entry Animation</label>
+                <select id="prop-entry" onchange="updateEntryAnimation(this.value)">
+                    <option value="none">None</option>
+                    <option value="fade">Fade In</option>
+                    <option value="typewriter">Typewriter (text)</option>
+                </select>
+                <label>Entry Duration (s)</label>
+                <input type="number" id="prop-entry-duration" min="0.1" step="0.1" value="1" oninput="updateEntryDuration(this.value)">
+
+                <label style="margin-top:8px;">Exit Animation</label>
+                <select id="prop-exit" onchange="updateExitAnimation(this.value)">
+                    <option value="none">None</option>
+                    <option value="fade">Fade Out</option>
+                </select>
+                <label>Exit Duration (s)</label>
+                <input type="number" id="prop-exit-duration" min="0.1" step="0.1" value="1" oninput="updateExitDuration(this.value)">
+            </div>
+
+            <div id="highlight-controls" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Highlight Color</label>
+                <input type="color" id="highlight-color" value="#ffeb3b" onchange="updateHighlightColor(this.value)">
+                <label>Opacity</label>
+                <input type="range" id="highlight-opacity" min="0" max="1" step="0.05" value="0.6" oninput="updateHighlightOpacity(this.value)">
+                <label>Intensity</label>
+                <input type="range" id="highlight-intensity" min="0" max="1" step="0.05" value="0.5" oninput="updateHighlightIntensity(this.value)">
+                <label>Fill Duration (s)</label>
+                <input type="number" id="highlight-duration" min="0.1" step="0.1" value="1" oninput="updateHighlightDuration(this.value)">
+                <label>Fill Ease</label>
+                <select id="highlight-ease" onchange="updateHighlightEase(this.value)">
+                    <option value="ease-out">Ease Out</option>
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                </select>
+            </div>
+            <div id="audio-controls" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Volume</label>
+                <input type="range" id="audio-volume" min="0" max="1" step="0.05" value="1" oninput="updateAudioVolume(this.value)">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                    <input type="checkbox" id="audio-mute" onchange="updateAudioMute(this.checked)">
+                    Mute
+                </label>
             </div>
 
             <button class="secondary" style="width:100%; margin-top:10px; background:#a33;" onclick="deleteSelectedLayer()">Delete Layer</button>
@@ -361,10 +579,79 @@
                     <option value="float">Float</option>
                 </select>
             </div>
+            <div id="float-settings" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Float Distance</label>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="range" id="float-distance" min="0" max="200" step="5" value="40" oninput="updateFloatDistance(this.value)">
+                    <span id="float-distance-value" style="min-width:40px; text-align:right; font-size:12px;">40px</span>
+                </div>
+                <label>Float Pace</label>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="range" id="float-pace" min="0.3" max="3" step="0.1" value="1" oninput="updateFloatPace(this.value)">
+                    <span id="float-pace-value" style="min-width:40px; text-align:right; font-size:12px;">1.0x</span>
+                </div>
+            </div>
+        </div>
+        <div id="zoom-controls-panel" class="control-group zoom-controls-panel disabled">
+            <label>Zoom Controls</label>
+            <div class="control-row">
+                <span>Duration</span>
+                <input type="range" id="zoom-duration-slider" min="0.5" max="2" step="0.1" value="1" disabled>
+                <span id="zoom-duration-value">1.0x</span>
+            </div>
+            <div class="control-row">
+                <span>Speed Curve</span>
+                <select id="zoom-curve-select" disabled>
+                    <option value="ease-out">Ease Out (default)</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-in-out">Ease In-Out</option>
+                    <option value="linear">Linear</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <span>Motion FPS</span>
+                <input type="range" id="zoom-fps-slider" min="6" max="60" step="1" value="60" disabled>
+                <span id="zoom-fps-value">60</span>
+            </div>
+            <p style="margin:0; font-size:11px; color:#999;">Add a zoom start + end keyframe pair to enable these controls.</p>
+        </div>
+        <div id="motion-controls-panel" class="control-group zoom-controls-panel disabled">
+            <label>Motion Controls</label>
+            <div class="control-row">
+                <span>Duration</span>
+                <input type="range" id="motion-duration-slider" min="0.5" max="2" step="0.1" value="1" disabled>
+                <span id="motion-duration-value">1.0x</span>
+            </div>
+            <div class="control-row">
+                <span>Speed Curve</span>
+                <select id="motion-curve-select" disabled>
+                    <option value="ease-out">Ease Out (default)</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-in-out">Ease In-Out</option>
+                    <option value="linear">Linear</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <span>Motion FPS</span>
+                <input type="range" id="motion-fps-slider" min="6" max="60" step="1" value="60" disabled>
+                <span id="motion-fps-value">60</span>
+            </div>
+            <p style="margin:0; font-size:11px; color:#999;">Add at least two motion keyframes for the selected layer to unlock these controls.</p>
         </div>
     </div>
 
     <div class="viewport">
+        <div class="global-controls">
+            <button id="btn-zoom-keyframe">Add Zoom Keyframe</button>
+            <button id="btn-motion-keyframe" class="secondary">Add Motion Keyframe</button>
+            <button id="btn-delete-zoom-keyframe" class="secondary" disabled>Delete Zoom</button>
+            <button id="btn-delete-motion-keyframe" class="secondary" disabled>Delete Motion</button>
+            <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
+            <span id="zoom-status">Zoom start unset</span>
+            <span id="motion-status">Motion start unset</span>
+            <div id="zoom-toast" class="zoom-toast"></div>
+            <div id="motion-toast" class="zoom-toast"></div>
+        </div>
         <!-- 1080x1920 scaled down to fit -->
         <canvas id="editor-canvas" width="1080" height="1920"></canvas>
     </div>
@@ -396,6 +683,11 @@
     <h2>Drop files to upload</h2>
 </div>
 
+<div id="highlight-helper">Click and drag to draw a highlight</div>
+<div id="highlight-preview"></div>
+
+<div id="katex-measure" aria-hidden="true"></div>
+
 <script>
     // --- Constants & State ---
     const CANVAS_WIDTH = 1080;
@@ -417,8 +709,150 @@
         nextSlotId: 1
     };
 
+    const manualGlobalTransform = { x: 0, y: 0, scale: 1 };
+    const globalZoom = {
+        keyframes: [],
+        easing: 'ease-out',
+        durationScale: 1,
+        motionFPS: 60,
+        nextId: 1
+    };
+    const floatSettings = {
+        distance: 40,
+        pace: 1
+    };
+    let wholeControlActive = false;
+    let globalEditingOverride = null;
+    let zoomToastTimer = null;
+    let activeGlobalKeyframeIndex = null;
+    const zoomStatusEl = document.getElementById('zoom-status');
+    const zoomToastEl = document.getElementById('zoom-toast');
+    const zoomControlsPanel = document.getElementById('zoom-controls-panel');
+    const zoomDurationSlider = document.getElementById('zoom-duration-slider');
+    const zoomDurationValue = document.getElementById('zoom-duration-value');
+    const zoomCurveSelect = document.getElementById('zoom-curve-select');
+    const zoomFpsSlider = document.getElementById('zoom-fps-slider');
+    const zoomFpsValue = document.getElementById('zoom-fps-value');
+    const btnMotionKeyframe = document.getElementById('btn-motion-keyframe');
+    const motionStatusEl = document.getElementById('motion-status');
+    const motionToastEl = document.getElementById('motion-toast');
+    const motionControlsPanel = document.getElementById('motion-controls-panel');
+    const motionDurationSlider = document.getElementById('motion-duration-slider');
+    const motionDurationValue = document.getElementById('motion-duration-value');
+    const motionCurveSelect = document.getElementById('motion-curve-select');
+    const motionFpsSlider = document.getElementById('motion-fps-slider');
+    const motionFpsValue = document.getElementById('motion-fps-value');
+    const btnDeleteZoomKeyframe = document.getElementById('btn-delete-zoom-keyframe');
+    const btnDeleteMotionKeyframe = document.getElementById('btn-delete-motion-keyframe');
+    const floatSettingsPanel = document.getElementById('float-settings');
+    const floatDistanceValueEl = document.getElementById('float-distance-value');
+    const floatPaceValueEl = document.getElementById('float-pace-value');
+    const audioDecodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const katexMeasureEl = document.getElementById('katex-measure');
+    const motionTracks = {};
+    let motionMarkerDrag = null;
+    let motionToastTimer = null;
+    const katexToggle = document.getElementById('prop-katex');
+    const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
+    let katexCssText = '';
+    const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    const getViewportCenterWorld = () => {
+        const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = Math.max(0.0001, transform.scale);
+        return {
+            x: ((2 * centerX - transform.x) / scale) - centerX,
+            y: ((2 * centerY - transform.y) / scale) - centerY
+        };
+    };
+    const screenToWorld = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = Math.max(0.0001, transform.scale);
+        return {
+            x: (point.x - (-centerX + transform.x)) / scale - centerX,
+            y: (point.y - (-centerY + transform.y)) / scale - centerY
+        };
+    };
+    const worldToScreen = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = Math.max(0.0001, transform.scale);
+        return {
+            x: scale * (point.x + centerX) + (-centerX + transform.x),
+            y: scale * (point.y + centerY) + (-centerY + transform.y)
+        };
+    };
+    const getPointerRaw = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (event.clientX - rect.left) * scaleX,
+            y: (event.clientY - rect.top) * scaleY
+        };
+    };
+    function getPointerPos(event) {
+        const raw = getPointerRaw(event);
+        return screenToWorld(raw);
+    }
+    const getPointerWorldPos = (event) => getPointerPos(event);
+    const ensureLayerStartsAtPlayhead = (layer) => {
+        if (!layer) return;
+        const duration = Math.max(0.01, layer.duration);
+        const latestStart = Math.max(0, state.duration - duration);
+        layer.startTime = Math.min(Math.max(0, state.currentTime), latestStart);
+    };
+    const focusPlayheadOnLayer = (layer) => {
+        if (!layer) return;
+        state.currentTime = Math.max(0, Math.min(state.duration, layer.startTime));
+        updateTimelineUI();
+        updatePropertiesPanel();
+    };
+    const recalcStateDuration = () => {
+        const nextDuration = Math.max(10, ...state.layers.map(layer => layer.startTime + layer.duration));
+        state.duration = Math.max(state.duration, nextDuration);
+    };
+    const highlightHelperEl = document.getElementById('highlight-helper');
+    const highlightPreviewEl = document.getElementById('highlight-preview');
+    const highlightControls = document.getElementById('highlight-controls');
+    const highlightColorInput = document.getElementById('highlight-color');
+    const highlightOpacityInput = document.getElementById('highlight-opacity');
+    const highlightIntensityInput = document.getElementById('highlight-intensity');
+    const highlightDurationInput = document.getElementById('highlight-duration');
+    const highlightEaseSelect = document.getElementById('highlight-ease');
+    const audioControls = document.getElementById('audio-controls');
+    const audioVolumeInput = document.getElementById('audio-volume');
+    const audioMuteInput = document.getElementById('audio-mute');
+    const easeOutQuad = (value) => {
+        const t = Math.min(1, Math.max(0, value));
+        return 1 - Math.pow(1 - t, 2);
+    };
+    const btnZoomKeyframe = document.getElementById('btn-zoom-keyframe');
+    fetch(katexCssUrl)
+        .then((response) => response.text())
+        .then((text) => {
+            katexCssText = text;
+            state.layers.forEach((layer) => {
+                if (layer.katex) layer.katexNeedsRender = true;
+            });
+        })
+        .catch(() => {
+            katexCssText = '';
+        });
+    const btnWholeControl = document.getElementById('btn-whole-control');
+    const btnHighlight = document.getElementById('btn-highlight');
+    const zoomClickSound = new Audio('https://flomath.space/audio/click.mp3');
+    zoomClickSound.preload = 'auto';
+    const CLICK_SAMPLE_RATE = 48000;
+    let highlighterMode = false;
+    let highlightDrawing = null;
+    let highlightPreviewRect = null;
+
     let animationFrameId;
     let lastTime = 0;
+    let zoomMarkerDrag = null;
     let dragState = {
         active: false,
         type: null, // 'resize-timeline', 'move-timeline', 'canvas-drag', 'canvas-scale', 'canvas-rotate'
@@ -442,6 +876,175 @@
         sourceSlotId: null
     };
 
+    const CANVAS_BODY_PAD = 12;
+
+    function toggleHighlighterMode() {
+        highlighterMode = !highlighterMode;
+        if (btnHighlight) {
+            btnHighlight.classList.toggle('active', highlighterMode);
+        }
+        if (highlightHelperEl) {
+            highlightHelperEl.style.display = highlighterMode ? 'block' : 'none';
+        }
+        if (!highlighterMode) {
+            clearHighlightDrawing();
+        }
+    }
+
+    function clearHighlightDrawing() {
+        highlightDrawing = null;
+        highlightPreviewRect = null;
+        hideHighlightPreview();
+        document.removeEventListener('mousemove', handleHighlightMouseMove);
+        document.removeEventListener('mouseup', finishHighlightDrawing);
+    }
+
+    function startHighlightDrawing(e) {
+        e.preventDefault();
+        const pos = getPointerWorldPos(e);
+        highlightDrawing = { startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y };
+        updateHighlightPreviewRect({
+            left: pos.x,
+            top: pos.y,
+            width: 0,
+            height: 0
+        });
+        document.addEventListener('mousemove', handleHighlightMouseMove);
+        document.addEventListener('mouseup', finishHighlightDrawing);
+    }
+
+    function handleHighlightMouseMove(e) {
+        const pos = getPointerWorldPos(e);
+        if (!highlightDrawing) return;
+        highlightDrawing.currentX = pos.x;
+        highlightDrawing.currentY = pos.y;
+        const rect = normalizeRect(highlightDrawing);
+        updateHighlightPreviewRect(rect);
+    }
+
+    function finishHighlightDrawing(e) {
+        if (!highlightDrawing) return;
+        const rect = normalizeRect(highlightDrawing);
+        clearHighlightDrawing();
+        highlighterMode = false;
+        if (btnHighlight) btnHighlight.classList.remove('active');
+        if (highlightHelperEl) highlightHelperEl.style.display = 'none';
+
+        if (rect.width < 10 || rect.height < 10) {
+            return;
+        }
+        const layer = new Layer('highlight', 'Highlight', '');
+        layer.x = rect.left + rect.width / 2;
+        layer.y = rect.top + rect.height / 2;
+        layer.width = rect.width;
+        layer.height = rect.height;
+        layer.highlightRect = { width: rect.width, height: rect.height };
+        layer.highlightColor = highlightColorInput?.value || '#ffeb3b';
+        layer.highlightOpacity = parseFloat(highlightOpacityInput?.value) || 0.6;
+        layer.highlightIntensity = parseFloat(highlightIntensityInput?.value) || 0.5;
+        layer.highlightDuration = parseFloat(highlightDurationInput?.value) || 1;
+        layer.highlightEase = highlightEaseSelect?.value || 'ease-out';
+        layer.entryAnimation = { type: 'none', duration: 1 };
+        layer.exitAnimation = { type: 'none', duration: 1 };
+        layer.duration = Math.max(layer.highlightDuration + 0.5, 1.5);
+        ensureLayerStartsAtPlayhead(layer);
+        state.layers.push(layer);
+        placeLayerOnTopSlot(layer);
+        selectLayer(layer.id);
+        focusPlayheadOnLayer(layer);
+        updateMotionControlsPanel();
+        updateMotionStatus();
+        renderTimeline();
+    }
+
+    function normalizeRect(draw) {
+        const left = Math.min(draw.startX, draw.currentX);
+        const top = Math.min(draw.startY, draw.currentY);
+        const width = Math.abs(draw.currentX - draw.startX);
+        const height = Math.abs(draw.currentY - draw.startY);
+        return { left, top, width, height };
+    }
+
+    function updateHighlightPreviewRect(rect) {
+        if (!rect || !highlightPreviewEl) {
+            hideHighlightPreview();
+            return;
+        }
+        const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const topLeft = worldToScreen({ x: rect.left, y: rect.top }, transform);
+        const width = Math.max(0, rect.width * (transform.scale || 1));
+        const height = Math.max(0, rect.height * (transform.scale || 1));
+        const canvasRect = canvas.getBoundingClientRect();
+        const scaleX = canvasRect.width / CANVAS_WIDTH;
+        const scaleY = canvasRect.height / CANVAS_HEIGHT;
+        highlightPreviewEl.style.left = `${canvasRect.left + topLeft.x * scaleX}px`;
+        highlightPreviewEl.style.top = `${canvasRect.top + topLeft.y * scaleY}px`;
+        highlightPreviewEl.style.width = `${width * scaleX}px`;
+        highlightPreviewEl.style.height = `${height * scaleY}px`;
+        highlightPreviewEl.style.display = width > 0 && height > 0 ? 'block' : 'none';
+    }
+
+    function hideHighlightPreview() {
+        if (highlightPreviewEl) {
+            highlightPreviewEl.style.display = 'none';
+        }
+    }
+
+    function applyHighlightEase(progress, ease) {
+        const t = clamp(progress, 0, 1);
+        switch (ease) {
+            case 'ease-in':
+                return Math.pow(t, 2);
+            case 'linear':
+                return t;
+            case 'ease-out':
+            default:
+                return 1 - Math.pow(1 - t, 2);
+        }
+    }
+
+    function syncAudioLayerPlayback(layer) {
+        if (!layer || layer.type !== 'audio' || !layer.content) return;
+        const audio = layer.content;
+        const localTime = state.currentTime - layer.startTime;
+        if (localTime < 0 || localTime > layer.duration) {
+            if (!audio.paused) {
+                audio.pause();
+            }
+            return;
+        }
+        if (Math.abs(audio.currentTime - localTime) > 0.3) {
+            audio.currentTime = Math.max(0, localTime);
+        }
+        audio.volume = layer.volume ?? 1;
+        audio.muted = layer.muted || false;
+        if (state.isPlaying) {
+            audio.play().catch(() => {});
+        } else {
+            audio.pause();
+        }
+    }
+
+    function hexToRgb(hex) {
+        let normalized = hex.replace('#', '');
+        if (normalized.length === 3) {
+            normalized = normalized.split('').map(ch => ch + ch).join('');
+        }
+        const intVal = parseInt(normalized, 16);
+        return {
+            r: (intVal >> 16) & 255,
+            g: (intVal >> 8) & 255,
+            b: intVal & 255
+        };
+    }
+
+    function lightenColor(color, amount) {
+        return {
+            r: Math.round(color.r + (255 - color.r) * amount),
+            g: Math.round(color.g + (255 - color.g) * amount),
+            b: Math.round(color.b + (255 - color.b) * amount)
+        };
+    }
 
     // --- Classes ---
 
@@ -465,6 +1068,18 @@
             this.color = '#ffffff'; // for text
             this.loopingAnimation = 'none';
             this.slotId = null;
+            this.floatSeed = Math.random() * Math.PI * 2;
+            this.katex = false;
+            this.katexNeedsRender = false;
+            this.katexImage = null;
+            this.katexImageWidth = 0;
+        this.katexImageHeight = 0;
+        this.katexContentHash = '';
+        this.katexImageLoading = false;
+        this.entryAnimation = { type: 'none', duration: 1 };
+        this.exitAnimation = { type: 'none', duration: 1 };
+        this.volume = 1;
+        this.muted = false;
 
             // Keyframes: { property: [ {time, value}, ... ] }
             this.keyframes = {
@@ -475,6 +1090,11 @@
         }
 
         updateDimensions() {
+            if (this.katex && this.katexImageWidth && this.katexImageHeight) {
+                this.width = this.katexImageWidth;
+                this.height = this.katexImageHeight;
+                return;
+            }
             if (this.type === 'text') {
                 ctx.font = 'bold 100px Arial';
                 const metrics = ctx.measureText(this.content);
@@ -532,6 +1152,13 @@
             newLayer.content = this.content;
             newLayer.id = state.nextId++; // Ensure a new unique ID
             newLayer.slotId = this.slotId;
+            if (newLayer.katex) {
+                newLayer.katexNeedsRender = true;
+                newLayer.katexImage = null;
+                newLayer.katexImageWidth = 0;
+                newLayer.katexImageHeight = 0;
+                newLayer.katexImageLoading = false;
+            }
             return newLayer;
         }
     }
@@ -584,15 +1211,23 @@
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+        const activeTransform = getActiveGlobalTransform();
+        ctx.save();
+        if (activeTransform) {
+            applyGlobalTransform(activeTransform);
+        }
+
         // Draw Layers
-        const layersToRender = [...state.layers].sort((a, b) => {
-            const slotA = getSlotIndexById(a.slotId);
-            const slotB = getSlotIndexById(b.slotId);
-            if (slotA !== slotB) return slotA - slotB;
-            return a.id - b.id;
-        });
+        const layersToRender = getLayersInRenderOrder();
 
         layersToRender.forEach(layer => {
+            if (layer.katex) {
+                ensureKatexImage(layer);
+            }
+            if (layer.type === 'audio') {
+                syncAudioLayerPlayback(layer);
+                return;
+            }
             // Check visibility based on time
             if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
 
@@ -600,42 +1235,109 @@
             const relativeTime = state.currentTime - layer.startTime; // Keyframes are relative to layer start? No, let's make them absolute for simplicity in this MVP
             // Actually, making keyframes absolute to the timeline is easier for the user.
             
-            const x = layer.getValue('x', state.currentTime);
+            let x = layer.getValue('x', state.currentTime);
             let y = layer.getValue('y', state.currentTime);
             let scale = layer.getValue('scale', state.currentTime);
             let rotation = layer.getValue('rotation', state.currentTime);
+            const motionOverride = computeMotionTransformForLayer(layer, state.currentTime);
+            if (motionOverride) {
+                x = motionOverride.x;
+                y = motionOverride.y;
+            }
             const opacity = layer.getValue('opacity', state.currentTime);
+            const entryAnim = layer.entryAnimation || { type: 'none', duration: 1 };
+            const exitAnim = layer.exitAnimation || { type: 'none', duration: 1 };
+            const entryDuration = Math.max(0.1, entryAnim.duration);
+            const exitDuration = Math.max(0.1, exitAnim.duration);
+            const entryProgress = entryAnim.type === 'none'
+                ? 1
+                : clamp((state.currentTime - layer.startTime) / entryDuration, 0, 1);
+            const easedEntryProgress = easeOutQuad(entryProgress);
+            const motionTrackActive = Boolean(peekMotionTrack(layer.id)?.keyframes.length >= 2);
+            const exitStart = Math.max(layer.startTime, layer.startTime + layer.duration - exitDuration);
+            const exitProgress = motionTrackActive
+                ? 1
+                : (state.currentTime >= exitStart
+                    ? clamp(1 - (state.currentTime - exitStart) / exitDuration, 0, 1)
+                    : 1);
+            const entryFade = entryAnim.type === 'fade' ? easedEntryProgress : 1;
+            const combinedAlpha = opacity * entryFade * exitProgress;
+            const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
+            const totalChars = layer.content?.length || 0;
+            const typedChars = Math.floor(easedEntryProgress * totalChars);
+            const textToRender = (isTypewriterActive && !layer.katex)
+                ? layer.content.slice(0, Math.max(0, typedChars))
+                : layer.content;
 
             // Apply looping animations on top of keyframed values
             if (layer.loopingAnimation && layer.loopingAnimation !== 'none') {
                 switch(layer.loopingAnimation) {
-                    case 'pulse':
+                    case 'pulse': {
                         // Pulse 5% of size, twice per second
                         scale *= (1 + Math.sin(state.currentTime * Math.PI * 4) * 0.05);
                         break;
-                    case 'spin':
+                    }
+                    case 'spin': {
                         // Spin 90 degrees per second
                         rotation += (state.currentTime * 90);
                         break;
-                    case 'float':
-                        // Float up and down by 20px, once every 2 seconds
-                        y += (Math.sin(state.currentTime * Math.PI) * 20);
+                    }
+                    case 'float': {
+                        const distance = Math.max(0, floatSettings.distance);
+                        const pace = Math.max(0.1, floatSettings.pace);
+                        const phase = state.currentTime * pace + layer.floatSeed;
+                        const driftX = Math.cos(phase * 0.84 + 0.7) * distance * 0.12;
+                        const driftY = Math.sin(phase * 0.66 + 1.2) * distance * 0.1;
+                        const swirl = Math.sin(phase * 0.5 + layer.floatSeed * 0.6) * distance * 0.08;
+                        const xOffset = Math.sin(phase * 1.17) * distance * 0.45 +
+                            Math.cos(phase * 0.67 + 1.3) * distance * 0.35 +
+                            driftX;
+                        const yOffset = Math.cos(phase * 1.43) * distance * 0.35 +
+                            Math.sin(phase * 0.92 + 2.1) * distance * 0.25 +
+                            driftY;
+                        x += xOffset + swirl;
+                        y += yOffset + swirl * 0.6;
                         break;
+                    }
                 }
             }
 
             ctx.save();
-            ctx.globalAlpha = opacity;
+            ctx.globalAlpha = combinedAlpha;
             ctx.translate(x, y);
             ctx.rotate(rotation * Math.PI / 180);
             ctx.scale(scale, scale);
 
-            if (layer.type === 'text') {
+            if (layer.type === 'text' && layer.katex && layer.katexImage && layer.katexImage.complete) {
+                const img = layer.katexImage;
+                const w = layer.katexImageWidth || img.width;
+                const h = layer.katexImageHeight || img.height;
+                if (isTypewriterActive) {
+                    const clipWidth = Math.max(0, w * easedEntryProgress);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(-w / 2, -h / 2, clipWidth, h);
+                    ctx.clip();
+                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                }
+            } else if (layer.type === 'text') {
                 ctx.font = 'bold 100px Arial';
                 ctx.fillStyle = layer.color;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(layer.content, 0, 0);
+                ctx.fillText(textToRender, 0, 0);
+            } else if (layer.type === 'highlight') {
+                const rect = layer.highlightRect || { width: layer.width || 100, height: layer.height || 100 };
+                const highlightDuration = Math.max(0.1, layer.highlightDuration || 1);
+                const elapsed = clamp((state.currentTime - layer.startTime) / highlightDuration, 0, 1);
+                const progress = applyHighlightEase(elapsed, layer.highlightEase || 'ease-out');
+                const color = lightenColor(hexToRgb(layer.highlightColor || '#ffeb3b'), layer.highlightIntensity ?? 0);
+                ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${layer.highlightOpacity ?? 0.6})`;
+                const fillWidth = rect.width * progress;
+                ctx.fillRect(-rect.width / 2, -rect.height / 2, fillWidth, rect.height);
             } else if (layer.type === 'image') {
                 const img = layer.content;
                 ctx.drawImage(img, -img.width/2, -img.height/2);
@@ -687,6 +1389,8 @@
 
             ctx.restore();
         });
+
+        ctx.restore();
     }
 
     function createLayerSlot(name = null, insertIndex = state.layerSlots.length) {
@@ -730,6 +1434,15 @@
         });
     }
 
+    function getLayersInRenderOrder() {
+        return [...state.layers].sort((a, b) => {
+            const slotA = getSlotIndexById(a.slotId);
+            const slotB = getSlotIndexById(b.slotId);
+            if (slotA !== slotB) return slotA - slotB;
+            return a.id - b.id;
+        });
+    }
+
     function assignLayerToSlot(layer, slotId) {
         if (!layer) return;
         let slot = getSlotById(slotId);
@@ -752,9 +1465,14 @@
 
     function addTextLayer() {
         const l = new Layer('text', 'Text Layer', 'HELLO');
+        const center = getViewportCenterWorld();
+        l.x = center.x;
+        l.y = center.y;
+        ensureLayerStartsAtPlayhead(l);
         state.layers.push(l);
         placeLayerOnTopSlot(l);
         selectLayer(l.id);
+        focusPlayheadOnLayer(l);
         renderTimeline();
     }
 
@@ -764,9 +1482,14 @@
             const img = new Image();
             img.onload = () => {
                 const l = new Layer('image', file.name, img);
+                const center = getViewportCenterWorld();
+                l.x = center.x;
+                l.y = center.y;
+                ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnTopSlot(l);
                 selectLayer(l.id);
+                focusPlayheadOnLayer(l);
                 renderTimeline();
             };
             img.src = URL.createObjectURL(file);
@@ -777,12 +1500,118 @@
             vid.onloadedmetadata = () => {
                 const l = new Layer('video', file.name, vid);
                 l.duration = vid.duration;
+                const center = getViewportCenterWorld();
+                l.x = center.x;
+                l.y = center.y;
+                ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnTopSlot(l);
                 selectLayer(l.id);
+                focusPlayheadOnLayer(l);
                 renderTimeline();
             };
         }
+    }
+
+    function handleAudioUpload(input) {
+        if (!input.files[0]) return;
+        const file = input.files[0];
+        const audio = document.createElement('audio');
+        audio.src = URL.createObjectURL(file);
+        audio.preload = 'metadata';
+        audio.onloadedmetadata = () => {
+            const l = new Layer('audio', file.name, audio);
+            l.duration = audio.duration || 5;
+            const center = getViewportCenterWorld();
+            l.x = center.x;
+            l.y = center.y;
+            l.width = 400;
+            l.height = 60;
+            ensureLayerStartsAtPlayhead(l);
+            l.assetBlob = file;
+            l.assetFileName = file.name;
+            state.layers.push(l);
+            placeLayerOnTopSlot(l);
+            selectLayer(l.id);
+            focusPlayheadOnLayer(l);
+            renderTimeline();
+        };
+        audio.load();
+        input.value = '';
+    }
+
+    async function mixAudioTracks() {
+        const audioLayers = state.layers.filter(layer => layer.type === 'audio' && layer.assetBlob);
+        if (audioLayers.length === 0) return null;
+        const sampleRate = audioDecodeCtx.sampleRate;
+        const totalLength = Math.ceil(state.duration * sampleRate);
+        const offlineCtx = new OfflineAudioContext(2, totalLength, sampleRate);
+        for (const layer of audioLayers) {
+            try {
+                const bufferData = await layer.assetBlob.arrayBuffer();
+                const decoded = await audioDecodeCtx.decodeAudioData(bufferData.slice(0));
+                const source = offlineCtx.createBufferSource();
+                source.buffer = decoded;
+                const gainNode = offlineCtx.createGain();
+                gainNode.gain.value = layer.muted ? 0 : (layer.volume ?? 1);
+                source.connect(gainNode).connect(offlineCtx.destination);
+                source.start(layer.startTime);
+            } catch (err) {
+                console.warn('Failed to decode audio layer', layer.name, err);
+            }
+        }
+
+        return offlineCtx.startRendering();
+    }
+
+    function audioBufferToWav(buffer) {
+        const numChannels = buffer.numberOfChannels;
+        const sampleRate = buffer.sampleRate;
+        const numSamples = buffer.length;
+        const bytesPerSample = 2;
+        const blockAlign = numChannels * bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+        const dataSize = numSamples * blockAlign;
+        const bufferSize = 44 + dataSize;
+        const arrayBuffer = new ArrayBuffer(bufferSize);
+        const view = new DataView(arrayBuffer);
+
+        let offset = 0;
+        function writeString(str) {
+            for (let i = 0; i < str.length; i++) {
+                view.setUint8(offset++, str.charCodeAt(i));
+            }
+        }
+
+        writeString('RIFF');
+        view.setUint32(offset, 36 + dataSize, true); offset += 4;
+        writeString('WAVE');
+        writeString('fmt ');
+        view.setUint32(offset, 16, true); offset += 4;
+        view.setUint16(offset, 1, true); offset += 2;
+        view.setUint16(offset, numChannels, true); offset += 2;
+        view.setUint32(offset, sampleRate, true); offset += 4;
+        view.setUint32(offset, byteRate, true); offset += 4;
+        view.setUint16(offset, blockAlign, true); offset += 2;
+        view.setUint16(offset, bytesPerSample * 8, true); offset += 2;
+        writeString('data');
+        view.setUint32(offset, dataSize, true); offset += 4;
+
+        const channels = [];
+        for (let i = 0; i < numChannels; i++) {
+            channels.push(buffer.getChannelData(i));
+        }
+
+        for (let i = 0; i < numSamples; i++) {
+            for (let channel = 0; channel < numChannels; channel++) {
+                let sample = channels[channel][i];
+                sample = Math.max(-1, Math.min(1, sample));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += bytesPerSample;
+            }
+        }
+
+        return arrayBuffer;
     }
 
     function handleImageUpload(input) {
@@ -814,16 +1643,34 @@
                 textProps.style.display = 'none';
             }
             document.getElementById('prop-loop').value = layer.loopingAnimation || 'none';
+            if (katexToggle) katexToggle.checked = !!layer.katex;
+            ensureAnimationInputs(layer);
+            updateAnimationUI(layer);
+            updateHighlightUI(layer);
+            updateAudioUI(layer);
             updatePropertiesPanel();
         } else {
             panel.style.display = 'none';
+            if (katexToggle) katexToggle.checked = false;
+            const entrySelect = document.getElementById('prop-entry');
+            const exitSelect = document.getElementById('prop-exit');
+            const entryDurationInput = document.getElementById('prop-entry-duration');
+            const exitDurationInput = document.getElementById('prop-exit-duration');
+            if (entrySelect) entrySelect.value = 'none';
+            if (exitSelect) exitSelect.value = 'none';
+            if (entryDurationInput) entryDurationInput.value = '1.0';
+            if (exitDurationInput) exitDurationInput.value = '1.0';
+            if (highlightControls) highlightControls.style.display = 'none';
+            if (audioControls) audioControls.style.display = 'none';
         }
         renderTimeline();
     }
 
     function deleteSelectedLayer() {
         if (!state.selectedLayerId) return;
-        state.layers = state.layers.filter(l => l.id !== state.selectedLayerId);
+        const removedId = state.selectedLayerId;
+        state.layers = state.layers.filter(l => l.id !== removedId);
+        delete motionTracks[removedId];
         state.selectedLayerId = null;
         selectLayer(null);
         renderTimeline();
@@ -902,12 +1749,180 @@
 
     function updateText(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (layer) { layer.content = val; layer.updateDimensions(); }
+        if (layer) {
+            layer.content = val;
+            if (layer.katex) markKatexLayerDirty(layer);
+            layer.updateDimensions();
+        }
     }
 
     function updateColor(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (layer) layer.color = val;
+        if (layer) {
+            layer.color = val;
+            if (layer.katex) markKatexLayerDirty(layer);
+        }
+    }
+
+    function markKatexLayerDirty(layer) {
+        if (layer && layer.katex) {
+            layer.katexNeedsRender = true;
+        }
+    }
+
+    function updateKatexMode(enabled) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer || layer.type !== 'text') return;
+        const shouldRender = Boolean(enabled);
+        if (layer.katex === shouldRender) {
+            return;
+        }
+        layer.katex = shouldRender;
+        if (shouldRender) {
+            layer.katexNeedsRender = true;
+        } else {
+            layer.katexImage = null;
+            layer.katexImageWidth = 0;
+            layer.katexImageHeight = 0;
+            layer.katexImageLoading = false;
+            layer.updateDimensions();
+        }
+        renderTimeline();
+    }
+
+    function updateHighlightUI(layer) {
+        if (!highlightControls) return;
+        const isHighlight = layer?.type === 'highlight';
+        highlightControls.style.display = isHighlight ? 'block' : 'none';
+        if (!isHighlight) return;
+        if (highlightColorInput) highlightColorInput.value = layer.highlightColor || '#ffeb3b';
+        if (highlightOpacityInput) highlightOpacityInput.value = layer.highlightOpacity ?? 0.6;
+        if (highlightIntensityInput) highlightIntensityInput.value = layer.highlightIntensity ?? 0.5;
+        if (highlightDurationInput) highlightDurationInput.value = (layer.highlightDuration ?? 1).toFixed(1);
+        if (highlightEaseSelect) highlightEaseSelect.value = layer.highlightEase || 'ease-out';
+    }
+
+    function updateAudioUI(layer) {
+        if (!audioControls) return;
+        const isAudio = layer?.type === 'audio';
+        audioControls.style.display = isAudio ? 'block' : 'none';
+        if (!isAudio) return;
+        if (audioVolumeInput) audioVolumeInput.value = layer.volume?.toFixed(2) ?? 1;
+        if (audioMuteInput) audioMuteInput.checked = layer.muted || false;
+    }
+
+    function updateAudioVolume(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'audio') {
+            const parsed = parseFloat(value);
+            if (Number.isNaN(parsed)) return;
+            layer.volume = parsed;
+            if (layer.content) {
+                layer.content.volume = layer.volume;
+            }
+        }
+    }
+
+    function updateAudioMute(checked) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'audio') {
+            layer.muted = Boolean(checked);
+            if (layer.content) {
+                layer.content.muted = layer.muted;
+            }
+        }
+    }
+
+    function updateHighlightColor(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'highlight') {
+            layer.highlightColor = value;
+            renderCanvas();
+        }
+    }
+
+    function updateHighlightOpacity(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'highlight') {
+            layer.highlightOpacity = parseFloat(value);
+            renderCanvas();
+        }
+    }
+
+    function updateHighlightIntensity(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'highlight') {
+            layer.highlightIntensity = parseFloat(value);
+            renderCanvas();
+        }
+    }
+
+    function updateHighlightDuration(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'highlight') {
+            const parsed = parseFloat(value);
+            if (!Number.isNaN(parsed) && parsed > 0) {
+                layer.highlightDuration = parsed;
+                layer.duration = Math.max(parsed + 0.5, 1.5);
+                renderTimeline();
+            }
+        }
+    }
+
+    function updateHighlightEase(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'highlight') {
+            layer.highlightEase = value;
+        }
+    }
+
+    function encodeSvgToBase64(svg) {
+        return btoa(unescape(encodeURIComponent(svg)));
+    }
+
+    function ensureKatexImage(layer) {
+        if (!layer || !layer.katex || typeof katex === 'undefined') return;
+        const textValue = layer.content || '';
+        if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === textValue) {
+            return;
+        }
+        layer.katexNeedsRender = false;
+        layer.katexContentHash = textValue;
+        let katexHtml = textValue;
+        try {
+            katexHtml = katex.renderToString(textValue, { throwOnError: false });
+        } catch (error) {
+            katexHtml = `<span>${textValue}</span>`;
+        }
+        const colorStyle = layer.color ? `color:${layer.color};` : '';
+        const styleBlock = katexCssText ? `<style>${katexCssText}</style>` : '';
+        const contentHtml = `<span style="${colorStyle}" class="katex-custom">${katexHtml}</span>`;
+        if (katexMeasureEl) {
+            katexMeasureEl.innerHTML = `${styleBlock}${contentHtml}`;
+        }
+        const rect = katexMeasureEl ? katexMeasureEl.getBoundingClientRect() : { width: 0, height: 0 };
+        const width = Math.max(1, Math.ceil(rect.width));
+        const height = Math.max(1, Math.ceil(rect.height));
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">${styleBlock}${katexHtml}</div></foreignObject></svg>`;
+        const dataUrl = `data:image/svg+xml;base64,${encodeSvgToBase64(svg)}`;
+        const img = new Image();
+        layer.katexImageLoading = true;
+        img.onload = () => {
+            layer.katexImage = img;
+            layer.katexImageWidth = width;
+            layer.katexImageHeight = height;
+            layer.width = width;
+            layer.height = height;
+            layer.katexImageLoading = false;
+        };
+        img.onerror = () => {
+            layer.katexImage = null;
+            layer.katexImageWidth = 0;
+            layer.katexImageHeight = 0;
+            layer.katexImageLoading = false;
+        };
+        img.src = dataUrl;
     }
 
     function updateLoopingAnimation(val) {
@@ -916,6 +1931,744 @@
         if (layer) {
             layer.loopingAnimation = val;
         }
+        if (floatSettingsPanel) {
+            floatSettingsPanel.style.display = val === 'float' ? 'block' : 'none';
+        }
+    }
+
+    function updateFloatDistance(value) {
+        const parsed = parseFloat(value);
+        if (Number.isNaN(parsed)) return;
+        floatSettings.distance = parsed;
+        if (floatDistanceValueEl) {
+            floatDistanceValueEl.innerText = `${Math.round(parsed)}px`;
+        }
+    }
+
+    function updateFloatPace(value) {
+        const parsed = parseFloat(value);
+        if (Number.isNaN(parsed)) return;
+        floatSettings.pace = parsed;
+        if (floatPaceValueEl) {
+            floatPaceValueEl.innerText = `${parsed.toFixed(1)}x`;
+        }
+    }
+
+    updateFloatDistance(floatSettings.distance);
+    updateFloatPace(floatSettings.pace);
+
+    function updateAnimationUI(layer) {
+        const entrySelect = document.getElementById('prop-entry');
+        const exitSelect = document.getElementById('prop-exit');
+        const entryDurationInput = document.getElementById('prop-entry-duration');
+        const exitDurationInput = document.getElementById('prop-exit-duration');
+        if (!entrySelect || !exitSelect || !entryDurationInput || !exitDurationInput) return;
+
+        const entryType = layer.entryAnimation?.type || 'none';
+        entrySelect.value = entryType;
+        entryDurationInput.value = (layer.entryAnimation?.duration ?? 1).toFixed(1);
+        const typewriterOption = entrySelect.querySelector('option[value="typewriter"]');
+        if (typewriterOption) {
+            typewriterOption.disabled = layer.type !== 'text';
+        }
+        entryDurationInput.disabled = entryType === 'none';
+
+        const exitType = layer.exitAnimation?.type || 'none';
+        exitSelect.value = exitType;
+        exitDurationInput.value = (layer.exitAnimation?.duration ?? 1).toFixed(1);
+        exitDurationInput.disabled = exitType === 'none';
+    }
+
+    function ensureAnimationInputs(layer) {
+        const entrySelect = document.getElementById('prop-entry');
+        if (!entrySelect) return false;
+        const typewriterOption = entrySelect.querySelector('option[value="typewriter"]');
+        if (typewriterOption) {
+            typewriterOption.disabled = layer.type !== 'text';
+        }
+        return true;
+    }
+
+    function updateEntryAnimation(type) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        if (type === 'typewriter' && layer.type !== 'text') {
+            type = 'fade';
+        }
+        layer.entryAnimation.type = type;
+        const entryDurationInput = document.getElementById('prop-entry-duration');
+        if (entryDurationInput) {
+            entryDurationInput.disabled = type === 'none';
+        }
+    }
+
+    function updateEntryDuration(value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        const parsed = parseFloat(value);
+        if (Number.isNaN(parsed) || parsed <= 0) return;
+        layer.entryAnimation.duration = parsed;
+    }
+
+    function updateExitAnimation(type) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        layer.exitAnimation.type = type;
+        const exitDurationInput = document.getElementById('prop-exit-duration');
+        if (exitDurationInput) {
+            exitDurationInput.disabled = type === 'none';
+        }
+    }
+
+    function updateExitDuration(value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        const parsed = parseFloat(value);
+        if (Number.isNaN(parsed) || parsed <= 0) return;
+        layer.exitAnimation.duration = parsed;
+    }
+
+    // --- Global Zoom / Whole Control Helpers ---
+    function cloneTransform(transform) {
+        return {
+            x: transform.x,
+            y: transform.y,
+            scale: transform.scale
+        };
+    }
+
+    function getActiveGlobalTransform() {
+        if (globalEditingOverride) return cloneTransform(globalEditingOverride);
+        if (globalZoom.keyframes.length === 0) return cloneTransform(manualGlobalTransform);
+        if (globalZoom.keyframes.length === 1) return cloneTransform(globalZoom.keyframes[0].transform);
+        return computeGlobalZoomTransform(state.currentTime);
+    }
+
+    function computeGlobalZoomTransform(currentTime) {
+        if (globalZoom.keyframes.length === 0) return cloneTransform(manualGlobalTransform);
+        const sorted = globalZoom.keyframes.slice().sort((a, b) => a.time - b.time);
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        if (currentTime <= first.time) {
+            return cloneTransform(first.transform);
+        }
+        if (currentTime >= last.time) {
+            return cloneTransform(last.transform);
+        }
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const start = sorted[i];
+            const end = sorted[i + 1];
+            if (currentTime >= start.time && currentTime <= end.time) {
+                const span = end.time - start.time;
+                if (span <= 0) return cloneTransform(end.transform);
+                let progress = (currentTime - start.time) / span;
+                progress = applyZoomDurationWarp(progress);
+                progress = applyZoomCurve(progress);
+                progress = applyZoomMotionFPS(progress);
+                return interpolateTransforms(start.transform, end.transform, progress);
+            }
+        }
+        return cloneTransform(last.transform);
+    }
+
+    function interpolateTransforms(from, to, t) {
+        return {
+            x: from.x + (to.x - from.x) * t,
+            y: from.y + (to.y - from.y) * t,
+            scale: from.scale + (to.scale - from.scale) * t
+        };
+    }
+
+    function applyZoomDurationWarp(progress) {
+        const warp = Math.max(0.3, Math.min(globalZoom.durationScale, 3));
+        if (Math.abs(warp - 1) < 0.001) {
+            return progress;
+        }
+
+        if (warp >= 1) {
+            return 1 - Math.pow(1 - progress, warp);
+        }
+        return Math.pow(progress, 1 / warp);
+    }
+
+    function applyZoomCurve(progress) {
+        progress = Math.min(1, Math.max(0, progress));
+        switch (globalZoom.easing) {
+            case 'ease-in':
+                return Math.pow(progress, 2);
+            case 'ease-in-out':
+                return progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+            case 'linear':
+                return progress;
+            case 'ease-out':
+            default:
+                return 1 - Math.pow(1 - progress, 3);
+        }
+    }
+
+    function applyZoomMotionFPS(progress) {
+        const fps = Math.max(1, Math.round(globalZoom.motionFPS));
+        const snapped = Math.round(progress * fps) / fps;
+        return Math.min(1, Math.max(0, snapped));
+    }
+
+    function formatTimeLabel(time) {
+        const mins = Math.floor(time / 60);
+        const secs = Math.floor(time % 60);
+        const ms = Math.floor((time % 1) * 100);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    }
+
+    function updateZoomStatus() {
+        if (!zoomStatusEl) return;
+        if (activeGlobalKeyframeIndex !== null && globalZoom.keyframes[activeGlobalKeyframeIndex]) {
+            const frame = globalZoom.keyframes[activeGlobalKeyframeIndex];
+            const label = `Editing Keyframe ${activeGlobalKeyframeIndex + 1}`;
+            const time = frame ? formatTimeLabel(frame.time) : '00:00.00';
+            zoomStatusEl.innerText = `${label} @ ${time}`;
+            updateZoomDeleteButtonState();
+            return;
+        }
+        if (globalZoom.keyframes.length === 0) {
+            zoomStatusEl.innerText = 'Add a zoom keyframe';
+        } else {
+            const first = globalZoom.keyframes[0];
+            const last = globalZoom.keyframes[globalZoom.keyframes.length - 1];
+            zoomStatusEl.innerText = `Zoom ${formatTimeLabel(first.time)} → ${formatTimeLabel(last.time)}`;
+        }
+        updateZoomDeleteButtonState();
+    }
+
+    function showZoomToast(message) {
+        if (!zoomToastEl) return;
+        zoomToastEl.innerText = message;
+        zoomToastEl.classList.add('visible');
+        clearTimeout(zoomToastTimer);
+        zoomToastTimer = setTimeout(() => {
+            zoomToastEl.classList.remove('visible');
+        }, 1600);
+    }
+
+    function updateZoomDeleteButtonState() {
+        if (!btnDeleteZoomKeyframe) return;
+        btnDeleteZoomKeyframe.disabled = activeGlobalKeyframeIndex === null;
+    }
+
+    function ensureKeyframesSorted() {
+        globalZoom.keyframes.sort((a, b) => a.time - b.time);
+    }
+
+    function addZoomKeyframe(transform, time) {
+        const clamped = Math.max(0, Math.min(state.duration, time));
+        const newId = globalZoom.nextId++;
+        globalZoom.keyframes.push({
+            id: newId,
+            time: clamped,
+            transform: cloneTransform(transform)
+        });
+        ensureKeyframesSorted();
+        activeGlobalKeyframeIndex = globalZoom.keyframes.findIndex(k => k.id === newId);
+        globalEditingOverride = cloneTransform(transform);
+        renderTimeline();
+        updateZoomControlsPanelVisibility();
+        updateZoomStatus();
+    }
+
+    function deleteZoomKeyframe() {
+        if (activeGlobalKeyframeIndex === null || !globalZoom.keyframes[activeGlobalKeyframeIndex]) {
+            showZoomToast('Select a zoom keyframe first');
+            return;
+        }
+        globalZoom.keyframes.splice(activeGlobalKeyframeIndex, 1);
+        activeGlobalKeyframeIndex = null;
+        globalEditingOverride = null;
+        renderTimeline();
+        updateZoomControlsPanelVisibility();
+        updateZoomStatus();
+        showZoomToast('Zoom keyframe deleted');
+    }
+
+    function syncActiveGlobalKeyframeFromManual() {
+        if (activeGlobalKeyframeIndex === null) return;
+        const frame = globalZoom.keyframes[activeGlobalKeyframeIndex];
+        if (!frame) return;
+        frame.transform = cloneTransform(manualGlobalTransform);
+        globalEditingOverride = cloneTransform(manualGlobalTransform);
+        renderTimeline();
+    }
+
+    function setActiveGlobalKeyframe(index) {
+        if (index !== null && (index < 0 || index >= globalZoom.keyframes.length)) return;
+        if (activeGlobalKeyframeIndex === index) {
+            activeGlobalKeyframeIndex = null;
+            globalEditingOverride = null;
+            renderTimeline();
+            updateZoomStatus();
+            return;
+        }
+        activeGlobalKeyframeIndex = index;
+        if (index !== null) {
+            const frame = globalZoom.keyframes[index];
+            manualGlobalTransform.x = frame.transform.x;
+            manualGlobalTransform.y = frame.transform.y;
+            manualGlobalTransform.scale = frame.transform.scale;
+            globalEditingOverride = cloneTransform(frame.transform);
+        } else {
+            globalEditingOverride = null;
+        }
+        renderTimeline();
+        updateZoomStatus();
+    }
+
+    function clearActiveGlobalKeyframe() {
+        setActiveGlobalKeyframe(null);
+    }
+
+    function handleZoomKeyframeClick() {
+        const currentTransform = globalEditingOverride || cloneTransform(getActiveGlobalTransform());
+        const time = Math.max(0, Math.min(state.duration, state.currentTime));
+        addZoomKeyframe(currentTransform, time);
+        showZoomToast('Global keyframe added');
+    }
+
+    function updateZoomControlsPanelVisibility() {
+        if (!zoomControlsPanel) return;
+        const enabled = globalZoom.keyframes.length >= 2;
+        zoomControlsPanel.classList.toggle('disabled', !enabled);
+        if (zoomDurationSlider) zoomDurationSlider.disabled = !enabled;
+        if (zoomCurveSelect) zoomCurveSelect.disabled = !enabled;
+        if (zoomFpsSlider) zoomFpsSlider.disabled = !enabled;
+        updateZoomDeleteButtonState();
+    }
+
+    function renderGlobalZoomMarkers() {
+        const container = document.getElementById('timeline-tracks');
+        container.querySelectorAll('.global-zoom-marker').forEach(el => el.remove());
+        globalZoom.keyframes.forEach((frame, index) => {
+            const marker = document.createElement('div');
+            marker.className = 'global-zoom-marker';
+            marker.style.left = `${frame.time * PIXELS_PER_SECOND}px`;
+            marker.title = `Keyframe ${index + 1} @ ${formatTimeLabel(frame.time)}`;
+            marker.classList.toggle('active', activeGlobalKeyframeIndex === index);
+            marker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setActiveGlobalKeyframe(index);
+            });
+            marker.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startZoomMarkerDrag(frame.id, e);
+            });
+            container.appendChild(marker);
+        });
+    }
+
+    function startZoomMarkerDrag(id, event) {
+        zoomMarkerDrag = {
+            id,
+            startX: event.clientX,
+            startTime: globalZoom.keyframes.find(k => k.id === id)?.time ?? 0
+        };
+        document.addEventListener('pointermove', handleZoomMarkerDrag);
+        document.addEventListener('pointerup', stopZoomMarkerDrag);
+    }
+
+    function handleZoomMarkerDrag(event) {
+        if (!zoomMarkerDrag) return;
+        const frame = globalZoom.keyframes.find(k => k.id === zoomMarkerDrag.id);
+        if (!frame) return;
+        const dx = event.clientX - zoomMarkerDrag.startX;
+        const newTime = zoomMarkerDrag.startTime + dx / PIXELS_PER_SECOND;
+        frame.time = Math.max(0, Math.min(state.duration, newTime));
+        ensureKeyframesSorted();
+        globalEditingOverride = cloneTransform(frame.transform);
+        activeGlobalKeyframeIndex = globalZoom.keyframes.findIndex(k => k.id === zoomMarkerDrag.id);
+        renderTimeline();
+        updateZoomStatus();
+    }
+
+    function stopZoomMarkerDrag() {
+        if (!zoomMarkerDrag) return;
+        zoomMarkerDrag = null;
+        document.removeEventListener('pointermove', handleZoomMarkerDrag);
+        document.removeEventListener('pointerup', stopZoomMarkerDrag);
+    }
+
+    function showMotionToast(message) {
+        if (!motionToastEl) return;
+        motionToastEl.innerText = message;
+        motionToastEl.classList.add('visible');
+        clearTimeout(motionToastTimer);
+        motionToastTimer = setTimeout(() => {
+            motionToastEl.classList.remove('visible');
+        }, 1600);
+    }
+
+    function peekMotionTrack(layerId) {
+        if (!layerId) return null;
+        return motionTracks[layerId] || null;
+    }
+
+    function ensureMotionTrack(layerId) {
+        if (!layerId) return null;
+        if (!motionTracks[layerId]) {
+            motionTracks[layerId] = {
+                keyframes: [],
+                easing: 'ease-out',
+                durationScale: 1,
+                motionFPS: 60,
+                nextId: 1,
+                activeKeyframeIndex: null
+            };
+        }
+        return motionTracks[layerId];
+    }
+
+    function ensureMotionKeyframesSorted(track) {
+        if (!track) return;
+        track.keyframes.sort((a, b) => a.time - b.time);
+    }
+
+    function handleMotionKeyframeClick() {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) {
+            showMotionToast('Select a layer before adding motion keyframes');
+            return;
+        }
+        addMotionKeyframe(layer);
+    }
+
+    function deleteMotionKeyframe() {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        if (!track || track.activeKeyframeIndex === null) {
+            showMotionToast('Select a motion keyframe first');
+            return;
+        }
+        track.keyframes.splice(track.activeKeyframeIndex, 1);
+        track.activeKeyframeIndex = null;
+        renderTimeline();
+        updateMotionStatus();
+        updateMotionControlsPanel();
+        showMotionToast('Motion keyframe deleted');
+    }
+
+    function addMotionKeyframe(layer) {
+        const track = ensureMotionTrack(layer.id);
+        const time = Math.max(0, Math.min(state.duration, state.currentTime));
+        const newId = track.nextId++;
+        const transform = { x: layer.x, y: layer.y };
+        track.keyframes = track.keyframes.filter(k => Math.abs(k.time - time) > 0.01);
+        track.keyframes.push({
+            id: newId,
+            time,
+            transform: { ...transform }
+        });
+        ensureMotionKeyframesSorted(track);
+        track.activeKeyframeIndex = track.keyframes.findIndex(k => k.id === newId);
+        renderTimeline();
+        updateMotionControlsPanel();
+        updateMotionStatus();
+        showMotionToast('Motion keyframe captured');
+    }
+
+    function setActiveMotionKeyframe(layerId, index) {
+        const track = peekMotionTrack(layerId);
+        if (!track) return;
+        if (index !== null && (index < 0 || index >= track.keyframes.length)) return;
+        if (track.activeKeyframeIndex === index) {
+            track.activeKeyframeIndex = null;
+            renderTimeline();
+            updateMotionStatus();
+            return;
+        }
+        track.activeKeyframeIndex = index;
+        if (index !== null) {
+            const frame = track.keyframes[index];
+            state.currentTime = frame.time;
+            updateTimelineUI();
+            updatePropertiesPanel();
+        }
+        renderTimeline();
+        updateMotionStatus();
+    }
+
+    function clearActiveMotionKeyframe() {
+        const layerId = state.selectedLayerId;
+        const track = peekMotionTrack(layerId);
+        if (!track) return;
+        track.activeKeyframeIndex = null;
+        renderTimeline();
+        updateMotionStatus();
+    }
+
+    function renderMotionMarkers() {
+        const container = document.getElementById('timeline-tracks');
+        container.querySelectorAll('.motion-marker').forEach(el => el.remove());
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        const track = peekMotionTrack(layer.id);
+        if (!track) return;
+        track.keyframes.forEach((frame, index) => {
+            const marker = document.createElement('div');
+            marker.className = 'motion-marker';
+            marker.style.left = `${frame.time * PIXELS_PER_SECOND}px`;
+            marker.title = `Motion ${index + 1} @ ${formatTimeLabel(frame.time)}`;
+            marker.classList.toggle('active', track.activeKeyframeIndex === index);
+            marker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setActiveMotionKeyframe(layer.id, index);
+            });
+            marker.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startMotionMarkerDrag(layer.id, frame.id, e);
+            });
+            container.appendChild(marker);
+        });
+    }
+
+    function startMotionMarkerDrag(layerId, id, event) {
+        const track = peekMotionTrack(layerId);
+        if (!track) return;
+        const frame = track.keyframes.find(k => k.id === id);
+        if (!frame) return;
+        motionMarkerDrag = {
+            layerId,
+            id,
+            startX: event.clientX,
+            startTime: frame.time
+        };
+        document.addEventListener('pointermove', handleMotionMarkerDrag);
+        document.addEventListener('pointerup', stopMotionMarkerDrag);
+    }
+
+    function handleMotionMarkerDrag(event) {
+        if (!motionMarkerDrag) return;
+        const track = peekMotionTrack(motionMarkerDrag.layerId);
+        if (!track) return;
+        const frame = track.keyframes.find(k => k.id === motionMarkerDrag.id);
+        if (!frame) return;
+        const dx = event.clientX - motionMarkerDrag.startX;
+        const newTime = motionMarkerDrag.startTime + dx / PIXELS_PER_SECOND;
+        frame.time = Math.max(0, Math.min(state.duration, newTime));
+        ensureMotionKeyframesSorted(track);
+        track.activeKeyframeIndex = track.keyframes.findIndex(k => k.id === motionMarkerDrag.id);
+        renderTimeline();
+        updateMotionStatus();
+        updateMotionControlsPanel();
+    }
+
+    function stopMotionMarkerDrag() {
+        if (!motionMarkerDrag) return;
+        motionMarkerDrag = null;
+        document.removeEventListener('pointermove', handleMotionMarkerDrag);
+        document.removeEventListener('pointerup', stopMotionMarkerDrag);
+    }
+
+    function computeMotionTransformForLayer(layer, time) {
+        const track = peekMotionTrack(layer.id);
+        if (!track || track.keyframes.length === 0) return null;
+        const sorted = track.keyframes.slice().sort((a, b) => a.time - b.time);
+        if (sorted.length === 1) {
+            return { ...sorted[0].transform };
+        }
+        if (time <= sorted[0].time) {
+            return { ...sorted[0].transform };
+        }
+        if (time >= sorted[sorted.length - 1].time) {
+            return { ...sorted[sorted.length - 1].transform };
+        }
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const start = sorted[i];
+            const end = sorted[i + 1];
+            if (time >= start.time && time <= end.time) {
+                const span = end.time - start.time;
+                let progress = span <= 0 ? 1 : (time - start.time) / span;
+                progress = applyMotionDurationWarp(progress, track);
+                progress = applyMotionCurve(progress, track);
+                progress = applyMotionMotionFPS(progress, track);
+                return interpolateTransforms(start.transform, end.transform, progress);
+            }
+        }
+        return { ...sorted[sorted.length - 1].transform };
+    }
+
+    function applyMotionDurationWarp(progress, track) {
+        const warp = Math.max(0.3, Math.min(track.durationScale, 3));
+        if (Math.abs(warp - 1) < 0.001) {
+            return progress;
+        }
+        if (warp >= 1) {
+            return 1 - Math.pow(1 - progress, warp);
+        }
+        return Math.pow(progress, 1 / warp);
+    }
+
+    function applyMotionCurve(progress, track) {
+        const eased = Math.min(1, Math.max(0, progress));
+        switch (track.easing) {
+            case 'ease-in':
+                return Math.pow(eased, 2);
+            case 'ease-in-out':
+                return eased < 0.5 ? 2 * eased * eased : -1 + (4 - 2 * eased) * eased;
+            case 'linear':
+                return eased;
+            case 'ease-out':
+            default:
+                return 1 - Math.pow(1 - eased, 3);
+        }
+    }
+
+    function applyMotionMotionFPS(progress, track) {
+        const fps = Math.max(1, Math.round(track.motionFPS));
+        const snapped = Math.round(progress * fps) / fps;
+        return Math.min(1, Math.max(0, snapped));
+    }
+
+    function updateMotionStatus() {
+        if (!motionStatusEl) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        if (!layer || !track || track.keyframes.length === 0) {
+            motionStatusEl.innerText = 'Motion start unset';
+            updateMotionDeleteButtonState();
+            return;
+        }
+        if (track.activeKeyframeIndex !== null && track.keyframes[track.activeKeyframeIndex]) {
+            const frame = track.keyframes[track.activeKeyframeIndex];
+            motionStatusEl.innerText = `Editing Motion ${track.activeKeyframeIndex + 1} @ ${formatTimeLabel(frame.time)}`;
+            updateMotionDeleteButtonState();
+            return;
+        }
+        const first = track.keyframes[0];
+        const last = track.keyframes[track.keyframes.length - 1];
+        if (first && last) {
+            motionStatusEl.innerText = `Motion ${formatTimeLabel(first.time)} → ${formatTimeLabel(last.time)}`;
+            updateMotionDeleteButtonState();
+            return;
+        }
+        motionStatusEl.innerText = 'Motion keyframes ready';
+        updateMotionDeleteButtonState();
+    }
+
+    function updateMotionDeleteButtonState() {
+        if (!btnDeleteMotionKeyframe) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        btnDeleteMotionKeyframe.disabled = !track || track.activeKeyframeIndex === null;
+    }
+
+    function updateMotionControlsPanel() {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        const enabled = Boolean(track && track.keyframes.length >= 2);
+        if (motionControlsPanel) {
+            motionControlsPanel.classList.toggle('disabled', !enabled);
+        }
+        const durationVal = track?.durationScale ?? 1;
+        if (motionDurationSlider) {
+            motionDurationSlider.disabled = !enabled;
+            motionDurationSlider.value = durationVal.toFixed(1);
+        }
+        if (motionDurationValue) {
+            motionDurationValue.innerText = `${durationVal.toFixed(1)}x`;
+        }
+        if (motionCurveSelect) {
+            motionCurveSelect.disabled = !enabled;
+            motionCurveSelect.value = track?.easing ?? 'ease-out';
+        }
+        const fpsVal = track?.motionFPS ?? 60;
+        if (motionFpsSlider) {
+            motionFpsSlider.disabled = !enabled;
+            motionFpsSlider.value = `${fpsVal}`;
+        }
+        if (motionFpsValue) {
+            motionFpsValue.innerText = `${fpsVal}`;
+        }
+        updateMotionDeleteButtonState();
+    }
+
+    function handleMotionDurationChange(e) {
+        const track = state.selectedLayerId ? peekMotionTrack(state.selectedLayerId) : null;
+        if (!track) return;
+        const value = parseFloat(e.target.value);
+        if (Number.isNaN(value)) return;
+        track.durationScale = value;
+        if (motionDurationValue) {
+            motionDurationValue.innerText = `${value.toFixed(1)}x`;
+        }
+    }
+
+    function handleMotionCurveChange(e) {
+        const track = state.selectedLayerId ? peekMotionTrack(state.selectedLayerId) : null;
+        if (!track) return;
+        track.easing = e.target.value;
+    }
+
+    function handleMotionFpsChange(e) {
+        const track = state.selectedLayerId ? peekMotionTrack(state.selectedLayerId) : null;
+        if (!track) return;
+        const value = parseInt(e.target.value, 10);
+        if (Number.isNaN(value) || value < 1) return;
+        track.motionFPS = value;
+        if (motionFpsValue) {
+            motionFpsValue.innerText = `${value}`;
+        }
+    }
+
+    function applyGlobalTransform(transform) {
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        ctx.translate(centerX, centerY);
+        ctx.scale(transform.scale, transform.scale);
+        ctx.translate(-centerX + transform.x, -centerY + transform.y);
+    }
+
+    function toggleWholeControlMode() {
+        wholeControlActive = !wholeControlActive;
+        const viewportEl = document.querySelector('.viewport');
+        if (viewportEl) {
+            viewportEl.classList.toggle('whole-control-active', wholeControlActive);
+        }
+        if (btnWholeControl) {
+            btnWholeControl.classList.toggle('active', wholeControlActive);
+        }
+        if (wholeControlActive) {
+            const current = getActiveGlobalTransform();
+            manualGlobalTransform.x = current.x;
+            manualGlobalTransform.y = current.y;
+            manualGlobalTransform.scale = current.scale;
+            globalEditingOverride = cloneTransform(manualGlobalTransform);
+        } else {
+            globalEditingOverride = null;
+        }
+    }
+
+    function handleZoomDurationChange(e) {
+        const value = parseFloat(e.target.value);
+        globalZoom.durationScale = value;
+        if (zoomDurationValue) {
+            zoomDurationValue.innerText = `${value.toFixed(1)}x`;
+        }
+    }
+
+    function handleZoomCurveChange(e) {
+        globalZoom.easing = e.target.value;
+    }
+
+    function handleZoomFpsChange(e) {
+        const value = parseInt(e.target.value, 10);
+        globalZoom.motionFPS = value;
+        if (zoomFpsValue) {
+            zoomFpsValue.innerText = `${value}`;
+        }
+        zoomClickSound.currentTime = 0;
+        zoomClickSound.play().catch(() => {});
     }
 
     // --- Timeline UI ---
@@ -925,6 +2678,7 @@
         // Clear tracks (keep scrubber and playhead)
         container.querySelectorAll('.layer-track').forEach(e => e.remove());
 
+        recalcStateDuration();
         // Set width based on duration
         const width = state.duration * PIXELS_PER_SECOND;
         document.getElementById('scrubber').style.width = `${width}px`;
@@ -990,6 +2744,8 @@
         placeholder.style.width = `${width}px`;
         container.appendChild(placeholder);
 
+        renderGlobalZoomMarkers();
+        renderMotionMarkers();
         updateTimelineUI();
     }
 
@@ -1098,6 +2854,17 @@
         if (!dragState.active) return;
         e.preventDefault();
 
+        if (dragState.type === 'global-pan') {
+            const pos = getPointerPos(e);
+            const dx = pos.x - dragState.startX;
+            const dy = pos.y - dragState.startY;
+            manualGlobalTransform.x = dragState.initialGlobalTransform.x + dx;
+            manualGlobalTransform.y = dragState.initialGlobalTransform.y + dy;
+            globalEditingOverride = cloneTransform(manualGlobalTransform);
+            syncActiveGlobalKeyframeFromManual();
+            return;
+        }
+
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
 
@@ -1197,89 +2964,92 @@
 
     // --- Canvas Interaction ---
 
-    function getPointerPos(e) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
-        };
-    }
-
     function handleCanvasMouseDown(e) {
+        if (highlighterMode) {
+            startHighlightDrawing(e);
+            return;
+        }
         const pos = getPointerPos(e);
-        
-        // Check if clicking on controls of selected layer
-        if (state.selectedLayerId) {
-            const layer = state.layers.find(l => l.id === state.selectedLayerId);
-            // Simple distance check for rotation handle (approximate)
-            // We need to transform the mouse pos into layer space to check bounds accurately
-            // For MVP, let's just check if we clicked the layer body for drag
-            // And check corners for scale?
-            
-            // Let's do a simple hit test for the layer body first
-            // Inverse transform is hard without a matrix library, let's approximate
-            // or just iterate layers for selection
+        if (wholeControlActive && activeGlobalKeyframeIndex === null) {
+            startGlobalPan(e);
+            return;
         }
 
-        // Hit test layers top to bottom
-        const reversedLayers = [...state.layers].reverse();
+        const layersInOrder = getLayersInRenderOrder();
+        const reversedLayers = [...layersInOrder].reverse();
+        const candidates = [];
         let hitLayer = null;
         let hitType = 'canvas-drag';
+        const HANDLE_HIT_RADIUS = 24;
+        const BODY_HIT_PAD = 12;
 
         for (const layer of reversedLayers) {
             if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
-            
-            // Transform point to layer local space
-            // 1. Translate -x, -y
-            // 2. Rotate -deg
-            // 3. Scale 1/s
+
             const dx = pos.x - layer.getValue('x', state.currentTime);
             const dy = pos.y - layer.getValue('y', state.currentTime);
             const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
             const s = 1 / layer.getValue('scale', state.currentTime);
-            
+
             const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
             const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
 
             const w = layer.width || 100;
             const h = layer.height || 100;
+            const allowHandles = Math.max(w, h) > HANDLE_HIT_RADIUS;
 
-            // Check Rotation Handle (Top)
-            // Handle pos: (0, -h/2 - 50/s)
-            // Hit radius: 20/s
             const rotX = 0;
             const rotY = -h/2 - 50/s;
+            const handleScale = Math.max(s, 0.4);
+            const handleThreshold = Math.min(HANDLE_HIT_RADIUS, HANDLE_HIT_RADIUS / handleScale);
+            const innerMargin = Math.min(12, w / 4, h / 4);
+            const insideSafeZone = innerMargin > 0 &&
+                Math.abs(localX) <= w/2 - innerMargin &&
+                Math.abs(localY) <= h/2 - innerMargin;
+            if (insideSafeZone) {
+                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
+                continue;
+            }
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
-            
-            if (distRot <= 20/s) {
-                hitLayer = layer;
-                hitType = 'canvas-rotate';
-                break;
+
+            if (allowHandles && distRot <= handleThreshold) {
+                candidates.push({ layer, type: 'canvas-rotate', order: candidates.length });
+                continue;
             }
 
-            // Check Scale Handles (Corners)
-            // Corners: +/- w/2, +/- h/2
-            // Hit radius: 20/s
+            const cornerThreshold = handleThreshold;
             const corners = [
                 {x: -w/2, y: -h/2}, {x: w/2, y: -h/2},
                 {x: w/2, y: h/2}, {x: -w/2, y: h/2}
             ];
-            const hitCorner = corners.some(c => Math.sqrt((localX - c.x)**2 + (localY - c.y)**2) <= 20/s);
-            
-            if (hitCorner) {
-                hitLayer = layer;
-                hitType = 'canvas-scale';
-                break;
+            const hitCorner = corners.some(c => Math.hypot(localX - c.x, localY - c.y) <= cornerThreshold);
+
+            if (allowHandles && hitCorner) {
+                candidates.push({ layer, type: 'canvas-scale', order: candidates.length });
+                continue;
             }
-            
-            // Check Body
-            if (localX >= -w/2 && localX <= w/2 && localY >= -h/2 && localY <= h/2) {
-                hitLayer = layer;
-                hitType = 'canvas-drag';
-                break;
+            if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD &&
+                localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
+                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
             }
+        }
+
+        if (candidates.length > 0) {
+            const typePriority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
+            candidates.sort((a, b) => {
+                if (typePriority[a.type] !== typePriority[b.type]) {
+                    return typePriority[a.type] - typePriority[b.type];
+                }
+                const areaA = (a.layer.width || 100) * (a.layer.height || 100);
+                const areaB = (b.layer.width || 100) * (b.layer.height || 100);
+                if (areaA !== areaB) {
+                    return areaA - areaB;
+                }
+                return a.order - b.order;
+            });
+            const chosen = candidates[0];
+            hitLayer = chosen.layer;
+            hitType = chosen.type;
         }
 
         if (hitLayer) {
@@ -1294,10 +3064,13 @@
                 initialY: hitLayer.y,
                 initialRotation: hitLayer.rotation,
                 initialScale: hitLayer.scale,
-                // For rotation/scale calculations
                 initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
                 initialDist: Math.sqrt((pos.x - hitLayer.x)**2 + (pos.y - hitLayer.y)**2)
             };
+            if (wholeControlActive && activeGlobalKeyframeIndex !== null) {
+                dragState.applyGlobalFromLayer = true;
+                dragState.initialManualGlobalTransform = cloneTransform(manualGlobalTransform);
+            }
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
         } else {
@@ -1305,8 +3078,32 @@
         }
     }
 
+    function startGlobalPan(e) {
+        const pos = getPointerPos(e);
+        dragState = {
+            active: true,
+            type: 'global-pan',
+            startX: pos.x,
+            startY: pos.y,
+            initialGlobalTransform: cloneTransform(manualGlobalTransform)
+        };
+        globalEditingOverride = cloneTransform(manualGlobalTransform);
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', stopDrag);
+    }
+
     function handleCanvasMouseMove(e) {
         // Cursor updates could go here
+    }
+
+    function handleGlobalZoomWheel(e) {
+        if (!wholeControlActive) return;
+        e.preventDefault();
+        const deltaScale = 1 - e.deltaY * 0.001;
+        const nextScale = manualGlobalTransform.scale * deltaScale;
+        manualGlobalTransform.scale = Math.min(3, Math.max(0.3, nextScale));
+        globalEditingOverride = cloneTransform(manualGlobalTransform);
+        syncActiveGlobalKeyframeFromManual();
     }
 
     function handleCanvasMouseUp(e) {
@@ -1325,6 +3122,23 @@
             // For now, update base property
             layer.x = dragState.initialX + dx;
             layer.y = dragState.initialY + dy;
+            if (dragState.applyGlobalFromLayer && dragState.initialManualGlobalTransform) {
+                const deltaX = layer.x - dragState.initialX;
+                const deltaY = layer.y - dragState.initialY;
+                manualGlobalTransform.x = dragState.initialManualGlobalTransform.x + deltaX;
+                manualGlobalTransform.y = dragState.initialManualGlobalTransform.y + deltaY;
+                globalEditingOverride = cloneTransform(manualGlobalTransform);
+                syncActiveGlobalKeyframeFromManual();
+            }
+            const motionTrack = peekMotionTrack(layer?.id ?? null);
+            if (motionTrack && motionTrack.activeKeyframeIndex !== null) {
+                const frame = motionTrack.keyframes[motionTrack.activeKeyframeIndex];
+                if (frame) {
+                    frame.transform.x = layer.x;
+                    frame.transform.y = layer.y;
+                    renderTimeline();
+                }
+            }
         }
         else if (dragState.type === 'canvas-rotate') {
             // Calculate new angle
@@ -1339,8 +3153,69 @@
             // Scale ratio
             const scaleRatio = currentDist / dragState.initialDist;
             layer.scale = dragState.initialScale * scaleRatio;
+            if (dragState.applyGlobalFromLayer && dragState.initialManualGlobalTransform) {
+                const globalScaleRatio = layer.scale / dragState.initialScale;
+                manualGlobalTransform.scale = dragState.initialManualGlobalTransform.scale * globalScaleRatio;
+                globalEditingOverride = cloneTransform(manualGlobalTransform);
+                syncActiveGlobalKeyframeFromManual();
+            }
         }
     }
+
+    if (btnZoomKeyframe) {
+        btnZoomKeyframe.addEventListener('click', handleZoomKeyframeClick);
+    }
+    if (btnDeleteZoomKeyframe) {
+        btnDeleteZoomKeyframe.addEventListener('click', deleteZoomKeyframe);
+    }
+    if (btnMotionKeyframe) {
+        btnMotionKeyframe.addEventListener('click', handleMotionKeyframeClick);
+    }
+    if (btnDeleteMotionKeyframe) {
+        btnDeleteMotionKeyframe.addEventListener('click', deleteMotionKeyframe);
+    }
+    if (btnWholeControl) {
+        btnWholeControl.addEventListener('click', toggleWholeControlMode);
+    }
+    if (btnHighlight) {
+        btnHighlight.addEventListener('click', toggleHighlighterMode);
+    }
+    if (canvas) {
+        canvas.addEventListener('wheel', handleGlobalZoomWheel, { passive: false });
+    }
+    if (zoomDurationSlider) {
+        zoomDurationSlider.addEventListener('input', handleZoomDurationChange);
+    }
+    if (zoomCurveSelect) {
+        zoomCurveSelect.addEventListener('change', handleZoomCurveChange);
+    }
+    if (zoomFpsSlider) {
+        zoomFpsSlider.addEventListener('input', handleZoomFpsChange);
+    }
+    if (motionDurationSlider) {
+        motionDurationSlider.addEventListener('input', handleMotionDurationChange);
+    }
+    if (motionCurveSelect) {
+        motionCurveSelect.addEventListener('change', handleMotionCurveChange);
+    }
+    if (motionFpsSlider) {
+        motionFpsSlider.addEventListener('input', handleMotionFpsChange);
+    }
+
+    document.addEventListener('click', (e) => {
+        const target = e.target;
+        const isControlClick = target.closest('.global-controls') ||
+            target.closest('#zoom-controls-panel') ||
+            target.closest('#motion-controls-panel');
+        if (target.closest('.global-zoom-marker') || target.closest('.motion-marker') || isControlClick) return;
+        clearActiveGlobalKeyframe();
+        clearActiveMotionKeyframe();
+    });
+
+    updateZoomStatus();
+    updateZoomControlsPanelVisibility();
+    updateMotionStatus();
+    updateMotionControlsPanel();
 
     // --- Playback Controls ---
 
@@ -1455,7 +3330,7 @@
                 await ffmpeg.load();
 
                 exportStatus.innerText = 'Rendering Frames...';
-
+                
                 const totalFrames = Math.round(state.duration * FPS);
                 for (let i = 0; i < totalFrames; i++) {
                     state.currentTime = i / FPS;
@@ -1468,21 +3343,30 @@
                     progress.style.width = `${((i + 1) / totalFrames) * 50}%`; // 0-50% for rendering
                 }
 
+                const mixedAudioBuffer = await mixAudioTracks();
+                if (mixedAudioBuffer) {
+                    const wavBytes = audioBufferToWav(mixedAudioBuffer);
+                    ffmpeg.FS('writeFile', 'audio.wav', new Uint8Array(wavBytes));
+                }
+
                 exportStatus.innerText = 'Encoding MP4...';
-                
+
                 progress.style.width = '50%';
                 ffmpeg.setProgress(({ ratio }) => {
                     progress.style.width = `${50 + ratio * 50}%`;
                 });
 
-                await ffmpeg.run(
-                    '-framerate', String(FPS), 
-                    '-i', 'frame-%05d.png', 
-                    '-c:v', 'libx264', 
-                    '-pix_fmt', 'yuv420p', 
-                    '-crf', '18', 
-                    'output.mp4'
-                );
+                const ffmpegArgs = [
+                    '-framerate', String(FPS),
+                    '-i', 'frame-%05d.png'
+                ];
+                if (mixedAudioBuffer) {
+                    ffmpegArgs.push('-i', 'audio.wav');
+                    ffmpegArgs.push('-c:a', 'aac', '-b:a', '256k', '-map', '0:v', '-map', '1:a');
+                }
+                ffmpegArgs.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-shortest', 'output.mp4');
+
+                await ffmpeg.run(...ffmpegArgs);
 
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 exportBlob = new Blob([data.buffer], { type: 'video/mp4' });
