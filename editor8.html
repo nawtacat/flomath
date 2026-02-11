@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Florian Editor</title>
+    <title>Gemini Shorts Editor</title>
     <style>
         :root {
             --bg-dark: #1e1e1e;
@@ -460,7 +460,7 @@
 
 <header>
     <div style="display:flex; align-items:center; gap:10px;">
-        <h1>Florian Editor</h1>
+        <h1>Gemini Shorts Editor</h1>
         <span style="font-size:12px; color:#888;">1080x1920</span>
     </div>
     <div style="display:flex; gap:8px;">
@@ -3132,7 +3132,11 @@
     }
 
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.global-zoom-marker') || e.target.closest('.motion-marker') || e.target.closest('.global-controls')) return;
+        const target = e.target;
+        const isControlClick = target.closest('.global-controls') ||
+            target.closest('#zoom-controls-panel') ||
+            target.closest('#motion-controls-panel');
+        if (target.closest('.global-zoom-marker') || target.closest('.motion-marker') || isControlClick) return;
         clearActiveGlobalKeyframe();
         clearActiveMotionKeyframe();
     });
