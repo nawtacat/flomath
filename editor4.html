@@ -661,6 +661,8 @@
         sourceSlotId: null
     };
 
+    const CANVAS_BODY_PAD = 12;
+
 
     // --- Classes ---
 
@@ -1885,6 +1887,33 @@
 
     // --- Canvas Interaction ---
 
+    function pointInsideLayer(layer, pos) {
+        const dx = pos.x - layer.getValue('x', state.currentTime);
+        const dy = pos.y - layer.getValue('y', state.currentTime);
+        const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
+        const s = 1 / layer.getValue('scale', state.currentTime);
+
+        const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
+        const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
+
+        const w = layer.width || 100;
+        const h = layer.height || 100;
+
+        return localX >= -w/2 - CANVAS_BODY_PAD && localX <= w/2 + CANVAS_BODY_PAD &&
+            localY >= -h/2 - CANVAS_BODY_PAD && localY <= h/2 + CANVAS_BODY_PAD;
+    }
+
+    function findLayerAtPoint(layers, pos, excludeId) {
+        const ordered = [...layers].reverse();
+        for (const layer of ordered) {
+            if (layer.id === excludeId) continue;
+            if (pointInsideLayer(layer, pos)) {
+                return layer;
+            }
+        }
+        return null;
+    }
+
     function getPointerPos(e) {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
@@ -1958,6 +1987,13 @@
                 break;
             }
 
+        }
+
+        if (hitLayer && hitLayer.katex && hitType === 'canvas-drag') {
+            const fallback = findLayerAtPoint(layersInOrder, pos, hitLayer.id);
+            if (fallback) {
+                hitLayer = fallback;
+            }
         }
 
         if (hitLayer) {
