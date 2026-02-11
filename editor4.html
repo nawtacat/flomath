@@ -1187,7 +1187,10 @@
 
     function updateColor(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (layer) layer.color = val;
+        if (layer) {
+            layer.color = val;
+            if (layer.katex) markKatexLayerDirty(layer);
+        }
     }
 
     function markKatexLayerDirty(layer) {
@@ -1235,9 +1238,11 @@
         } catch (error) {
             katexHtml = `<span>${textValue}</span>`;
         }
+        const colorStyle = layer.color ? `color:${layer.color};` : '';
         const styleBlock = katexCssText ? `<style>${katexCssText}</style>` : '';
+        const contentHtml = `<span style="${colorStyle}" class="katex-custom">${katexHtml}</span>`;
         if (katexMeasureEl) {
-            katexMeasureEl.innerHTML = `${styleBlock}${katexHtml}`;
+            katexMeasureEl.innerHTML = `${styleBlock}${contentHtml}`;
         }
         const rect = katexMeasureEl ? katexMeasureEl.getBoundingClientRect() : { width: 0, height: 0 };
         const width = Math.max(1, Math.ceil(rect.width));
@@ -1896,76 +1901,53 @@
             startGlobalPan(e);
             return;
         }
-        
-        // Check if clicking on controls of selected layer
-        if (state.selectedLayerId) {
-            const layer = state.layers.find(l => l.id === state.selectedLayerId);
-            // Simple distance check for rotation handle (approximate)
-            // We need to transform the mouse pos into layer space to check bounds accurately
-            // For MVP, let's just check if we clicked the layer body for drag
-            // And check corners for scale?
-            
-            // Let's do a simple hit test for the layer body first
-            // Inverse transform is hard without a matrix library, let's approximate
-            // or just iterate layers for selection
-        }
 
-        // Hit test layers top to bottom
-            const layersInOrder = getLayersInRenderOrder();
-            const reversedLayers = [...layersInOrder].reverse();
-            let hitLayer = null;
-            let hitType = 'canvas-drag';
-            const HANDLE_HIT_RADIUS = 24;
-            const BODY_HIT_PAD = 12;
+        const layersInOrder = getLayersInRenderOrder();
+        const reversedLayers = [...layersInOrder].reverse();
+        let hitLayer = null;
+        let hitType = 'canvas-drag';
+        const HANDLE_HIT_RADIUS = 24;
+        const BODY_HIT_PAD = 12;
 
-            for (const layer of reversedLayers) {
-                if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
-            
-            // Transform point to layer local space
-            // 1. Translate -x, -y
-            // 2. Rotate -deg
-            // 3. Scale 1/s
+        for (const layer of reversedLayers) {
+            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
+
             const dx = pos.x - layer.getValue('x', state.currentTime);
             const dy = pos.y - layer.getValue('y', state.currentTime);
             const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
             const s = 1 / layer.getValue('scale', state.currentTime);
-            
+
             const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
             const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
 
             const w = layer.width || 100;
             const h = layer.height || 100;
 
-            // Check Rotation Handle (Top)
-            // Handle pos: (0, -h/2 - 50/s)
-            // Hit radius: 20/s
             const rotX = 0;
             const rotY = -h/2 - 50/s;
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
-            
+
             if (distRot <= HANDLE_HIT_RADIUS / s) {
                 hitLayer = layer;
                 hitType = 'canvas-rotate';
                 break;
             }
 
-            // Check Scale Handles (Corners)
-            // Corners: +/- w/2, +/- h/2
-            // Hit radius: 20/s
+            const cornerThreshold = HANDLE_HIT_RADIUS / s;
             const corners = [
                 {x: -w/2, y: -h/2}, {x: w/2, y: -h/2},
                 {x: w/2, y: h/2}, {x: -w/2, y: h/2}
             ];
-            const hitCorner = corners.some(c => Math.sqrt((localX - c.x)**2 + (localY - c.y)**2) <= HANDLE_HIT_RADIUS / s);
-            
+            const hitCorner = corners.some(c => Math.abs(localX - c.x) <= cornerThreshold && Math.abs(localY - c.y) <= cornerThreshold);
+
             if (hitCorner) {
                 hitLayer = layer;
                 hitType = 'canvas-scale';
                 break;
             }
-            
-            // Check Body (with padding for easier grabbing)
-            if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD && localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
+
+            if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD &&
+                localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
                 hitLayer = layer;
                 hitType = 'canvas-drag';
                 break;
@@ -1984,7 +1966,6 @@
                 initialY: hitLayer.y,
                 initialRotation: hitLayer.rotation,
                 initialScale: hitLayer.scale,
-                // For rotation/scale calculations
                 initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
                 initialDist: Math.sqrt((pos.x - hitLayer.x)**2 + (pos.y - hitLayer.y)**2)
             };
