@@ -3286,10 +3286,6 @@
                     slotIndex: getSlotIndexById(layer.slotId),
                     renderOrder: reversedLayers.length - idx
                 };
-                if (layer.id === motionActiveLayerId) {
-                    candidates.unshift(candidate);
-                    return;
-                }
                 candidates.push(candidate);
             }
         });
@@ -3298,6 +3294,10 @@
         let hitType = 'canvas-drag';
         if (candidates.length > 0) {
             candidates.sort((a, b) => {
+                if (motionActiveLayerId) {
+                    if (a.layer.id === motionActiveLayerId && b.layer.id !== motionActiveLayerId) return -1;
+                    if (b.layer.id === motionActiveLayerId && a.layer.id !== motionActiveLayerId) return 1;
+                }
                 if (a.slotIndex !== b.slotIndex) {
                     return b.slotIndex - a.slotIndex;
                 }
