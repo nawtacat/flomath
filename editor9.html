@@ -1995,10 +1995,22 @@
         }
     }
 
-    function addSoundLayer(soundId) {
+    async function addSoundLayer(soundId) {
         const filename = SOUND_LIBRARY[soundId];
         if (!filename) return;
-        const audio = new Audio(`${SOUND_BASE_URL}${filename}`);
+        const resourceUrl = `${SOUND_BASE_URL}${filename}`;
+        let blobData;
+        try {
+            const response = await fetch(resourceUrl);
+            if (!response.ok) throw new Error(`Failed to load ${filename}`);
+            blobData = await response.blob();
+        } catch (err) {
+            console.warn('Sound download failed:', resourceUrl, err);
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(blobData);
+        const audio = new Audio(objectUrl);
         audio.preload = 'metadata';
         audio.volume = soundVolume;
         audio.muted = false;
@@ -2007,6 +2019,7 @@
         layer.duration = 5;
         layer.volume = soundVolume;
         layer.assetFileName = filename;
+        layer.assetBlob = blobData;
         ensureLayerStartsAtPlayhead(layer);
         state.layers.push(layer);
         placeLayerOnTopSlot(layer);
@@ -2019,7 +2032,7 @@
             renderTimeline();
         });
         audio.addEventListener('error', () => {
-            console.warn('Could not load sound', filename);
+            console.warn('Could not play sound', filename);
         });
     }
 
