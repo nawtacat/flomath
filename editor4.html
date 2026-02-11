@@ -1927,7 +1927,16 @@
             const rotX = 0;
             const rotY = -h/2 - 50/s;
             const handleScale = Math.max(s, 0.4);
-            const handleThreshold = HANDLE_HIT_RADIUS / handleScale;
+            const handleThreshold = Math.min(HANDLE_HIT_RADIUS, HANDLE_HIT_RADIUS / handleScale);
+            const innerMargin = Math.min(12, w / 4, h / 4);
+            const insideSafeZone = innerMargin > 0 &&
+                Math.abs(localX) <= w/2 - innerMargin &&
+                Math.abs(localY) <= h/2 - innerMargin;
+            if (insideSafeZone) {
+                hitLayer = layer;
+                hitType = 'canvas-drag';
+                break;
+            }
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
 
             if (allowHandles && distRot <= handleThreshold) {
@@ -1949,12 +1958,6 @@
                 break;
             }
 
-            if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD &&
-                localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
-                hitLayer = layer;
-                hitType = 'canvas-drag';
-                break;
-            }
         }
 
         if (hitLayer) {
