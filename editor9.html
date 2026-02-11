@@ -634,34 +634,22 @@
             <label>Sound Library</label>
             <div class="sound-row">
                 <span>Mouse Click</span>
-                <div class="sound-row-buttons">
-                    <button type="button" class="secondary" data-sound-id="mouseclick" data-sound-action="play">Play</button>
-                    <button type="button" class="secondary" data-sound-id="mouseclick" data-sound-action="add">Add</button>
-                </div>
+                <button type="button" class="secondary" data-sound-id="mouseclick" data-sound-action="add">Add to track</button>
             </div>
             <div class="sound-row">
                 <span>Music</span>
-                <div class="sound-row-buttons">
-                    <button type="button" class="secondary" data-sound-id="music" data-sound-action="play">Play</button>
-                    <button type="button" class="secondary" data-sound-id="music" data-sound-action="add">Add</button>
-                </div>
+                <button type="button" class="secondary" data-sound-id="music" data-sound-action="add">Add to track</button>
             </div>
             <div class="sound-row">
                 <span>Drawing</span>
-                <div class="sound-row-buttons">
-                    <button type="button" class="secondary" data-sound-id="drawing" data-sound-action="play">Play</button>
-                    <button type="button" class="secondary" data-sound-id="drawing" data-sound-action="add">Add</button>
-                </div>
+                <button type="button" class="secondary" data-sound-id="drawing" data-sound-action="add">Add to track</button>
             </div>
             <div class="sound-row">
                 <span>Zoom</span>
-                <div class="sound-row-buttons">
-                    <button type="button" class="secondary" data-sound-id="zoom" data-sound-action="play">Play</button>
-                    <button type="button" class="secondary" data-sound-id="zoom" data-sound-action="add">Add</button>
-                </div>
+                <button type="button" class="secondary" data-sound-id="zoom" data-sound-action="add">Add to track</button>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
-                <span>Volume</span>
+                <span>Default volume</span>
                 <span id="sound-volume-display">70%</span>
             </div>
             <input type="range" id="sound-volume-slider" min="0" max="100" step="1" value="70">
@@ -840,12 +828,6 @@
         zoom: 'zoom.mp3'
     };
     let soundVolume = 0.7;
-    const soundPlayers = {};
-    Object.entries(SOUND_LIBRARY).forEach(([id, file]) => {
-        const player = new Audio(`${SOUND_BASE_URL}${file}`);
-        player.volume = soundVolume;
-        soundPlayers[id] = player;
-    });
 
     function updateViewportControls() {
         if (viewportZoomSlider) viewportZoomSlider.value = manualGlobalTransform.scale.toFixed(2);
@@ -2005,22 +1987,39 @@
         }
     }
 
-    function playSound(id) {
-        const player = soundPlayers[id];
-        if (!player) return;
-        player.volume = soundVolume;
-        player.currentTime = 0;
-        player.play().catch(() => {});
-    }
-
     function handleSoundVolumeChange(e) {
         const percent = clamp(Number(e.target.value), 0, 100);
         soundVolume = percent / 100;
         if (soundVolumeDisplay) {
             soundVolumeDisplay.innerText = `${percent}%`;
         }
-        Object.values(soundPlayers).forEach(audio => {
-            audio.volume = soundVolume;
+    }
+
+    function addSoundLayer(soundId) {
+        const filename = SOUND_LIBRARY[soundId];
+        if (!filename) return;
+        const audio = new Audio(`${SOUND_BASE_URL}${filename}`);
+        audio.preload = 'metadata';
+        audio.volume = soundVolume;
+        audio.muted = false;
+
+        const layer = new Layer('audio', `Sound: ${soundId}`, audio);
+        layer.duration = 5;
+        layer.volume = soundVolume;
+        layer.assetFileName = filename;
+        ensureLayerStartsAtPlayhead(layer);
+        state.layers.push(layer);
+        placeLayerOnTopSlot(layer);
+        selectLayer(layer.id);
+        focusPlayheadOnLayer(layer);
+        renderTimeline();
+
+        audio.addEventListener('loadedmetadata', () => {
+            layer.duration = Math.max(0.5, audio.duration || layer.duration);
+            renderTimeline();
+        });
+        audio.addEventListener('error', () => {
+            console.warn('Could not load sound', filename);
         });
     }
 
@@ -3441,7 +3440,9 @@
     document.querySelectorAll('[data-sound-id]').forEach(button => {
         button.addEventListener('click', () => {
             const id = button.getAttribute('data-sound-id');
-            if (id) playSound(id);
+            const action = button.getAttribute('data-sound-action');
+            if (!id || action !== 'add') return;
+            addSoundLayer(id);
         });
     });
 
