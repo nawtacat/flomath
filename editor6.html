@@ -685,6 +685,41 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    const getViewportCenterWorld = () => {
+        const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = Math.max(0.0001, transform.scale);
+        return {
+            x: ((2 * centerX - transform.x) / scale) - centerX,
+            y: ((2 * centerY - transform.y) / scale) - centerY
+        };
+    };
+    const screenToWorld = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = Math.max(0.0001, transform.scale);
+        return {
+            x: (point.x - (-centerX + transform.x)) / scale - centerX,
+            y: (point.y - (-centerY + transform.y)) / scale - centerY
+        };
+    };
+    const worldToScreen = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = Math.max(0.0001, transform.scale);
+        return {
+            x: scale * (point.x + centerX) + (-centerX + transform.x),
+            y: scale * (point.y + centerY) + (-centerY + transform.y)
+        };
+    };
+    const getPointerWorldPos = (event) => screenToWorld(getPointerPos(event));
+    const ensureLayerStartsAtPlayhead = (layer) => {
+        if (!layer) return;
+        const duration = Math.max(0.01, layer.duration);
+        const latestStart = Math.max(0, state.duration - duration);
+        layer.startTime = Math.min(Math.max(0, state.currentTime), latestStart);
+    };
     const highlightHelperEl = document.getElementById('highlight-helper');
     const highlightPreviewEl = document.getElementById('highlight-preview');
     const highlightControls = document.getElementById('highlight-controls');
@@ -769,7 +804,7 @@
 
     function startHighlightDrawing(e) {
         e.preventDefault();
-        const pos = getPointerPos(e);
+        const pos = getPointerWorldPos(e);
         highlightDrawing = { startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y };
         updateHighlightPreviewRect({
             left: pos.x,
@@ -782,7 +817,7 @@
     }
 
     function handleHighlightMouseMove(e) {
-        const pos = getPointerPos(e);
+        const pos = getPointerWorldPos(e);
         if (!highlightDrawing) return;
         highlightDrawing.currentX = pos.x;
         highlightDrawing.currentY = pos.y;
@@ -815,6 +850,7 @@
         layer.entryAnimation = { type: 'none', duration: 1 };
         layer.exitAnimation = { type: 'none', duration: 1 };
         layer.duration = Math.max(layer.highlightDuration + 0.5, 1.5);
+        ensureLayerStartsAtPlayhead(layer);
         state.layers.push(layer);
         placeLayerOnTopSlot(layer);
         selectLayer(layer.id);
@@ -834,18 +870,18 @@
             hideHighlightPreview();
             return;
         }
+        const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const topLeft = worldToScreen({ x: rect.left, y: rect.top }, transform);
+        const width = Math.max(0, rect.width * (transform.scale || 1));
+        const height = Math.max(0, rect.height * (transform.scale || 1));
         const canvasRect = canvas.getBoundingClientRect();
-        const scaleX = canvasRect.width / canvas.width;
-        const scaleY = canvasRect.height / canvas.height;
-        const left = canvasRect.left + rect.left * scaleX;
-        const top = canvasRect.top + rect.top * scaleY;
-        const width = rect.width * scaleX;
-        const height = rect.height * scaleY;
-        highlightPreviewEl.style.left = `${left}px`;
-        highlightPreviewEl.style.top = `${top}px`;
-        highlightPreviewEl.style.width = `${width}px`;
-        highlightPreviewEl.style.height = `${height}px`;
-        highlightPreviewEl.style.display = 'block';
+        const scaleX = canvasRect.width / CANVAS_WIDTH;
+        const scaleY = canvasRect.height / CANVAS_HEIGHT;
+        highlightPreviewEl.style.left = `${canvasRect.left + topLeft.x * scaleX}px`;
+        highlightPreviewEl.style.top = `${canvasRect.top + topLeft.y * scaleY}px`;
+        highlightPreviewEl.style.width = `${width * scaleX}px`;
+        highlightPreviewEl.style.height = `${height * scaleY}px`;
+        highlightPreviewEl.style.display = width > 0 && height > 0 ? 'block' : 'none';
     }
 
     function hideHighlightPreview() {
@@ -1293,6 +1329,10 @@
 
     function addTextLayer() {
         const l = new Layer('text', 'Text Layer', 'HELLO');
+        const center = getViewportCenterWorld();
+        l.x = center.x;
+        l.y = center.y;
+        ensureLayerStartsAtPlayhead(l);
         state.layers.push(l);
         placeLayerOnTopSlot(l);
         selectLayer(l.id);
@@ -1305,6 +1345,10 @@
             const img = new Image();
             img.onload = () => {
                 const l = new Layer('image', file.name, img);
+                const center = getViewportCenterWorld();
+                l.x = center.x;
+                l.y = center.y;
+                ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnTopSlot(l);
                 selectLayer(l.id);
@@ -1318,6 +1362,10 @@
             vid.onloadedmetadata = () => {
                 const l = new Layer('video', file.name, vid);
                 l.duration = vid.duration;
+                const center = getViewportCenterWorld();
+                l.x = center.x;
+                l.y = center.y;
+                ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnTopSlot(l);
                 selectLayer(l.id);
@@ -2294,13 +2342,42 @@
 
     // --- Canvas Interaction ---
 
-    function getPointerPos(e) {
+    function getPointerRaw(e) {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
         return {
             x: (e.clientX - rect.left) * scaleX,
             y: (e.clientY - rect.top) * scaleY
+        };
+    }
+
+    function getPointerPos(e) {
+        const raw = getPointerRaw(e);
+        return screenToWorld(raw.x, raw.y);
+    }
+
+    function screenToWorld(x, y) {
+        const transform = getActiveGlobalTransform();
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = transform.scale || 1;
+        return {
+            x: centerX + (x - centerX) / scale - transform.x,
+            y: centerY + (y - centerY) / scale - transform.y
+        };
+    }
+
+    function worldToScreenRect(rect) {
+        const transform = getActiveGlobalTransform();
+        const centerX = CANVAS_WIDTH / 2;
+        const centerY = CANVAS_HEIGHT / 2;
+        const scale = transform.scale || 1;
+        return {
+            left: centerX + scale * (rect.left - centerX + transform.x),
+            top: centerY + scale * (rect.top - centerY + transform.y),
+            width: rect.width * scale,
+            height: rect.height * scale
         };
     }
 
