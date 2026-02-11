@@ -3211,16 +3211,19 @@
             return;
         }
 
-        const layersInOrder = getLayersInRenderOrder();
-        const reversedLayers = [...layersInOrder].reverse();
-        const candidates = [];
-        let hitLayer = null;
-        let hitType = 'canvas-drag';
-        const HANDLE_HIT_RADIUS = 24;
-        const BODY_HIT_PAD = 12;
+    const layersInOrder = getLayersInRenderOrder();
+    const reversedLayers = [...layersInOrder].reverse();
+    const candidates = [];
+    let hitLayer = null;
+    let hitType = 'canvas-drag';
+    const HANDLE_HIT_RADIUS = 24;
+    const BODY_HIT_PAD = 12;
+    const motionActiveLayerId = state.selectedLayerId && peekMotionTrack(state.selectedLayerId)?.activeKeyframeIndex !== null
+        ? state.selectedLayerId
+        : null;
 
-        for (const layer of reversedLayers) {
-            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
+    for (const layer of reversedLayers) {
+        if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
 
             const dx = pos.x - layer.getValue('x', state.currentTime);
             const dy = pos.y - layer.getValue('y', state.currentTime);
@@ -3243,13 +3246,25 @@
                 Math.abs(localX) <= w/2 - innerMargin &&
                 Math.abs(localY) <= h/2 - innerMargin;
             if (insideSafeZone) {
-                candidates.push({ layer, type: 'canvas-drag', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
+                candidates.push({
+                    layer,
+                    type: 'canvas-drag',
+                    order: candidates.length,
+                    slotIndex: getSlotIndexById(layer.slotId),
+                    isMotionLayer: layer.id === motionActiveLayerId
+                });
                 continue;
             }
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
 
             if (allowHandles && distRot <= handleThreshold) {
-                candidates.push({ layer, type: 'canvas-rotate', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
+                candidates.push({
+                    layer,
+                    type: 'canvas-rotate',
+                    order: candidates.length,
+                    slotIndex: getSlotIndexById(layer.slotId),
+                    isMotionLayer: layer.id === motionActiveLayerId
+                });
                 continue;
             }
 
@@ -3261,23 +3276,48 @@
             const hitCorner = corners.some(c => Math.hypot(localX - c.x, localY - c.y) <= cornerThreshold);
 
             if (allowHandles && hitCorner) {
-                candidates.push({ layer, type: 'canvas-scale', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
+                candidates.push({
+                    layer,
+                    type: 'canvas-scale',
+                    order: candidates.length,
+                    slotIndex: getSlotIndexById(layer.slotId),
+                    isMotionLayer: layer.id === motionActiveLayerId
+                });
                 continue;
             }
             if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD &&
                 localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
-                candidates.push({ layer, type: 'canvas-drag', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
+                candidates.push({
+                    layer,
+                    type: 'canvas-drag',
+                    order: candidates.length,
+                    slotIndex: getSlotIndexById(layer.slotId),
+                    isMotionLayer: layer.id === motionActiveLayerId
+                });
             }
         }
 
         if (candidates.length > 0) {
             const typePriority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
             candidates.sort((a, b) => {
+                if (motionActiveLayerId) {
+                    const aMotion = a.layer.id === motionActiveLayerId ? 0 : 1;
+                    const bMotion = b.layer.id === motionActiveLayerId ? 0 : 1;
+                    if (aMotion !== bMotion) {
+                        return aMotion - bMotion;
+                    }
+                }
                 if (typePriority[a.type] !== typePriority[b.type]) {
                     return typePriority[a.type] - typePriority[b.type];
                 }
                 if (a.layer.katex !== b.layer.katex) {
                     return a.layer.katex ? -1 : 1;
+                }
+                if (a.layer.id === state.selectedLayerId && b.layer.id !== state.selectedLayerId) {
+                    return -1;
+                }
+                if (b.layer.id === state.selectedLayerId && a.layer.id !== state.selectedLayerId) {
+                    return 1;
                 }
                 if ((a.slotIndex ?? 0) !== (b.slotIndex ?? 0)) {
                     return (b.slotIndex ?? 0) - (a.slotIndex ?? 0);
@@ -3500,13 +3540,28 @@
 
     // --- Export Logic ---
 
-    const captureCanvasWithMediaRecorder = (progressCallback) => new Promise((resolve, reject) => {
+    const captureCanvasWithMediaRecorder = (progressCallback, audioBuffer = null) => new Promise((resolve, reject) => {
         if (!canvas.captureStream || typeof MediaRecorder === 'undefined') {
             reject(new Error('MediaRecorder captureStream is not supported in this browser'));
             return;
         }
 
-        const stream = canvas.captureStream(FPS);
+        const videoStream = canvas.captureStream(FPS);
+        let stream = videoStream;
+        let audioCtx;
+        let audioSource;
+        if (audioBuffer) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const dest = audioCtx.createMediaStreamDestination();
+            audioSource = audioCtx.createBufferSource();
+            audioSource.buffer = audioBuffer;
+            audioSource.connect(dest);
+            audioSource.start();
+            stream = new MediaStream([
+                ...videoStream.getVideoTracks(),
+                ...dest.stream.getAudioTracks()
+            ]);
+        }
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
         const chunks = [];
         let frame = 0;
@@ -3520,11 +3575,23 @@
             }
         };
         recorder.onerror = (event) => {
+            if (audioSource) {
+                try { audioSource.stop(); } catch {}
+            }
+            if (audioCtx) {
+                audioCtx.close();
+            }
             clearInterval(frameInterval);
             stream.getTracks().forEach(track => track.stop());
             reject(event.error || new Error('MediaRecorder error'));
         };
         recorder.onstop = () => {
+            if (audioSource) {
+                try { audioSource.stop(); } catch {}
+            }
+            if (audioCtx) {
+                audioCtx.close();
+            }
             stream.getTracks().forEach(track => track.stop());
             resolve(new Blob(chunks, { type: 'video/webm' }));
         };
@@ -3569,15 +3636,23 @@
 
         let ffmpeg;
         let exportBlob;
-        const useFFmpeg = typeof SharedArrayBuffer !== 'undefined' && window.crossOriginIsolated;
+        const ffmpegModuleSupported = typeof FFmpeg !== 'undefined' && typeof FFmpeg.createFFmpeg === 'function';
+        const useFFmpeg = ffmpegModuleSupported && typeof SharedArrayBuffer !== 'undefined' && window.crossOriginIsolated;
+        const hasAudioLayers = state.layers.some(layer => layer.type === 'audio');
+        let mixedAudioBuffer = null;
 
         try {
+            if (hasAudioLayers) {
+                exportStatus.innerText = 'Mixing audio tracks...';
+                mixedAudioBuffer = await mixAudioTracks();
+            }
+
             if (!useFFmpeg) {
                 exportStatus.innerText = 'Using MediaRecorder fallback (no SharedArrayBuffer)';
                 progress.style.width = '0%';
                 exportBlob = await captureCanvasWithMediaRecorder((ratio) => {
                     progress.style.width = `${ratio * 100}%`;
-                });
+                }, mixedAudioBuffer);
             } else {
                 const { createFFmpeg, fetchFile } = FFmpeg;
                 const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist';
@@ -3605,7 +3680,6 @@
                     progress.style.width = `${((i + 1) / totalFrames) * 50}%`; // 0-50% for rendering
                 }
 
-                const mixedAudioBuffer = await mixAudioTracks();
                 if (mixedAudioBuffer) {
                     const wavBytes = audioBufferToWav(mixedAudioBuffer);
                     ffmpeg.FS('writeFile', 'audio.wav', new Uint8Array(wavBytes));
