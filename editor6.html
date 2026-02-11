@@ -713,7 +713,20 @@
             y: scale * (point.y + centerY) + (-centerY + transform.y)
         };
     };
-    const getPointerWorldPos = (event) => screenToWorld(getPointerPos(event));
+    const getPointerRaw = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (event.clientX - rect.left) * scaleX,
+            y: (event.clientY - rect.top) * scaleY
+        };
+    };
+    function getPointerPos(event) {
+        const raw = getPointerRaw(event);
+        return screenToWorld(raw);
+    }
+    const getPointerWorldPos = (event) => getPointerPos(event);
     const ensureLayerStartsAtPlayhead = (layer) => {
         if (!layer) return;
         const duration = Math.max(0.01, layer.duration);
@@ -2341,45 +2354,6 @@
     }
 
     // --- Canvas Interaction ---
-
-    function getPointerRaw(e) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
-        };
-    }
-
-    function getPointerPos(e) {
-        const raw = getPointerRaw(e);
-        return screenToWorld(raw.x, raw.y);
-    }
-
-    function screenToWorld(x, y) {
-        const transform = getActiveGlobalTransform();
-        const centerX = CANVAS_WIDTH / 2;
-        const centerY = CANVAS_HEIGHT / 2;
-        const scale = transform.scale || 1;
-        return {
-            x: centerX + (x - centerX) / scale - transform.x,
-            y: centerY + (y - centerY) / scale - transform.y
-        };
-    }
-
-    function worldToScreenRect(rect) {
-        const transform = getActiveGlobalTransform();
-        const centerX = CANVAS_WIDTH / 2;
-        const centerY = CANVAS_HEIGHT / 2;
-        const scale = transform.scale || 1;
-        return {
-            left: centerX + scale * (rect.left - centerX + transform.x),
-            top: centerY + scale * (rect.top - centerY + transform.y),
-            width: rect.width * scale,
-            height: rect.height * scale
-        };
-    }
 
     function handleCanvasMouseDown(e) {
         if (highlighterMode) {
