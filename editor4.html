@@ -830,12 +830,7 @@
         }
 
         // Draw Layers
-        const layersToRender = [...state.layers].sort((a, b) => {
-            const slotA = getSlotIndexById(a.slotId);
-            const slotB = getSlotIndexById(b.slotId);
-            if (slotA !== slotB) return slotA - slotB;
-            return a.id - b.id;
-        });
+        const layersToRender = getLayersInRenderOrder();
 
         layersToRender.forEach(layer => {
             if (layer.katex) {
@@ -997,6 +992,15 @@
             if (slot && !slot.itemIds.includes(layer.id)) {
                 slot.itemIds.push(layer.id);
             }
+        });
+    }
+
+    function getLayersInRenderOrder() {
+        return [...state.layers].sort((a, b) => {
+            const slotA = getSlotIndexById(a.slotId);
+            const slotB = getSlotIndexById(b.slotId);
+            if (slotA !== slotB) return slotA - slotB;
+            return a.id - b.id;
         });
     }
 
@@ -1907,12 +1911,15 @@
         }
 
         // Hit test layers top to bottom
-        const reversedLayers = [...state.layers].reverse();
-        let hitLayer = null;
-        let hitType = 'canvas-drag';
+            const layersInOrder = getLayersInRenderOrder();
+            const reversedLayers = [...layersInOrder].reverse();
+            let hitLayer = null;
+            let hitType = 'canvas-drag';
+            const HANDLE_HIT_RADIUS = 24;
+            const BODY_HIT_PAD = 12;
 
-        for (const layer of reversedLayers) {
-            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
+            for (const layer of reversedLayers) {
+                if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
             
             // Transform point to layer local space
             // 1. Translate -x, -y
@@ -1936,7 +1943,7 @@
             const rotY = -h/2 - 50/s;
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
             
-            if (distRot <= 20/s) {
+            if (distRot <= HANDLE_HIT_RADIUS / s) {
                 hitLayer = layer;
                 hitType = 'canvas-rotate';
                 break;
@@ -1949,7 +1956,7 @@
                 {x: -w/2, y: -h/2}, {x: w/2, y: -h/2},
                 {x: w/2, y: h/2}, {x: -w/2, y: h/2}
             ];
-            const hitCorner = corners.some(c => Math.sqrt((localX - c.x)**2 + (localY - c.y)**2) <= 20/s);
+            const hitCorner = corners.some(c => Math.sqrt((localX - c.x)**2 + (localY - c.y)**2) <= HANDLE_HIT_RADIUS / s);
             
             if (hitCorner) {
                 hitLayer = layer;
@@ -1957,8 +1964,8 @@
                 break;
             }
             
-            // Check Body
-            if (localX >= -w/2 && localX <= w/2 && localY >= -h/2 && localY <= h/2) {
+            // Check Body (with padding for easier grabbing)
+            if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD && localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
                 hitLayer = layer;
                 hitType = 'canvas-drag';
                 break;
