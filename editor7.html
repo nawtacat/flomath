@@ -690,6 +690,8 @@
     const floatSettingsPanel = document.getElementById('float-settings');
     const floatDistanceValueEl = document.getElementById('float-distance-value');
     const floatPaceValueEl = document.getElementById('float-pace-value');
+    const audioDecodeCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioDecodeCtx = new (window.AudioContext || window.webkitAudioContext)();
     const katexMeasureEl = document.getElementById('katex-measure');
     const katexToggle = document.getElementById('prop-katex');
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
