@@ -1470,6 +1470,80 @@
         input.value = '';
     }
 
+    async function mixAudioTracks() {
+        const audioLayers = state.layers.filter(layer => layer.type === 'audio' && layer.assetBlob);
+        if (audioLayers.length === 0) return null;
+        const sampleRate = audioDecodeCtx.sampleRate;
+        const totalLength = Math.ceil(state.duration * sampleRate);
+        const offlineCtx = new OfflineAudioContext(2, totalLength, sampleRate);
+        for (const layer of audioLayers) {
+            try {
+                const bufferData = await layer.assetBlob.arrayBuffer();
+                const decoded = await audioDecodeCtx.decodeAudioData(bufferData.slice(0));
+                const source = offlineCtx.createBufferSource();
+                source.buffer = decoded;
+                const gainNode = offlineCtx.createGain();
+                gainNode.gain.value = layer.muted ? 0 : (layer.volume ?? 1);
+                source.connect(gainNode).connect(offlineCtx.destination);
+                source.start(layer.startTime);
+            } catch (err) {
+                console.warn('Failed to decode audio layer', layer.name, err);
+            }
+        }
+
+        return offlineCtx.startRendering();
+    }
+
+    function audioBufferToWav(buffer) {
+        const numChannels = buffer.numberOfChannels;
+        const sampleRate = buffer.sampleRate;
+        const numSamples = buffer.length;
+        const bytesPerSample = 2;
+        const blockAlign = numChannels * bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+        const dataSize = numSamples * blockAlign;
+        const bufferSize = 44 + dataSize;
+        const arrayBuffer = new ArrayBuffer(bufferSize);
+        const view = new DataView(arrayBuffer);
+
+        let offset = 0;
+        function writeString(str) {
+            for (let i = 0; i < str.length; i++) {
+                view.setUint8(offset++, str.charCodeAt(i));
+            }
+        }
+
+        writeString('RIFF');
+        view.setUint32(offset, 36 + dataSize, true); offset += 4;
+        writeString('WAVE');
+        writeString('fmt ');
+        view.setUint32(offset, 16, true); offset += 4;
+        view.setUint16(offset, 1, true); offset += 2;
+        view.setUint16(offset, numChannels, true); offset += 2;
+        view.setUint32(offset, sampleRate, true); offset += 4;
+        view.setUint32(offset, byteRate, true); offset += 4;
+        view.setUint16(offset, blockAlign, true); offset += 2;
+        view.setUint16(offset, bytesPerSample * 8, true); offset += 2;
+        writeString('data');
+        view.setUint32(offset, dataSize, true); offset += 4;
+
+        const channels = [];
+        for (let i = 0; i < numChannels; i++) {
+            channels.push(buffer.getChannelData(i));
+        }
+
+        for (let i = 0; i < numSamples; i++) {
+            for (let channel = 0; channel < numChannels; channel++) {
+                let sample = channels[channel][i];
+                sample = Math.max(-1, Math.min(1, sample));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += bytesPerSample;
+            }
+        }
+
+        return arrayBuffer;
+    }
+
     function handleImageUpload(input) {
         if (input.files[0]) addMediaFile(input.files[0]);
         input.value = ''; // Allow re-uploading the same file
@@ -2804,7 +2878,7 @@
                 await ffmpeg.load();
 
                 exportStatus.innerText = 'Rendering Frames...';
-
+                
                 const totalFrames = Math.round(state.duration * FPS);
                 for (let i = 0; i < totalFrames; i++) {
                     state.currentTime = i / FPS;
@@ -2817,21 +2891,30 @@
                     progress.style.width = `${((i + 1) / totalFrames) * 50}%`; // 0-50% for rendering
                 }
 
+                const mixedAudioBuffer = await mixAudioTracks();
+                if (mixedAudioBuffer) {
+                    const wavBytes = audioBufferToWav(mixedAudioBuffer);
+                    ffmpeg.FS('writeFile', 'audio.wav', new Uint8Array(wavBytes));
+                }
+
                 exportStatus.innerText = 'Encoding MP4...';
-                
+
                 progress.style.width = '50%';
                 ffmpeg.setProgress(({ ratio }) => {
                     progress.style.width = `${50 + ratio * 50}%`;
                 });
 
-                await ffmpeg.run(
-                    '-framerate', String(FPS), 
-                    '-i', 'frame-%05d.png', 
-                    '-c:v', 'libx264', 
-                    '-pix_fmt', 'yuv420p', 
-                    '-crf', '18', 
-                    'output.mp4'
-                );
+                const ffmpegArgs = [
+                    '-framerate', String(FPS),
+                    '-i', 'frame-%05d.png'
+                ];
+                if (mixedAudioBuffer) {
+                    ffmpegArgs.push('-i', 'audio.wav');
+                    ffmpegArgs.push('-c:a', 'aac', '-b:a', '256k', '-map', '0:v', '-map', '1:a');
+                }
+                ffmpegArgs.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-shortest', 'output.mp4');
+
+                await ffmpeg.run(...ffmpegArgs);
 
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 exportBlob = new Blob([data.buffer], { type: 'video/mp4' });
