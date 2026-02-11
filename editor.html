@@ -3072,6 +3072,9 @@
                 if (typePriority[a.type] !== typePriority[b.type]) {
                     return typePriority[a.type] - typePriority[b.type];
                 }
+                if (a.layer.katex !== b.layer.katex) {
+                    return a.layer.katex ? -1 : 1;
+                }
                 const areaA = (a.layer.width || 100) * (a.layer.height || 100);
                 const areaB = (b.layer.width || 100) * (b.layer.height || 100);
                 if (areaA !== areaB) {
