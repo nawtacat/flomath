@@ -458,8 +458,10 @@
             <button class="secondary" onclick="addTextLayer()">+ Text</button>
             <button class="secondary" onclick="document.getElementById('img-upload').click()">+ Image</button>
             <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
+            <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
+            <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
         </div>
 
         <div class="control-group" id="properties-panel" style="display:none;">
@@ -537,6 +539,14 @@
                     <option value="linear">Linear</option>
                     <option value="ease-in">Ease In</option>
                 </select>
+            </div>
+            <div id="audio-controls" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Volume</label>
+                <input type="range" id="audio-volume" min="0" max="1" step="0.05" value="1" oninput="updateAudioVolume(this.value)">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                    <input type="checkbox" id="audio-mute" onchange="updateAudioMute(this.checked)">
+                    Mute
+                </label>
             </div>
 
             <button class="secondary" style="width:100%; margin-top:10px; background:#a33;" onclick="deleteSelectedLayer()">Delete Layer</button>
@@ -739,6 +749,10 @@
         updateTimelineUI();
         updatePropertiesPanel();
     };
+    const recalcStateDuration = () => {
+        const nextDuration = Math.max(10, ...state.layers.map(layer => layer.startTime + layer.duration));
+        state.duration = Math.max(state.duration, nextDuration);
+    };
     const highlightHelperEl = document.getElementById('highlight-helper');
     const highlightPreviewEl = document.getElementById('highlight-preview');
     const highlightControls = document.getElementById('highlight-controls');
@@ -747,6 +761,9 @@
     const highlightIntensityInput = document.getElementById('highlight-intensity');
     const highlightDurationInput = document.getElementById('highlight-duration');
     const highlightEaseSelect = document.getElementById('highlight-ease');
+    const audioControls = document.getElementById('audio-controls');
+    const audioVolumeInput = document.getElementById('audio-volume');
+    const audioMuteInput = document.getElementById('audio-mute');
     const easeOutQuad = (value) => {
         const t = Math.min(1, Math.max(0, value));
         return 1 - Math.pow(1 - t, 2);
@@ -923,6 +940,28 @@
         }
     }
 
+    function syncAudioLayerPlayback(layer) {
+        if (!layer || layer.type !== 'audio' || !layer.content) return;
+        const audio = layer.content;
+        const localTime = state.currentTime - layer.startTime;
+        if (localTime < 0 || localTime > layer.duration) {
+            if (!audio.paused) {
+                audio.pause();
+            }
+            return;
+        }
+        if (Math.abs(audio.currentTime - localTime) > 0.3) {
+            audio.currentTime = Math.max(0, localTime);
+        }
+        audio.volume = layer.volume ?? 1;
+        audio.muted = layer.muted || false;
+        if (state.isPlaying) {
+            audio.play().catch(() => {});
+        } else {
+            audio.pause();
+        }
+    }
+
     function hexToRgb(hex) {
         let normalized = hex.replace('#', '');
         if (normalized.length === 3) {
@@ -971,11 +1010,13 @@
             this.katexNeedsRender = false;
             this.katexImage = null;
             this.katexImageWidth = 0;
-            this.katexImageHeight = 0;
-            this.katexContentHash = '';
-            this.katexImageLoading = false;
-            this.entryAnimation = { type: 'none', duration: 1 };
-            this.exitAnimation = { type: 'none', duration: 1 };
+        this.katexImageHeight = 0;
+        this.katexContentHash = '';
+        this.katexImageLoading = false;
+        this.entryAnimation = { type: 'none', duration: 1 };
+        this.exitAnimation = { type: 'none', duration: 1 };
+        this.volume = 1;
+        this.muted = false;
 
             // Keyframes: { property: [ {time, value}, ... ] }
             this.keyframes = {
@@ -1119,6 +1160,10 @@
         layersToRender.forEach(layer => {
             if (layer.katex) {
                 ensureKatexImage(layer);
+            }
+            if (layer.type === 'audio') {
+                syncAudioLayerPlayback(layer);
+                return;
             }
             // Check visibility based on time
             if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
@@ -1397,6 +1442,31 @@
         }
     }
 
+    function handleAudioUpload(input) {
+        if (!input.files[0]) return;
+        const file = input.files[0];
+        const audio = document.createElement('audio');
+        audio.src = URL.createObjectURL(file);
+        audio.preload = 'metadata';
+        audio.onloadedmetadata = () => {
+            const l = new Layer('audio', file.name, audio);
+            l.duration = audio.duration || 5;
+            const center = getViewportCenterWorld();
+            l.x = center.x;
+            l.y = center.y;
+            l.width = 400;
+            l.height = 60;
+            ensureLayerStartsAtPlayhead(l);
+            state.layers.push(l);
+            placeLayerOnTopSlot(l);
+            selectLayer(l.id);
+            focusPlayheadOnLayer(l);
+            renderTimeline();
+        };
+        audio.load();
+        input.value = '';
+    }
+
     function handleImageUpload(input) {
         if (input.files[0]) addMediaFile(input.files[0]);
         input.value = ''; // Allow re-uploading the same file
@@ -1430,6 +1500,7 @@
             ensureAnimationInputs(layer);
             updateAnimationUI(layer);
             updateHighlightUI(layer);
+            updateAudioUI(layer);
             updatePropertiesPanel();
         } else {
             panel.style.display = 'none';
@@ -1443,6 +1514,7 @@
             if (entryDurationInput) entryDurationInput.value = '1.0';
             if (exitDurationInput) exitDurationInput.value = '1.0';
             if (highlightControls) highlightControls.style.display = 'none';
+            if (audioControls) audioControls.style.display = 'none';
         }
         renderTimeline();
     }
@@ -1580,6 +1652,37 @@
         if (highlightIntensityInput) highlightIntensityInput.value = layer.highlightIntensity ?? 0.5;
         if (highlightDurationInput) highlightDurationInput.value = (layer.highlightDuration ?? 1).toFixed(1);
         if (highlightEaseSelect) highlightEaseSelect.value = layer.highlightEase || 'ease-out';
+    }
+
+    function updateAudioUI(layer) {
+        if (!audioControls) return;
+        const isAudio = layer?.type === 'audio';
+        audioControls.style.display = isAudio ? 'block' : 'none';
+        if (!isAudio) return;
+        if (audioVolumeInput) audioVolumeInput.value = layer.volume?.toFixed(2) ?? 1;
+        if (audioMuteInput) audioMuteInput.checked = layer.muted || false;
+    }
+
+    function updateAudioVolume(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'audio') {
+            const parsed = parseFloat(value);
+            if (Number.isNaN(parsed)) return;
+            layer.volume = parsed;
+            if (layer.content) {
+                layer.content.volume = layer.volume;
+            }
+        }
+    }
+
+    function updateAudioMute(checked) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'audio') {
+            layer.muted = Boolean(checked);
+            if (layer.content) {
+                layer.content.muted = layer.muted;
+            }
+        }
     }
 
     function updateHighlightColor(value) {
@@ -2081,6 +2184,7 @@
         // Clear tracks (keep scrubber and playhead)
         container.querySelectorAll('.layer-track').forEach(e => e.remove());
 
+        recalcStateDuration();
         // Set width based on duration
         const width = state.duration * PIXELS_PER_SECOND;
         document.getElementById('scrubber').style.width = `${width}px`;
