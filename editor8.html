@@ -2298,7 +2298,7 @@
         if (index !== null && (index < 0 || index >= globalZoom.keyframes.length)) return;
         if (activeGlobalKeyframeIndex === index) {
             activeGlobalKeyframeIndex = null;
-            globalEditingOverride = null;
+            globalEditingOverride = cloneTransform(manualGlobalTransform);
             renderTimeline();
             updateZoomStatus();
             return;
@@ -2311,7 +2311,7 @@
             manualGlobalTransform.scale = frame.transform.scale;
             globalEditingOverride = cloneTransform(frame.transform);
         } else {
-            globalEditingOverride = null;
+            globalEditingOverride = cloneTransform(manualGlobalTransform);
         }
         renderTimeline();
         updateZoomStatus();
