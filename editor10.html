@@ -1774,6 +1774,8 @@
             if (highlightControls) highlightControls.style.display = 'none';
             if (audioControls) audioControls.style.display = 'none';
         }
+        updateMotionStatus();
+        updateMotionControlsPanel();
         renderTimeline();
     }
 
@@ -3311,6 +3313,16 @@
 
         if (hitLayer) {
             selectLayer(hitLayer.id);
+
+            const motionTrack = peekMotionTrack(hitLayer.id);
+            const hasMotion = motionTrack && motionTrack.keyframes.length > 0;
+            const isEditingMotion = motionTrack && motionTrack.activeKeyframeIndex !== null;
+
+            if (hitType === 'canvas-drag' && hasMotion && !isEditingMotion) {
+                showMotionToast("Select a motion keyframe to move");
+                return;
+            }
+
             dragState = {
                 active: true,
                 type: hitType,
