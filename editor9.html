@@ -3302,15 +3302,12 @@
         }
 
         if (candidates.length > 0) {
+            const prioritized = motionActiveLayerId
+                ? candidates.filter(c => c.layer.id === motionActiveLayerId)
+                : [];
+            const candidatesToSort = prioritized.length > 0 ? prioritized : candidates;
             const typePriority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
-            candidates.sort((a, b) => {
-                if (motionActiveLayerId) {
-                    const aMotion = a.layer.id === motionActiveLayerId ? 0 : 1;
-                    const bMotion = b.layer.id === motionActiveLayerId ? 0 : 1;
-                    if (aMotion !== bMotion) {
-                        return aMotion - bMotion;
-                    }
-                }
+            candidatesToSort.sort((a, b) => {
                 if (typePriority[a.type] !== typePriority[b.type]) {
                     return typePriority[a.type] - typePriority[b.type];
                 }
@@ -3333,7 +3330,7 @@
                 }
                 return a.order - b.order;
             });
-            const chosen = candidates[0];
+            const chosen = candidatesToSort[0];
             hitLayer = chosen.layer;
             hitType = chosen.type;
         }
