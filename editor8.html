@@ -346,6 +346,17 @@
             text-transform: uppercase;
             background: rgba(255, 255, 255, 0.05);
         }
+        .sound-row {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:6px;
+            font-size:12px;
+        }
+        .sound-row button {
+            padding:4px 10px;
+            font-size:12px;
+        }
 
         .layer-block {
             position: absolute;
@@ -620,6 +631,15 @@
             <p style="margin:0; font-size:11px; color:#999;">Add a zoom start + end keyframe pair to enable these controls.</p>
         </div>
         <div class="control-group">
+            <label>Sound Library</label>
+            <div id="sound-library"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                <span>Volume</span>
+                <span id="sound-volume-display">70%</span>
+            </div>
+            <input type="range" id="sound-volume-slider" min="0" max="100" step="1" value="70">
+        </div>
+        <div class="control-group">
             <label>Viewport Controls</label>
             <div class="control-row" style="display:flex; flex-direction:column; gap:6px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -783,6 +803,38 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    const soundLibraryContainer = document.getElementById('sound-library');
+    const soundVolumeSlider = document.getElementById('sound-volume-slider');
+    const soundVolumeDisplay = document.getElementById('sound-volume-display');
+    const SOUND_BASE_URL = 'https://flomath.space/audio/';
+    const SOUND_LIBRARY = [
+        { id: 'mouseclick', label: 'Mouse Click', file: 'mouseclick.mp3' },
+        { id: 'music', label: 'Music', file: 'music.mp3' },
+        { id: 'drawing', label: 'Drawing', file: 'drawing.mp3' },
+        { id: 'zoom', label: 'Zoom', file: 'zoom.mp3' }
+    ];
+    let soundVolume = 0.7;
+    const soundPlayers = {};
+
+    SOUND_LIBRARY.forEach((item) => {
+        const player = new Audio(`${SOUND_BASE_URL}${item.file}`);
+        player.volume = soundVolume;
+        soundPlayers[item.id] = player;
+        if (soundLibraryContainer) {
+            const row = document.createElement('div');
+            row.className = 'sound-row';
+            const label = document.createElement('span');
+            label.innerText = item.label;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'secondary';
+            button.innerText = 'Play';
+            button.addEventListener('click', () => playSound(item.id));
+            row.appendChild(label);
+            row.appendChild(button);
+            soundLibraryContainer.appendChild(row);
+        }
+    });
 
     function updateViewportControls() {
         if (viewportZoomSlider) viewportZoomSlider.value = manualGlobalTransform.scale.toFixed(2);
@@ -1309,11 +1361,7 @@
             const clipHorizontal = isEntryScanHorizontal || exitIsScanHorizontal;
             const clipVertical = isEntryScanVertical || exitIsScanVertical;
             const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
-            const totalChars = layer.content?.length || 0;
-            const typedChars = Math.floor(easedEntryProgress * totalChars);
-            const textToRender = (isTypewriterActive && !layer.katex)
-                ? layer.content.slice(0, Math.max(0, typedChars))
-                : layer.content;
+            const textContent = layer.content || '';
 
             // Apply looping animations on top of keyframed values
             if (layer.loopingAnimation && layer.loopingAnimation !== 'none') {
@@ -1374,7 +1422,19 @@
                 ctx.fillStyle = layer.color;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(textToRender, 0, 0);
+                if (isTypewriterActive) {
+                    const measuredWidth = ctx.measureText(textContent).width;
+                    const clipWidth = Math.max(0, measuredWidth * easedEntryProgress);
+                    const clipHeight = 140;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(-clipWidth / 2, -clipHeight / 2, clipWidth, clipHeight);
+                    ctx.clip();
+                    ctx.fillText(textContent, 0, 0);
+                    ctx.restore();
+                } else {
+                    ctx.fillText(textContent, 0, 0);
+                }
             } else if (layer.type === 'highlight') {
                 const rect = layer.highlightRect || { width: layer.width || 100, height: layer.height || 100 };
                 const highlightDuration = Math.max(0.1, layer.highlightDuration || 1);
@@ -1932,6 +1992,25 @@
         if (layer && layer.type === 'highlight') {
             layer.highlightEase = value;
         }
+    }
+
+    function playSound(id) {
+        const player = soundPlayers[id];
+        if (!player) return;
+        player.volume = soundVolume;
+        player.currentTime = 0;
+        player.play().catch(() => {});
+    }
+
+    function handleSoundVolumeChange(e) {
+        const percent = clamp(Number(e.target.value), 0, 100);
+        soundVolume = percent / 100;
+        if (soundVolumeDisplay) {
+            soundVolumeDisplay.innerText = `${percent}%`;
+        }
+        Object.values(soundPlayers).forEach(audio => {
+            audio.volume = soundVolume;
+        });
     }
 
     function encodeSvgToBase64(svg) {
@@ -3343,6 +3422,10 @@
     }
     if (viewportPanSlider) {
         viewportPanSlider.addEventListener('input', handleViewportPanChange);
+    }
+    if (soundVolumeSlider) {
+        soundVolumeSlider.addEventListener('input', handleSoundVolumeChange);
+        handleSoundVolumeChange({ target: soundVolumeSlider });
     }
 
     document.addEventListener('click', (e) => {
