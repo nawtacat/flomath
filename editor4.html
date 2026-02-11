@@ -1922,12 +1922,13 @@
 
             const w = layer.width || 100;
             const h = layer.height || 100;
+            const allowHandles = Math.max(w, h) > HANDLE_HIT_RADIUS;
 
             const rotX = 0;
             const rotY = -h/2 - 50/s;
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
 
-            if (distRot <= HANDLE_HIT_RADIUS / s) {
+            if (allowHandles && distRot <= HANDLE_HIT_RADIUS / s) {
                 hitLayer = layer;
                 hitType = 'canvas-rotate';
                 break;
@@ -1940,7 +1941,7 @@
             ];
             const hitCorner = corners.some(c => Math.abs(localX - c.x) <= cornerThreshold && Math.abs(localY - c.y) <= cornerThreshold);
 
-            if (hitCorner) {
+            if (allowHandles && hitCorner) {
                 hitLayer = layer;
                 hitType = 'canvas-scale';
                 break;
