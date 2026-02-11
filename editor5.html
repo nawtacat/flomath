@@ -638,6 +638,15 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    const easeOutQuad = (value) => {
+        const t = Math.min(1, Math.max(0, value));
+        return 1 - Math.pow(1 - t, 2);
+    };
+    const easeOutQuad = (value) => {
+        const t = Math.min(1, Math.max(0, value));
+        return 1 - Math.pow(1 - t, 2);
+    };
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
     const btnZoomKeyframe = document.getElementById('btn-zoom-keyframe');
     fetch(katexCssUrl)
         .then((response) => response.text())
@@ -879,16 +888,17 @@
             const entryProgress = entryAnim.type === 'none'
                 ? 1
                 : clamp((state.currentTime - layer.startTime) / entryDuration, 0, 1);
+            const easedEntryProgress = easeOutQuad(entryProgress);
             const exitStart = Math.max(layer.startTime, layer.startTime + layer.duration - exitDuration);
             const exitProgress = state.currentTime >= exitStart
                 ? clamp(1 - (state.currentTime - exitStart) / exitDuration, 0, 1)
                 : 1;
-            const entryFade = entryAnim.type === 'fade' ? entryProgress : 1;
+            const entryFade = entryAnim.type === 'fade' ? easedEntryProgress : 1;
             const combinedAlpha = opacity * entryFade * exitProgress;
-            const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text' && !layer.katex;
+            const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
             const totalChars = layer.content?.length || 0;
-            const typedChars = Math.floor(entryProgress * totalChars);
-            const textToRender = isTypewriterActive
+            const typedChars = Math.floor(easedEntryProgress * totalChars);
+            const textToRender = (isTypewriterActive && !layer.katex)
                 ? layer.content.slice(0, Math.max(0, typedChars))
                 : layer.content;
 
@@ -935,7 +945,17 @@
                 const img = layer.katexImage;
                 const w = layer.katexImageWidth || img.width;
                 const h = layer.katexImageHeight || img.height;
-                ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                if (isTypewriterActive) {
+                    const clipWidth = Math.max(0, w * easedEntryProgress);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(-w / 2, -h / 2, clipWidth, h);
+                    ctx.clip();
+                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                }
             } else if (layer.type === 'text') {
                 ctx.font = 'bold 100px Arial';
                 ctx.fillStyle = layer.color;
@@ -1380,7 +1400,7 @@
         if (!entrySelect) return false;
         const typewriterOption = entrySelect.querySelector('option[value="typewriter"]');
         if (typewriterOption) {
-            typewriterOption.disabled = !(layer.type === 'text' && !layer.katex);
+            typewriterOption.disabled = layer.type !== 'text';
         }
         return true;
     }
@@ -1389,7 +1409,7 @@
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer) return;
-        if (type === 'typewriter' && (layer.type !== 'text' || layer.katex)) {
+        if (type === 'typewriter' && layer.type !== 'text') {
             type = 'fade';
         }
         layer.entryAnimation.type = type;
