@@ -781,7 +781,13 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    function clampViewportTransform() {
+        const halfW = (CANVAS_WIDTH / 2) * Math.max(0, manualGlobalTransform.scale - 1);
+        manualGlobalTransform.x = clamp(manualGlobalTransform.x, -halfW, halfW);
+    }
+
     function updateViewportControls() {
+        clampViewportTransform();
         if (viewportZoomSlider) viewportZoomSlider.value = manualGlobalTransform.scale.toFixed(2);
         if (viewportZoomValueEl) viewportZoomValueEl.innerText = `${manualGlobalTransform.scale.toFixed(2)}x`;
         if (viewportPanSlider) viewportPanSlider.value = `${Math.round(manualGlobalTransform.x)}`;
