@@ -731,6 +731,8 @@
     };
 
     const manualGlobalTransform = { x: 0, y: 0, scale: 1 };
+    let pendingViewportTransform = null;
+    let viewportPreviewActive = false;
     const globalZoom = {
         keyframes: [],
         easing: 'ease-out',
@@ -2257,17 +2259,19 @@
     function addZoomKeyframe(transform, time) {
         const clamped = Math.max(0, Math.min(state.duration, time));
         const newId = globalZoom.nextId++;
+        const finalTransform = cloneTransform(pendingViewportTransform || transform);
         globalZoom.keyframes.push({
             id: newId,
             time: clamped,
-            transform: cloneTransform(transform)
+            transform: finalTransform
         });
         ensureKeyframesSorted();
         activeGlobalKeyframeIndex = globalZoom.keyframes.findIndex(k => k.id === newId);
-        globalEditingOverride = cloneTransform(transform);
+        globalEditingOverride = cloneTransform(finalTransform);
         renderTimeline();
         updateZoomControlsPanelVisibility();
         updateZoomStatus();
+        clearViewportPreviewTransform(true);
     }
 
     function deleteZoomKeyframe() {
@@ -2322,9 +2326,9 @@
     }
 
     function handleZoomKeyframeClick() {
-        const currentTransform = globalEditingOverride || cloneTransform(getActiveGlobalTransform());
+        const manualTransform = pendingViewportTransform || globalEditingOverride || cloneTransform(getActiveGlobalTransform());
         const time = Math.max(0, Math.min(state.duration, state.currentTime));
-        addZoomKeyframe(currentTransform, time);
+        addZoomKeyframe(manualTransform, time);
         showZoomToast('Global keyframe added');
     }
 
@@ -2714,20 +2718,11 @@
         }
     }
 
-    function syncViewportOverride() {
-        if (wholeControlActive || activeGlobalKeyframeIndex !== null) {
-            globalEditingOverride = cloneTransform(manualGlobalTransform);
-            syncActiveGlobalKeyframeFromManual();
-        } else {
-            globalEditingOverride = null;
-        }
-    }
-
     function handleViewportZoomChange(e) {
         const value = parseFloat(e.target.value);
         if (Number.isNaN(value)) return;
         manualGlobalTransform.scale = Math.min(3, Math.max(0.3, value));
-        syncViewportOverride();
+        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         updateViewportControls();
     }
 
@@ -2735,8 +2730,29 @@
         const value = parseFloat(e.target.value);
         if (Number.isNaN(value)) return;
         manualGlobalTransform.x = value;
-        syncViewportOverride();
+        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         updateViewportControls();
+    }
+
+    function setViewportPreviewTransform(transform, syncKeyframe = false) {
+        const preview = cloneTransform(transform);
+        pendingViewportTransform = preview;
+        viewportPreviewActive = true;
+        globalEditingOverride = cloneTransform(preview);
+        if (syncKeyframe && activeGlobalKeyframeIndex !== null) {
+            syncActiveGlobalKeyframeFromManual();
+        }
+    }
+
+    function clearViewportPreviewTransform(syncKeyframe = false) {
+        viewportPreviewActive = false;
+        pendingViewportTransform = null;
+        if (syncKeyframe && activeGlobalKeyframeIndex !== null) {
+            syncActiveGlobalKeyframeFromManual();
+        }
+        if (!wholeControlActive && activeGlobalKeyframeIndex === null) {
+            globalEditingOverride = null;
+        }
     }
 
     function applyGlobalTransform(transform) {
@@ -2761,9 +2777,9 @@
             manualGlobalTransform.x = current.x;
             manualGlobalTransform.y = current.y;
             manualGlobalTransform.scale = current.scale;
-            globalEditingOverride = cloneTransform(manualGlobalTransform);
+            setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         } else {
-            globalEditingOverride = null;
+            clearViewportPreviewTransform();
         }
         updateViewportControls();
     }
@@ -2979,8 +2995,7 @@
             const dy = pos.y - dragState.startY;
             manualGlobalTransform.x = dragState.initialGlobalTransform.x + dx;
             manualGlobalTransform.y = dragState.initialGlobalTransform.y + dy;
-            globalEditingOverride = cloneTransform(manualGlobalTransform);
-            syncActiveGlobalKeyframeFromManual();
+            setViewportPreviewTransform(manualGlobalTransform, true);
             return;
         }
 
@@ -3209,7 +3224,7 @@
             startY: pos.y,
             initialGlobalTransform: cloneTransform(manualGlobalTransform)
         };
-        globalEditingOverride = cloneTransform(manualGlobalTransform);
+        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         document.addEventListener('mousemove', onDrag);
         document.addEventListener('mouseup', stopDrag);
     }
@@ -3224,8 +3239,7 @@
         const deltaScale = 1 - e.deltaY * 0.001;
         const nextScale = manualGlobalTransform.scale * deltaScale;
         manualGlobalTransform.scale = Math.min(3, Math.max(0.3, nextScale));
-        globalEditingOverride = cloneTransform(manualGlobalTransform);
-        syncActiveGlobalKeyframeFromManual();
+        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         updateViewportControls();
     }
 
@@ -3250,8 +3264,7 @@
                 const deltaY = layer.y - dragState.initialY;
                 manualGlobalTransform.x = dragState.initialManualGlobalTransform.x + deltaX;
                 manualGlobalTransform.y = dragState.initialManualGlobalTransform.y + deltaY;
-                globalEditingOverride = cloneTransform(manualGlobalTransform);
-                syncActiveGlobalKeyframeFromManual();
+                setViewportPreviewTransform(manualGlobalTransform, true);
                 updateViewportControls();
             }
             const motionTrack = peekMotionTrack(layer?.id ?? null);
@@ -3280,8 +3293,7 @@
             if (dragState.applyGlobalFromLayer && dragState.initialManualGlobalTransform) {
                 const globalScaleRatio = layer.scale / dragState.initialScale;
                 manualGlobalTransform.scale = dragState.initialManualGlobalTransform.scale * globalScaleRatio;
-                globalEditingOverride = cloneTransform(manualGlobalTransform);
-                syncActiveGlobalKeyframeFromManual();
+                setViewportPreviewTransform(manualGlobalTransform, true);
                 updateViewportControls();
             }
         }
@@ -3341,6 +3353,7 @@
         if (target.closest('.global-zoom-marker') || target.closest('.motion-marker') || isControlClick) return;
         clearActiveGlobalKeyframe();
         clearActiveMotionKeyframe();
+        clearViewportPreviewTransform();
     });
 
     updateZoomStatus();
