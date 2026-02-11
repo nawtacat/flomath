@@ -1380,7 +1380,7 @@
         entryDurationInput.value = (layer.entryAnimation?.duration ?? 1).toFixed(1);
         const typewriterOption = entrySelect.querySelector('option[value="typewriter"]');
         if (typewriterOption) {
-            typewriterOption.disabled = !(layer.type === 'text' && !layer.katex);
+            typewriterOption.disabled = layer.type !== 'text';
         }
         entryDurationInput.disabled = entryType === 'none';
 
