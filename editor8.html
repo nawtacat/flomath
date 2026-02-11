@@ -176,6 +176,24 @@
             transform: translateX(-50%) scale(1.2);
         }
 
+        .motion-marker {
+            position: absolute;
+            top: 38px;
+            width: 12px;
+            height: 26px;
+            background: #ff6b3d;
+            transform: translateX(-50%);
+            border-radius: 4px;
+            z-index: 40;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .motion-marker.active {
+            box-shadow: 0 0 0 3px rgba(255, 155, 112, 0.45);
+            transform: translateX(-50%) scale(1.2);
+        }
+
         .timeline-container {
             height: 200px;
             background-color: var(--bg-panel);
@@ -597,14 +615,40 @@
             </div>
             <p style="margin:0; font-size:11px; color:#999;">Add a zoom start + end keyframe pair to enable these controls.</p>
         </div>
+        <div id="motion-controls-panel" class="control-group zoom-controls-panel disabled">
+            <label>Motion Controls</label>
+            <div class="control-row">
+                <span>Duration</span>
+                <input type="range" id="motion-duration-slider" min="0.5" max="2" step="0.1" value="1" disabled>
+                <span id="motion-duration-value">1.0x</span>
+            </div>
+            <div class="control-row">
+                <span>Speed Curve</span>
+                <select id="motion-curve-select" disabled>
+                    <option value="ease-out">Ease Out (default)</option>
+                    <option value="ease-in">Ease In</option>
+                    <option value="ease-in-out">Ease In-Out</option>
+                    <option value="linear">Linear</option>
+                </select>
+            </div>
+            <div class="control-row">
+                <span>Motion FPS</span>
+                <input type="range" id="motion-fps-slider" min="6" max="60" step="1" value="60" disabled>
+                <span id="motion-fps-value">60</span>
+            </div>
+            <p style="margin:0; font-size:11px; color:#999;">Add at least two motion keyframes for the selected layer to unlock these controls.</p>
+        </div>
     </div>
 
     <div class="viewport">
         <div class="global-controls">
             <button id="btn-zoom-keyframe">Add Zoom Keyframe</button>
+            <button id="btn-motion-keyframe" class="secondary">Add Motion Keyframe</button>
             <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
             <span id="zoom-status">Zoom start unset</span>
+            <span id="motion-status">Motion start unset</span>
             <div id="zoom-toast" class="zoom-toast"></div>
+            <div id="motion-toast" class="zoom-toast"></div>
         </div>
         <!-- 1080x1920 scaled down to fit -->
         <canvas id="editor-canvas" width="1080" height="1920"></canvas>
@@ -687,11 +731,23 @@
     const zoomCurveSelect = document.getElementById('zoom-curve-select');
     const zoomFpsSlider = document.getElementById('zoom-fps-slider');
     const zoomFpsValue = document.getElementById('zoom-fps-value');
+    const btnMotionKeyframe = document.getElementById('btn-motion-keyframe');
+    const motionStatusEl = document.getElementById('motion-status');
+    const motionToastEl = document.getElementById('motion-toast');
+    const motionControlsPanel = document.getElementById('motion-controls-panel');
+    const motionDurationSlider = document.getElementById('motion-duration-slider');
+    const motionDurationValue = document.getElementById('motion-duration-value');
+    const motionCurveSelect = document.getElementById('motion-curve-select');
+    const motionFpsSlider = document.getElementById('motion-fps-slider');
+    const motionFpsValue = document.getElementById('motion-fps-value');
     const floatSettingsPanel = document.getElementById('float-settings');
     const floatDistanceValueEl = document.getElementById('float-distance-value');
     const floatPaceValueEl = document.getElementById('float-pace-value');
     const audioDecodeCtx = new (window.AudioContext || window.webkitAudioContext)();
     const katexMeasureEl = document.getElementById('katex-measure');
+    const motionTracks = {};
+    let motionMarkerDrag = null;
+    let motionToastTimer = null;
     const katexToggle = document.getElementById('prop-katex');
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
@@ -892,6 +948,8 @@
         placeLayerOnTopSlot(layer);
         selectLayer(layer.id);
         focusPlayheadOnLayer(layer);
+        updateMotionControlsPanel();
+        updateMotionStatus();
         renderTimeline();
     }
 
@@ -1177,6 +1235,11 @@
             let y = layer.getValue('y', state.currentTime);
             let scale = layer.getValue('scale', state.currentTime);
             let rotation = layer.getValue('rotation', state.currentTime);
+            const motionOverride = computeMotionTransformForLayer(layer, state.currentTime);
+            if (motionOverride) {
+                x = motionOverride.x;
+                y = motionOverride.y;
+            }
             const opacity = layer.getValue('opacity', state.currentTime);
             const entryAnim = layer.entryAnimation || { type: 'none', duration: 1 };
             const exitAnim = layer.exitAnimation || { type: 'none', duration: 1 };
@@ -1598,7 +1661,9 @@
 
     function deleteSelectedLayer() {
         if (!state.selectedLayerId) return;
-        state.layers = state.layers.filter(l => l.id !== state.selectedLayerId);
+        const removedId = state.selectedLayerId;
+        state.layers = state.layers.filter(l => l.id !== removedId);
+        delete motionTracks[removedId];
         state.selectedLayerId = null;
         selectLayer(null);
         renderTimeline();
@@ -2204,6 +2269,302 @@
         document.removeEventListener('pointerup', stopZoomMarkerDrag);
     }
 
+    function showMotionToast(message) {
+        if (!motionToastEl) return;
+        motionToastEl.innerText = message;
+        motionToastEl.classList.add('visible');
+        clearTimeout(motionToastTimer);
+        motionToastTimer = setTimeout(() => {
+            motionToastEl.classList.remove('visible');
+        }, 1600);
+    }
+
+    function peekMotionTrack(layerId) {
+        if (!layerId) return null;
+        return motionTracks[layerId] || null;
+    }
+
+    function ensureMotionTrack(layerId) {
+        if (!layerId) return null;
+        if (!motionTracks[layerId]) {
+            motionTracks[layerId] = {
+                keyframes: [],
+                easing: 'ease-out',
+                durationScale: 1,
+                motionFPS: 60,
+                nextId: 1,
+                activeKeyframeIndex: null
+            };
+        }
+        return motionTracks[layerId];
+    }
+
+    function ensureMotionKeyframesSorted(track) {
+        if (!track) return;
+        track.keyframes.sort((a, b) => a.time - b.time);
+    }
+
+    function handleMotionKeyframeClick() {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) {
+            showMotionToast('Select a layer before adding motion keyframes');
+            return;
+        }
+        addMotionKeyframe(layer);
+    }
+
+    function addMotionKeyframe(layer) {
+        const track = ensureMotionTrack(layer.id);
+        const time = Math.max(0, Math.min(state.duration, state.currentTime));
+        const newId = track.nextId++;
+        const transform = { x: layer.x, y: layer.y };
+        track.keyframes = track.keyframes.filter(k => Math.abs(k.time - time) > 0.01);
+        track.keyframes.push({
+            id: newId,
+            time,
+            transform: { ...transform }
+        });
+        ensureMotionKeyframesSorted(track);
+        track.activeKeyframeIndex = track.keyframes.findIndex(k => k.id === newId);
+        renderTimeline();
+        updateMotionControlsPanel();
+        updateMotionStatus();
+        showMotionToast('Motion keyframe captured');
+    }
+
+    function setActiveMotionKeyframe(layerId, index) {
+        const track = peekMotionTrack(layerId);
+        if (!track) return;
+        if (index !== null && (index < 0 || index >= track.keyframes.length)) return;
+        if (track.activeKeyframeIndex === index) {
+            track.activeKeyframeIndex = null;
+            renderTimeline();
+            updateMotionStatus();
+            return;
+        }
+        track.activeKeyframeIndex = index;
+        if (index !== null) {
+            const frame = track.keyframes[index];
+            state.currentTime = frame.time;
+            updateTimelineUI();
+            updatePropertiesPanel();
+        }
+        renderTimeline();
+        updateMotionStatus();
+    }
+
+    function clearActiveMotionKeyframe() {
+        const layerId = state.selectedLayerId;
+        const track = peekMotionTrack(layerId);
+        if (!track) return;
+        track.activeKeyframeIndex = null;
+        renderTimeline();
+        updateMotionStatus();
+    }
+
+    function renderMotionMarkers() {
+        const container = document.getElementById('timeline-tracks');
+        container.querySelectorAll('.motion-marker').forEach(el => el.remove());
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        const track = peekMotionTrack(layer.id);
+        if (!track) return;
+        track.keyframes.forEach((frame, index) => {
+            const marker = document.createElement('div');
+            marker.className = 'motion-marker';
+            marker.style.left = `${frame.time * PIXELS_PER_SECOND}px`;
+            marker.title = `Motion ${index + 1} @ ${formatTimeLabel(frame.time)}`;
+            marker.classList.toggle('active', track.activeKeyframeIndex === index);
+            marker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setActiveMotionKeyframe(layer.id, index);
+            });
+            marker.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startMotionMarkerDrag(layer.id, frame.id, e);
+            });
+            container.appendChild(marker);
+        });
+    }
+
+    function startMotionMarkerDrag(layerId, id, event) {
+        const track = peekMotionTrack(layerId);
+        if (!track) return;
+        const frame = track.keyframes.find(k => k.id === id);
+        if (!frame) return;
+        motionMarkerDrag = {
+            layerId,
+            id,
+            startX: event.clientX,
+            startTime: frame.time
+        };
+        document.addEventListener('pointermove', handleMotionMarkerDrag);
+        document.addEventListener('pointerup', stopMotionMarkerDrag);
+    }
+
+    function handleMotionMarkerDrag(event) {
+        if (!motionMarkerDrag) return;
+        const track = peekMotionTrack(motionMarkerDrag.layerId);
+        if (!track) return;
+        const frame = track.keyframes.find(k => k.id === motionMarkerDrag.id);
+        if (!frame) return;
+        const dx = event.clientX - motionMarkerDrag.startX;
+        const newTime = motionMarkerDrag.startTime + dx / PIXELS_PER_SECOND;
+        frame.time = Math.max(0, Math.min(state.duration, newTime));
+        ensureMotionKeyframesSorted(track);
+        track.activeKeyframeIndex = track.keyframes.findIndex(k => k.id === motionMarkerDrag.id);
+        renderTimeline();
+        updateMotionStatus();
+        updateMotionControlsPanel();
+    }
+
+    function stopMotionMarkerDrag() {
+        if (!motionMarkerDrag) return;
+        motionMarkerDrag = null;
+        document.removeEventListener('pointermove', handleMotionMarkerDrag);
+        document.removeEventListener('pointerup', stopMotionMarkerDrag);
+    }
+
+    function computeMotionTransformForLayer(layer, time) {
+        const track = peekMotionTrack(layer.id);
+        if (!track || track.keyframes.length === 0) return null;
+        const sorted = track.keyframes.slice().sort((a, b) => a.time - b.time);
+        if (sorted.length === 1) {
+            return { ...sorted[0].transform };
+        }
+        if (time <= sorted[0].time) {
+            return { ...sorted[0].transform };
+        }
+        if (time >= sorted[sorted.length - 1].time) {
+            return { ...sorted[sorted.length - 1].transform };
+        }
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const start = sorted[i];
+            const end = sorted[i + 1];
+            if (time >= start.time && time <= end.time) {
+                const span = end.time - start.time;
+                let progress = span <= 0 ? 1 : (time - start.time) / span;
+                progress = applyMotionDurationWarp(progress, track);
+                progress = applyMotionCurve(progress, track);
+                progress = applyMotionMotionFPS(progress, track);
+                return interpolateTransforms(start.transform, end.transform, progress);
+            }
+        }
+        return { ...sorted[sorted.length - 1].transform };
+    }
+
+    function applyMotionDurationWarp(progress, track) {
+        const warp = Math.max(0.3, Math.min(track.durationScale, 3));
+        if (Math.abs(warp - 1) < 0.001) {
+            return progress;
+        }
+        if (warp >= 1) {
+            return 1 - Math.pow(1 - progress, warp);
+        }
+        return Math.pow(progress, 1 / warp);
+    }
+
+    function applyMotionCurve(progress, track) {
+        const eased = Math.min(1, Math.max(0, progress));
+        switch (track.easing) {
+            case 'ease-in':
+                return Math.pow(eased, 2);
+            case 'ease-in-out':
+                return eased < 0.5 ? 2 * eased * eased : -1 + (4 - 2 * eased) * eased;
+            case 'linear':
+                return eased;
+            case 'ease-out':
+            default:
+                return 1 - Math.pow(1 - eased, 3);
+        }
+    }
+
+    function applyMotionMotionFPS(progress, track) {
+        const fps = Math.max(1, Math.round(track.motionFPS));
+        const snapped = Math.round(progress * fps) / fps;
+        return Math.min(1, Math.max(0, snapped));
+    }
+
+    function updateMotionStatus() {
+        if (!motionStatusEl) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        if (!layer || !track || track.keyframes.length === 0) {
+            motionStatusEl.innerText = 'Motion start unset';
+            return;
+        }
+        if (track.activeKeyframeIndex !== null && track.keyframes[track.activeKeyframeIndex]) {
+            const frame = track.keyframes[track.activeKeyframeIndex];
+            motionStatusEl.innerText = `Editing Motion ${track.activeKeyframeIndex + 1} @ ${formatTimeLabel(frame.time)}`;
+            return;
+        }
+        const first = track.keyframes[0];
+        const last = track.keyframes[track.keyframes.length - 1];
+        if (first && last) {
+            motionStatusEl.innerText = `Motion ${formatTimeLabel(first.time)} → ${formatTimeLabel(last.time)}`;
+            return;
+        }
+        motionStatusEl.innerText = 'Motion keyframes ready';
+    }
+
+    function updateMotionControlsPanel() {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        const track = layer ? peekMotionTrack(layer.id) : null;
+        const enabled = Boolean(track && track.keyframes.length >= 2);
+        if (motionControlsPanel) {
+            motionControlsPanel.classList.toggle('disabled', !enabled);
+        }
+        const durationVal = track?.durationScale ?? 1;
+        if (motionDurationSlider) {
+            motionDurationSlider.disabled = !enabled;
+            motionDurationSlider.value = durationVal.toFixed(1);
+        }
+        if (motionDurationValue) {
+            motionDurationValue.innerText = `${durationVal.toFixed(1)}x`;
+        }
+        if (motionCurveSelect) {
+            motionCurveSelect.disabled = !enabled;
+            motionCurveSelect.value = track?.easing ?? 'ease-out';
+        }
+        const fpsVal = track?.motionFPS ?? 60;
+        if (motionFpsSlider) {
+            motionFpsSlider.disabled = !enabled;
+            motionFpsSlider.value = `${fpsVal}`;
+        }
+        if (motionFpsValue) {
+            motionFpsValue.innerText = `${fpsVal}`;
+        }
+    }
+
+    function handleMotionDurationChange(e) {
+        const track = state.selectedLayerId ? peekMotionTrack(state.selectedLayerId) : null;
+        if (!track) return;
+        const value = parseFloat(e.target.value);
+        if (Number.isNaN(value)) return;
+        track.durationScale = value;
+        if (motionDurationValue) {
+            motionDurationValue.innerText = `${value.toFixed(1)}x`;
+        }
+    }
+
+    function handleMotionCurveChange(e) {
+        const track = state.selectedLayerId ? peekMotionTrack(state.selectedLayerId) : null;
+        if (!track) return;
+        track.easing = e.target.value;
+    }
+
+    function handleMotionFpsChange(e) {
+        const track = state.selectedLayerId ? peekMotionTrack(state.selectedLayerId) : null;
+        if (!track) return;
+        const value = parseInt(e.target.value, 10);
+        if (Number.isNaN(value) || value < 1) return;
+        track.motionFPS = value;
+        if (motionFpsValue) {
+            motionFpsValue.innerText = `${value}`;
+        }
+    }
+
     function applyGlobalTransform(transform) {
         const centerX = CANVAS_WIDTH / 2;
         const centerY = CANVAS_HEIGHT / 2;
@@ -2328,6 +2689,7 @@
         container.appendChild(placeholder);
 
         renderGlobalZoomMarkers();
+        renderMotionMarkers();
         updateTimelineUI();
     }
 
@@ -2738,6 +3100,9 @@
     if (btnZoomKeyframe) {
         btnZoomKeyframe.addEventListener('click', handleZoomKeyframeClick);
     }
+    if (btnMotionKeyframe) {
+        btnMotionKeyframe.addEventListener('click', handleMotionKeyframeClick);
+    }
     if (btnWholeControl) {
         btnWholeControl.addEventListener('click', toggleWholeControlMode);
     }
@@ -2756,14 +3121,26 @@
     if (zoomFpsSlider) {
         zoomFpsSlider.addEventListener('input', handleZoomFpsChange);
     }
+    if (motionDurationSlider) {
+        motionDurationSlider.addEventListener('input', handleMotionDurationChange);
+    }
+    if (motionCurveSelect) {
+        motionCurveSelect.addEventListener('change', handleMotionCurveChange);
+    }
+    if (motionFpsSlider) {
+        motionFpsSlider.addEventListener('input', handleMotionFpsChange);
+    }
 
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.global-zoom-marker') || e.target.closest('.global-controls')) return;
+        if (e.target.closest('.global-zoom-marker') || e.target.closest('.motion-marker') || e.target.closest('.global-controls')) return;
         clearActiveGlobalKeyframe();
+        clearActiveMotionKeyframe();
     });
 
     updateZoomStatus();
     updateZoomControlsPanelVisibility();
+    updateMotionStatus();
+    updateMotionControlsPanel();
 
     // --- Playback Controls ---
 
