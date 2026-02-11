@@ -526,12 +526,12 @@
             <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Entry Animation</label>
                 <select id="prop-entry" onchange="updateEntryAnimation(this.value)">
-                    <option value="none">None</option>
-                    <option value="fade">Fade In</option>
-                    <option value="typewriter">Typewriter (text)</option>
-                    <option value="scan-horizontal">Scan Left→Right</option>
-                    <option value="scan-vertical">Scan Top→Bottom</option>
-                </select>
+                <option value="none">None</option>
+                <option value="fade">Fade In</option>
+                <option value="typewriter">Typewriter (text)</option>
+                <option value="scan-horizontal">Scan Left→Right</option>
+                <option value="scan-vertical">Scan Top→Bottom</option>
+            </select>
                 <label>Entry Duration (s)</label>
                 <input type="number" id="prop-entry-duration" min="0.1" step="0.1" value="1" oninput="updateEntryDuration(this.value)">
 
@@ -539,6 +539,8 @@
                 <select id="prop-exit" onchange="updateExitAnimation(this.value)">
                     <option value="none">None</option>
                     <option value="fade">Fade Out</option>
+                    <option value="scan-horizontal">Scan Left→Right</option>
+                    <option value="scan-vertical">Scan Top→Bottom</option>
                 </select>
                 <label>Exit Duration (s)</label>
                 <input type="number" id="prop-exit-duration" min="0.1" step="0.1" value="1" oninput="updateExitDuration(this.value)">
@@ -1255,8 +1257,8 @@
                 ? 1
                 : clamp((state.currentTime - layer.startTime) / entryDuration, 0, 1);
             const easedEntryProgress = easeOutQuad(entryProgress);
-            const isScanHorizontal = entryAnim.type === 'scan-horizontal' && layer.type === 'image';
-            const isScanVertical = entryAnim.type === 'scan-vertical' && layer.type === 'image';
+            const isEntryScanHorizontal = entryAnim.type === 'scan-horizontal' && layer.type === 'image';
+            const isEntryScanVertical = entryAnim.type === 'scan-vertical' && layer.type === 'image';
             const motionTrackActive = Boolean(peekMotionTrack(layer.id)?.keyframes.length >= 2);
             const exitStart = Math.max(layer.startTime, layer.startTime + layer.duration - exitDuration);
             const exitProgress = motionTrackActive
@@ -1266,6 +1268,16 @@
                     : 1);
             const entryFade = entryAnim.type === 'fade' ? easedEntryProgress : 1;
             const combinedAlpha = opacity * entryFade * exitProgress;
+            const exitIsScanHorizontal = exitAnim.type === 'scan-horizontal' && layer.type === 'image';
+            const exitIsScanVertical = exitAnim.type === 'scan-vertical' && layer.type === 'image';
+            const entryClipFactorH = isEntryScanHorizontal ? easedEntryProgress : 1;
+            const entryClipFactorV = isEntryScanVertical ? easedEntryProgress : 1;
+            const exitClipFactorH = exitIsScanHorizontal ? exitProgress : 1;
+            const exitClipFactorV = exitIsScanVertical ? exitProgress : 1;
+            const clipFactorH = Math.min(entryClipFactorH, exitClipFactorH);
+            const clipFactorV = Math.min(entryClipFactorV, exitClipFactorV);
+            const clipHorizontal = isEntryScanHorizontal || exitIsScanHorizontal;
+            const clipVertical = isEntryScanVertical || exitIsScanVertical;
             const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
             const totalChars = layer.content?.length || 0;
             const typedChars = Math.floor(easedEntryProgress * totalChars);
@@ -1344,16 +1356,12 @@
                 ctx.fillRect(-rect.width / 2, -rect.height / 2, fillWidth, rect.height);
             } else if (layer.type === 'image') {
                 const img = layer.content;
-                if (isScanHorizontal || isScanVertical) {
+                if (clipHorizontal || clipVertical) {
+                    const clipWidth = clipHorizontal ? Math.max(0, img.width * clipFactorH) : img.width;
+                    const clipHeight = clipVertical ? Math.max(0, img.height * clipFactorV) : img.height;
                     ctx.save();
                     ctx.beginPath();
-                    if (isScanHorizontal) {
-                        const clipWidth = img.width * easedEntryProgress;
-                        ctx.rect(-img.width/2, -img.height/2, clipWidth, img.height);
-                    } else {
-                        const clipHeight = img.height * easedEntryProgress;
-                        ctx.rect(-img.width/2, -img.height/2, img.width, clipHeight);
-                    }
+                    ctx.rect(-img.width/2, -img.height/2, clipWidth, clipHeight);
                     ctx.clip();
                     ctx.drawImage(img, -img.width/2, -img.height/2);
                     ctx.restore();
@@ -2000,24 +2008,42 @@
 
     function ensureAnimationInputs(layer) {
         const entrySelect = document.getElementById('prop-entry');
-        if (!entrySelect) return false;
+        const exitSelect = document.getElementById('prop-exit');
+        if (!entrySelect || !exitSelect) return false;
+        const isText = layer.type === 'text';
+        const isImage = layer.type === 'image';
+
         const typewriterOption = entrySelect.querySelector('option[value="typewriter"]');
         if (typewriterOption) {
-            typewriterOption.disabled = layer.type !== 'text';
+            typewriterOption.disabled = !isText;
         }
-        const scanHorizontalOption = entrySelect.querySelector('option[value="scan-horizontal"]');
-        const scanVerticalOption = entrySelect.querySelector('option[value="scan-vertical"]');
-        const isImage = layer.type === 'image';
-        if (scanHorizontalOption) {
-            scanHorizontalOption.disabled = !isImage;
+
+        const entryScanHorizontal = entrySelect.querySelector('option[value="scan-horizontal"]');
+        const entryScanVertical = entrySelect.querySelector('option[value="scan-vertical"]');
+        if (entryScanHorizontal) {
+            entryScanHorizontal.disabled = !isImage;
         }
-        if (scanVerticalOption) {
-            scanVerticalOption.disabled = !isImage;
+        if (entryScanVertical) {
+            entryScanVertical.disabled = !isImage;
         }
         if (!isImage && (entrySelect.value === 'scan-horizontal' || entrySelect.value === 'scan-vertical')) {
             entrySelect.value = 'none';
             updateEntryAnimation('none');
         }
+
+        const exitScanHorizontal = exitSelect.querySelector('option[value="scan-horizontal"]');
+        const exitScanVertical = exitSelect.querySelector('option[value="scan-vertical"]');
+        if (exitScanHorizontal) {
+            exitScanHorizontal.disabled = !isImage;
+        }
+        if (exitScanVertical) {
+            exitScanVertical.disabled = !isImage;
+        }
+        if (!isImage && (exitSelect.value === 'scan-horizontal' || exitSelect.value === 'scan-vertical')) {
+            exitSelect.value = 'none';
+            updateExitAnimation('none');
+        }
+
         return true;
     }
 
@@ -2026,6 +2052,9 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer) return;
         if (type === 'typewriter' && layer.type !== 'text') {
+            type = 'fade';
+        }
+        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
             type = 'fade';
         }
         layer.entryAnimation.type = type;
@@ -2048,6 +2077,9 @@
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer) return;
+        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
+            type = 'fade';
+        }
         layer.exitAnimation.type = type;
         const exitDurationInput = document.getElementById('prop-exit-duration');
         if (exitDurationInput) {
