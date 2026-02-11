@@ -632,7 +632,22 @@
         </div>
         <div class="control-group">
             <label>Sound Library</label>
-            <div id="sound-library"></div>
+            <div class="sound-row">
+                <span>Mouse Click</span>
+                <button type="button" class="secondary" data-sound-id="mouseclick">Play</button>
+            </div>
+            <div class="sound-row">
+                <span>Music</span>
+                <button type="button" class="secondary" data-sound-id="music">Play</button>
+            </div>
+            <div class="sound-row">
+                <span>Drawing</span>
+                <button type="button" class="secondary" data-sound-id="drawing">Play</button>
+            </div>
+            <div class="sound-row">
+                <span>Zoom</span>
+                <button type="button" class="secondary" data-sound-id="zoom">Play</button>
+            </div>
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
                 <span>Volume</span>
                 <span id="sound-volume-display">70%</span>
@@ -803,37 +818,21 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
-    const soundLibraryContainer = document.getElementById('sound-library');
     const soundVolumeSlider = document.getElementById('sound-volume-slider');
     const soundVolumeDisplay = document.getElementById('sound-volume-display');
     const SOUND_BASE_URL = 'https://flomath.space/audio/';
-    const SOUND_LIBRARY = [
-        { id: 'mouseclick', label: 'Mouse Click', file: 'mouseclick.mp3' },
-        { id: 'music', label: 'Music', file: 'music.mp3' },
-        { id: 'drawing', label: 'Drawing', file: 'drawing.mp3' },
-        { id: 'zoom', label: 'Zoom', file: 'zoom.mp3' }
-    ];
+    const SOUND_LIBRARY = {
+        mouseclick: 'mouseclick.mp3',
+        music: 'music.mp3',
+        drawing: 'drawing.mp3',
+        zoom: 'zoom.mp3'
+    };
     let soundVolume = 0.7;
     const soundPlayers = {};
-
-    SOUND_LIBRARY.forEach((item) => {
-        const player = new Audio(`${SOUND_BASE_URL}${item.file}`);
+    Object.entries(SOUND_LIBRARY).forEach(([id, file]) => {
+        const player = new Audio(`${SOUND_BASE_URL}${file}`);
         player.volume = soundVolume;
-        soundPlayers[item.id] = player;
-        if (soundLibraryContainer) {
-            const row = document.createElement('div');
-            row.className = 'sound-row';
-            const label = document.createElement('span');
-            label.innerText = item.label;
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'secondary';
-            button.innerText = 'Play';
-            button.addEventListener('click', () => playSound(item.id));
-            row.appendChild(label);
-            row.appendChild(button);
-            soundLibraryContainer.appendChild(row);
-        }
+        soundPlayers[id] = player;
     });
 
     function updateViewportControls() {
@@ -3427,6 +3426,12 @@
         soundVolumeSlider.addEventListener('input', handleSoundVolumeChange);
         handleSoundVolumeChange({ target: soundVolumeSlider });
     }
+    document.querySelectorAll('[data-sound-id]').forEach(button => {
+        button.addEventListener('click', () => {
+            const id = button.getAttribute('data-sound-id');
+            if (id) playSound(id);
+        });
+    });
 
     document.addEventListener('click', (e) => {
         const target = e.target;
