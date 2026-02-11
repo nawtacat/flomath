@@ -1253,10 +1253,13 @@
                 ? 1
                 : clamp((state.currentTime - layer.startTime) / entryDuration, 0, 1);
             const easedEntryProgress = easeOutQuad(entryProgress);
+            const motionTrackActive = Boolean(peekMotionTrack(layer.id)?.keyframes.length >= 2);
             const exitStart = Math.max(layer.startTime, layer.startTime + layer.duration - exitDuration);
-            const exitProgress = state.currentTime >= exitStart
-                ? clamp(1 - (state.currentTime - exitStart) / exitDuration, 0, 1)
-                : 1;
+            const exitProgress = motionTrackActive
+                ? 1
+                : (state.currentTime >= exitStart
+                    ? clamp(1 - (state.currentTime - exitStart) / exitDuration, 0, 1)
+                    : 1);
             const entryFade = entryAnim.type === 'fade' ? easedEntryProgress : 1;
             const combinedAlpha = opacity * entryFade * exitProgress;
             const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
@@ -3126,6 +3129,15 @@
                 manualGlobalTransform.y = dragState.initialManualGlobalTransform.y + deltaY;
                 globalEditingOverride = cloneTransform(manualGlobalTransform);
                 syncActiveGlobalKeyframeFromManual();
+            }
+            const motionTrack = peekMotionTrack(layer?.id ?? null);
+            if (motionTrack && motionTrack.activeKeyframeIndex !== null) {
+                const frame = motionTrack.keyframes[motionTrack.activeKeyframeIndex];
+                if (frame) {
+                    frame.transform.x = layer.x;
+                    frame.transform.y = layer.y;
+                    renderTimeline();
+                }
             }
         }
         else if (dragState.type === 'canvas-rotate') {
