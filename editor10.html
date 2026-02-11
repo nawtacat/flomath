@@ -3231,18 +3231,15 @@
 
         const layersInOrder = getLayersInRenderOrder();
         const reversedLayers = [...layersInOrder].reverse();
+        const candidates = [];
         const HANDLE_HIT_RADIUS = 24;
         const BODY_HIT_PAD = 12;
         const motionActiveLayerId = state.selectedLayerId && peekMotionTrack(state.selectedLayerId)?.activeKeyframeIndex !== null
             ? state.selectedLayerId
             : null;
 
-        let hitLayer = null;
-        let hitType = 'canvas-drag';
-        let motionHit = null;
-
-        for (const layer of reversedLayers) {
-            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
+        reversedLayers.forEach((layer, idx) => {
+            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
 
             const dx = pos.x - layer.getValue('x', state.currentTime);
             const dy = pos.y - layer.getValue('y', state.currentTime);
@@ -3280,35 +3277,52 @@
                 type = 'canvas-drag';
             }
 
-            if (!type) continue;
-
-            if (!hitLayer) {
-                hitLayer = layer;
-                hitType = type;
+            if (type) {
+                const candidate = {
+                    layer,
+                    type,
+                    slotIndex: getSlotIndexById(layer.slotId),
+                    renderOrder: reversedLayers.length - idx
+                };
+                if (layer.id === motionActiveLayerId) {
+                    candidates.unshift(candidate);
+                    return;
+                }
+                candidates.push(candidate);
             }
+        });
 
-            if (layer.id === motionActiveLayerId) {
-                motionHit = { layer, type };
-                break;
-            }
+        let hitLayer = null;
+        let hitType = 'canvas-drag';
+        if (candidates.length > 0) {
+            candidates.sort((a, b) => {
+                if (a.slotIndex !== b.slotIndex) {
+                    return b.slotIndex - a.slotIndex;
+                }
+                const priority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
+                if (priority[a.type] !== priority[b.type]) {
+                    return priority[a.type] - priority[b.type];
+                }
+                return b.renderOrder - a.renderOrder;
+            });
+            hitLayer = candidates[0].layer;
+            hitType = candidates[0].type;
         }
 
-        const finalHit = motionHit || (hitLayer ? { layer: hitLayer, type: hitType } : null);
-
-        if (finalHit) {
-            selectLayer(finalHit.layer.id);
+        if (hitLayer) {
+            selectLayer(hitLayer.id);
             dragState = {
                 active: true,
-                type: finalHit.type,
-                layerId: finalHit.layer.id,
+                type: hitType,
+                layerId: hitLayer.id,
                 startX: pos.x,
                 startY: pos.y,
-                initialX: finalHit.layer.x,
-                initialY: finalHit.layer.y,
-                initialRotation: finalHit.layer.rotation,
-                initialScale: finalHit.layer.scale,
-                initialAngle: Math.atan2(pos.y - finalHit.layer.y, pos.x - finalHit.layer.x),
-                initialDist: Math.sqrt((pos.x - finalHit.layer.x) ** 2 + (pos.y - finalHit.layer.y) ** 2)
+                initialX: hitLayer.x,
+                initialY: hitLayer.y,
+                initialRotation: hitLayer.rotation,
+                initialScale: hitLayer.scale,
+                initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
+                initialDist: Math.sqrt((pos.x - hitLayer.x) ** 2 + (pos.y - hitLayer.y) ** 2)
             };
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
