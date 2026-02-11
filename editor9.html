@@ -3230,13 +3230,13 @@
                 Math.abs(localX) <= w/2 - innerMargin &&
                 Math.abs(localY) <= h/2 - innerMargin;
             if (insideSafeZone) {
-                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
+                candidates.push({ layer, type: 'canvas-drag', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
                 continue;
             }
             const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
 
             if (allowHandles && distRot <= handleThreshold) {
-                candidates.push({ layer, type: 'canvas-rotate', order: candidates.length });
+                candidates.push({ layer, type: 'canvas-rotate', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
                 continue;
             }
 
@@ -3248,12 +3248,12 @@
             const hitCorner = corners.some(c => Math.hypot(localX - c.x, localY - c.y) <= cornerThreshold);
 
             if (allowHandles && hitCorner) {
-                candidates.push({ layer, type: 'canvas-scale', order: candidates.length });
+                candidates.push({ layer, type: 'canvas-scale', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
                 continue;
             }
             if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD &&
                 localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
-                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
+                candidates.push({ layer, type: 'canvas-drag', order: candidates.length, slotIndex: getSlotIndexById(layer.slotId) });
             }
         }
 
@@ -3265,6 +3265,9 @@
                 }
                 if (a.layer.katex !== b.layer.katex) {
                     return a.layer.katex ? -1 : 1;
+                }
+                if ((a.slotIndex ?? 0) !== (b.slotIndex ?? 0)) {
+                    return (b.slotIndex ?? 0) - (a.slotIndex ?? 0);
                 }
                 const areaA = (a.layer.width || 100) * (a.layer.height || 100);
                 const areaB = (b.layer.width || 100) * (b.layer.height || 100);
