@@ -840,10 +840,9 @@
         const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
         const centerX = CANVAS_WIDTH / 2;
         const centerY = CANVAS_HEIGHT / 2;
-        const scale = Math.max(0.0001, transform.scale);
         return {
-            x: ((2 * centerX - transform.x) / scale) - centerX,
-            y: ((2 * centerY - transform.y) / scale) - centerY
+            x: centerX - transform.x,
+            y: centerY - transform.y
         };
     };
     const screenToWorld = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
@@ -851,8 +850,8 @@
         const centerY = CANVAS_HEIGHT / 2;
         const scale = Math.max(0.0001, transform.scale);
         return {
-            x: (point.x - (-centerX + transform.x)) / scale - centerX,
-            y: (point.y - (-centerY + transform.y)) / scale - centerY
+            x: (point.x - centerX) / scale + centerX - transform.x,
+            y: (point.y - centerY) / scale + centerY - transform.y
         };
     };
     const worldToScreen = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
@@ -860,8 +859,8 @@
         const centerY = CANVAS_HEIGHT / 2;
         const scale = Math.max(0.0001, transform.scale);
         return {
-            x: scale * (point.x + centerX) + (-centerX + transform.x),
-            y: scale * (point.y + centerY) + (-centerY + transform.y)
+            x: scale * (point.x - centerX + transform.x) + centerX,
+            y: scale * (point.y - centerY + transform.y) + centerY
         };
     };
     const getPointerRaw = (event) => {
@@ -3243,8 +3242,15 @@
         reversedLayers.forEach((layer, idx) => {
             if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
 
-            const dx = pos.x - layer.getValue('x', state.currentTime);
-            const dy = pos.y - layer.getValue('y', state.currentTime);
+            let lx = layer.getValue('x', state.currentTime);
+            let ly = layer.getValue('y', state.currentTime);
+            const motionOverride = computeMotionTransformForLayer(layer, state.currentTime);
+            if (motionOverride) {
+                lx = motionOverride.x;
+                ly = motionOverride.y;
+            }
+            const dx = pos.x - lx;
+            const dy = pos.y - ly;
             const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
             const s = 1 / layer.getValue('scale', state.currentTime);
             const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
