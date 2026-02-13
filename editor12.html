@@ -774,6 +774,7 @@
     };
 
     const manualGlobalTransform = { x: 0, y: 0, scale: 1 };
+    let editorTransform = { x: 0, y: 0, scale: 1 };
     let pendingViewportTransform = null;
     let viewportPreviewActive = false;
     const globalZoom = {
@@ -848,31 +849,36 @@
         if (viewportPanYValueEl) viewportPanYValueEl.innerText = `${Math.round(manualGlobalTransform.y)} px`;
     }
     const getViewportCenterWorld = () => {
-        const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        // Return center of the canvas in world coordinates (accounting for both editor and camera transforms)
+        return screenToWorld({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 });
+    };
+    const applyInverseTransform = (point, t) => {
         const centerX = CANVAS_WIDTH / 2;
         const centerY = CANVAS_HEIGHT / 2;
+        const scale = Math.max(0.0001, t.scale);
         return {
-            x: centerX - transform.x,
-            y: centerY - transform.y
+            x: (point.x - centerX) / scale + centerX - t.x,
+            y: (point.y - centerY) / scale + centerY - t.y
         };
     };
-    const screenToWorld = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
+    const applyTransformPoint = (point, t) => {
         const centerX = CANVAS_WIDTH / 2;
         const centerY = CANVAS_HEIGHT / 2;
-        const scale = Math.max(0.0001, transform.scale);
+        const scale = Math.max(0.0001, t.scale);
         return {
-            x: (point.x - centerX) / scale + centerX - transform.x,
-            y: (point.y - centerY) / scale + centerY - transform.y
+            x: scale * (point.x - centerX + t.x) + centerX,
+            y: scale * (point.y - centerY + t.y) + centerY
         };
     };
-    const worldToScreen = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
-        const centerX = CANVAS_WIDTH / 2;
-        const centerY = CANVAS_HEIGHT / 2;
-        const scale = Math.max(0.0001, transform.scale);
-        return {
-            x: scale * (point.x - centerX + transform.x) + centerX,
-            y: scale * (point.y - centerY + transform.y) + centerY
-        };
+    const screenToWorld = (point) => {
+        const cameraT = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const p1 = applyInverseTransform(point, editorTransform);
+        return applyInverseTransform(p1, cameraT);
+    };
+    const worldToScreen = (point) => {
+        const cameraT = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const p1 = applyTransformPoint(point, cameraT);
+        return applyTransformPoint(p1, editorTransform);
     };
     const getPointerRaw = (event) => {
         const rect = canvas.getBoundingClientRect();
@@ -1061,7 +1067,7 @@
             return;
         }
         const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
-        const topLeft = worldToScreen({ x: rect.left, y: rect.top }, transform);
+        const topLeft = worldToScreen({ x: rect.left, y: rect.top });
         const width = Math.max(0, rect.width * (transform.scale || 1));
         const height = Math.max(0, rect.height * (transform.scale || 1));
         const canvasRect = canvas.getBoundingClientRect();
@@ -1301,6 +1307,13 @@
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+        // 1. Apply Editor Transform (View Only)
+        if (!isExport) {
+            ctx.save();
+            applyGlobalTransform(editorTransform);
+        }
+
+        // 2. Apply Camera Transform (Video Output)
         const activeTransform = getActiveGlobalTransform();
         ctx.save();
         if (activeTransform) {
@@ -1511,13 +1524,15 @@
             ctx.restore();
         });
 
+        ctx.restore(); // Restore Camera Transform
+
+        // 3. Draw Red Border (Camera Frame) in Editor Space
         if (!isExport) {
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 4;
             ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.restore(); // Restore Editor Transform
         }
-
-        ctx.restore();
     }
 
     function createLayerSlot(name = null, insertIndex = state.layerSlots.length) {
@@ -3144,10 +3159,9 @@
             const pos = getPointerRaw(e);
             const dx = pos.x - dragState.startX;
             const dy = pos.y - dragState.startY;
-            const scale = Math.max(0.0001, dragState.initialGlobalTransform.scale);
-            manualGlobalTransform.x = dragState.initialGlobalTransform.x + dx / scale;
-            manualGlobalTransform.y = dragState.initialGlobalTransform.y + dy / scale;
-            setViewportPreviewTransform(manualGlobalTransform, true);
+            const scale = Math.max(0.0001, dragState.initialEditorTransform.scale);
+            editorTransform.x = dragState.initialEditorTransform.x + dx / scale;
+            editorTransform.y = dragState.initialEditorTransform.y + dy / scale;
             return;
         }
 
@@ -3384,9 +3398,8 @@
             type: 'global-pan',
             startX: pos.x,
             startY: pos.y,
-            initialGlobalTransform: cloneTransform(manualGlobalTransform)
+            initialEditorTransform: cloneTransform(editorTransform)
         };
-        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         document.addEventListener('mousemove', onDrag);
         document.addEventListener('mouseup', stopDrag);
     }
@@ -3398,11 +3411,8 @@
     function handleGlobalZoomWheel(e) {
         e.preventDefault();
         const deltaScale = 1 - e.deltaY * 0.001;
-        const nextScale = manualGlobalTransform.scale * deltaScale;
-        manualGlobalTransform.scale = Math.min(3, Math.max(0.3, nextScale));
-        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
-        updateViewportControls();
-        updateKeyframeFromManualTransform();
+        const nextScale = editorTransform.scale * deltaScale;
+        editorTransform.scale = Math.min(10, Math.max(0.1, nextScale));
     }
 
     function handleCanvasMouseUp(e) {
