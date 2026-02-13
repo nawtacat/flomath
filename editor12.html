@@ -3141,11 +3141,12 @@
         e.preventDefault();
 
         if (dragState.type === 'global-pan') {
-            const pos = getPointerPos(e);
+            const pos = getPointerRaw(e);
             const dx = pos.x - dragState.startX;
             const dy = pos.y - dragState.startY;
-            manualGlobalTransform.x = dragState.initialGlobalTransform.x + dx;
-            manualGlobalTransform.y = dragState.initialGlobalTransform.y + dy;
+            const scale = Math.max(0.0001, dragState.initialGlobalTransform.scale);
+            manualGlobalTransform.x = dragState.initialGlobalTransform.x + dx / scale;
+            manualGlobalTransform.y = dragState.initialGlobalTransform.y + dy / scale;
             setViewportPreviewTransform(manualGlobalTransform, true);
             return;
         }
@@ -3377,7 +3378,7 @@
     }
 
     function startGlobalPan(e) {
-        const pos = getPointerPos(e);
+        const pos = getPointerRaw(e);
         dragState = {
             active: true,
             type: 'global-pan',
