@@ -208,8 +208,6 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             max-height: 90%;
             max-width: 90%;
-            outline: 2px solid red;
-            outline-offset: 4px;
         }
 
         /* Controls */
@@ -1297,7 +1295,7 @@
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
-    function renderCanvas() {
+    function renderCanvas(isExport = false) {
         rebuildSlotAssignments();
         // Clear
         ctx.fillStyle = '#000';
@@ -1512,6 +1510,12 @@
 
             ctx.restore();
         });
+
+        if (!isExport) {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
 
         ctx.restore();
     }
@@ -3602,7 +3606,7 @@
             if (frame >= totalFrames) {
                 clearInterval(frameInterval);
                 state.currentTime = state.duration;
-                renderCanvas();
+                renderCanvas(true);
                 updateTimelineUI();
                 updatePropertiesPanel();
                 if (progressCallback) progressCallback(1);
@@ -3610,7 +3614,7 @@
                 return;
             }
             state.currentTime = frame / FPS;
-            renderCanvas();
+            renderCanvas(true);
             updateTimelineUI();
             updatePropertiesPanel();
             if (progressCallback) progressCallback(Math.min(1, frame / totalFrames));
@@ -3673,7 +3677,7 @@
                 const totalFrames = Math.round(state.duration * FPS);
                 for (let i = 0; i < totalFrames; i++) {
                     state.currentTime = i / FPS;
-                    renderCanvas();
+                    renderCanvas(true);
                     
                     const frameNumber = String(i).padStart(5, '0');
                     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
