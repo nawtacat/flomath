@@ -68,8 +68,10 @@
         try {
             const dbInstance = firebase.database();
             // Try multiple paths to find the internal repo safely
-            const repo = dbInstance.ref().repo || dbInstance.ref().root.repo || dbInstance.repo_;
-            if (repo) repo.forceWebsockets = true;
+            // We access .ref() to ensure the repo is instantiated
+            const ref = dbInstance.ref(); 
+            const repo = ref.repo || ref.root.repo || dbInstance.repo_;
+            if (repo) { repo.forceWebsockets = true; }
         } catch (e) { console.warn('Could not force WebSockets', e); }
 
         // Anonymous auth to ensure access
