@@ -1247,7 +1247,11 @@
             Object.assign(newLayer, serialized);
             
             // Manually copy non-serializable content
-            newLayer.content = this.content;
+            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
+                newLayer.content = this.content.cloneNode(true);
+            } else {
+                newLayer.content = this.content;
+            }
             newLayer.assetBlob = this.assetBlob;
             newLayer.id = state.nextId++; // Ensure a new unique ID
             newLayer.slotId = this.slotId;
