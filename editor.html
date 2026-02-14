@@ -3867,7 +3867,9 @@
             console.error('Upload failed:', error);
             
             // Check for the specific "bucket not set up" error
-            if (error && error.message && error.message.includes('bucket has not been set up')) {
+            // The JS SDK wraps 400 errors as 'storage/unknown' with the raw response in serverResponse
+            const rawMsg = error.serverResponse || error.message || '';
+            if (rawMsg.includes('bucket has not been set up')) {
                 alert("Firebase Storage is not enabled.\n\nPlease go to the Firebase Console -> Storage and click 'Get Started' to set up your bucket.");
                 if(statusEl) statusEl.innerText = 'Enable Storage in Console';
             } else if(statusEl) {
