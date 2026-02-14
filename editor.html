@@ -3831,8 +3831,13 @@
         // which are required for FFmpeg but block Firebase HTTP long-polling.
         try {
             const dbInstance = firebase.database();
+            // Disconnect first to ensure the transport mode change takes effect immediately
+            dbInstance.goOffline();
             const repo = dbInstance.ref().repo || dbInstance.ref().root.repo || dbInstance.repo_;
-            if (repo) repo.forceWebsockets = true;
+            if (repo) {
+                repo.forceWebsockets = true;
+            }
+            dbInstance.goOnline();
         } catch (e) { console.warn('Could not force WebSockets', e); }
 
         firebase.auth().signInAnonymously().catch(console.error);
@@ -3863,7 +3868,11 @@
             triggerAutoSave(); // Save the new URL
         }).catch((error) => {
             console.error('Upload failed:', error);
-            if(statusEl) statusEl.innerText = 'Upload failed';
+            if(statusEl) {
+                // This usually happens if Storage isn't enabled in the Firebase Console
+                statusEl.innerText = 'Storage Not Configured';
+                setTimeout(() => statusEl.innerText = '', 4000);
+            }
         });
     }
 
