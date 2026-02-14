@@ -1518,6 +1518,18 @@
                     } else {
                         ctx.drawImage(img, -img.width/2, -img.height/2);
                     }
+                } else if (img && img.complete && img.naturalWidth === 0) {
+                    // Placeholder for broken image (CORS error or missing file)
+                    const w = layer.width || 200;
+                    const h = layer.height || 200;
+                    ctx.fillStyle = '#222';
+                    ctx.fillRect(-w/2, -h/2, w, h);
+                    ctx.strokeStyle = '#e53935';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-w/2, -h/2); ctx.lineTo(w/2, h/2);
+                    ctx.moveTo(w/2, -h/2); ctx.lineTo(-w/2, h/2);
+                    ctx.stroke();
                 }
             } else if (layer.type === 'video') {
                 const vid = layer.content;
@@ -3965,6 +3977,9 @@
                         };
                         img.onerror = () => {
                             console.warn('Failed to load image (CORS or missing):', layer.storageUrl);
+                            layer.width = 200;
+                            layer.height = 200;
+                            renderCanvas();
                         };
                         img.src = layer.storageUrl;
                         layer.content = img;
