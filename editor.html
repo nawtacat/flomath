@@ -1505,17 +1505,19 @@
                 ctx.fillRect(-rect.width / 2, -rect.height / 2, fillWidth, rect.height);
             } else if (layer.type === 'image') {
                 const img = layer.content;
-                if (clipHorizontal || clipVertical) {
-                    const clipWidth = clipHorizontal ? Math.max(0, img.width * clipFactorH) : img.width;
-                    const clipHeight = clipVertical ? Math.max(0, img.height * clipFactorV) : img.height;
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.rect(-img.width/2, -img.height/2, clipWidth, clipHeight);
-                    ctx.clip();
-                    ctx.drawImage(img, -img.width/2, -img.height/2);
-                    ctx.restore();
-                } else {
-                    ctx.drawImage(img, -img.width/2, -img.height/2);
+                if (img && img.complete && img.naturalWidth !== 0) {
+                    if (clipHorizontal || clipVertical) {
+                        const clipWidth = clipHorizontal ? Math.max(0, img.width * clipFactorH) : img.width;
+                        const clipHeight = clipVertical ? Math.max(0, img.height * clipFactorV) : img.height;
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(-img.width/2, -img.height/2, clipWidth, clipHeight);
+                        ctx.clip();
+                        ctx.drawImage(img, -img.width/2, -img.height/2);
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(img, -img.width/2, -img.height/2);
+                    }
                 }
             } else if (layer.type === 'video') {
                 const vid = layer.content;
