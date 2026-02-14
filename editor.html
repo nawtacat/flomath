@@ -3906,7 +3906,16 @@
         const statusEl = document.getElementById('save-status');
         if(statusEl) statusEl.innerText = 'Loading project...';
 
+        // Fallback if loading takes too long (e.g. connection blocked)
+        const loadTimeout = setTimeout(() => {
+            if(statusEl && statusEl.innerText === 'Loading project...') {
+                statusEl.innerText = 'Offline/New';
+                renderTimeline(); // Render empty state
+            }
+        }, 2000);
+
         firebase.database().ref('states/' + projectId).once('value').then((snapshot) => {
+            clearTimeout(loadTimeout);
             const data = snapshot.val();
             if (!data) {
                 if(statusEl) statusEl.innerText = 'Project empty';
