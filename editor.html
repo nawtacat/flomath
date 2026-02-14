@@ -3831,13 +3831,10 @@
         // which are required for FFmpeg but block Firebase HTTP long-polling.
         try {
             const dbInstance = firebase.database();
-            // Disconnect first to ensure the transport mode change takes effect immediately
-            dbInstance.goOffline();
-            const repo = dbInstance.ref().repo || dbInstance.ref().root.repo || dbInstance.repo_;
-            if (repo) {
-                repo.forceWebsockets = true;
-            }
-            dbInstance.goOnline();
+            // Access .ref() to ensure repo is instantiated
+            const ref = dbInstance.ref();
+            const repo = ref.repo || ref.root.repo || dbInstance.repo_;
+            if (repo) { repo.forceWebsockets = true; }
         } catch (e) { console.warn('Could not force WebSockets', e); }
 
         firebase.auth().signInAnonymously().catch(console.error);
@@ -3868,10 +3865,14 @@
             triggerAutoSave(); // Save the new URL
         }).catch((error) => {
             console.error('Upload failed:', error);
-            if(statusEl) {
-                // This usually happens if Storage isn't enabled in the Firebase Console
-                statusEl.innerText = 'Storage Not Configured';
-                setTimeout(() => statusEl.innerText = '', 4000);
+            
+            // Check for the specific "bucket not set up" error
+            if (error && error.message && error.message.includes('bucket has not been set up')) {
+                alert("Firebase Storage is not enabled.\n\nPlease go to the Firebase Console -> Storage and click 'Get Started' to set up your bucket.");
+                if(statusEl) statusEl.innerText = 'Enable Storage in Console';
+            } else if(statusEl) {
+                statusEl.innerText = 'Upload failed';
+                setTimeout(() => statusEl.innerText = '', 3000);
             }
         });
     }
