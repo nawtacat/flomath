@@ -3808,6 +3808,14 @@
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
+        
+        // Force WebSockets to bypass COEP (Cross-Origin Embedder Policy) restrictions
+        // which are required for FFmpeg but block Firebase HTTP long-polling.
+        try {
+            const db = firebase.database();
+            db.ref().root.repo.forceWebsockets = true;
+        } catch (e) { console.warn('Could not force WebSockets', e); }
+
         firebase.auth().signInAnonymously().catch(console.error);
 
         // Check for project ID in URL
