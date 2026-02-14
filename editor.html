@@ -834,6 +834,7 @@
     // Firebase & Project State
     let currentProjectId = null;
     let isAutosaving = false;
+    let autoSaveDebounce = null;
 
     const katexToggle = document.getElementById('prop-katex');
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
@@ -1657,6 +1658,7 @@
         selectLayer(l.id);
         focusPlayheadOnLayer(l);
         renderTimeline();
+        triggerAutoSave();
     }
 
     function addMediaFile(file) {
@@ -1675,6 +1677,7 @@
                 selectLayer(l.id);
                 focusPlayheadOnLayer(l);
                 renderTimeline();
+                triggerAutoSave();
             };
             img.src = URL.createObjectURL(file);
         } else if (fileType === 'video') {
@@ -1694,6 +1697,7 @@
                 selectLayer(l.id);
                 focusPlayheadOnLayer(l);
                 renderTimeline();
+                triggerAutoSave();
             };
         }
     }
@@ -1721,6 +1725,7 @@
             selectLayer(l.id);
             focusPlayheadOnLayer(l);
             renderTimeline();
+            triggerAutoSave();
         };
         audio.load();
         input.value = '';
@@ -1862,6 +1867,7 @@
         state.selectedLayerId = null;
         selectLayer(null);
         renderTimeline();
+        triggerAutoSave();
     }
 
     function splitSelectedLayer() {
@@ -1900,6 +1906,7 @@
         state.layers.sort((a, b) => a.startTime - b.startTime); // Keep timeline sorted
         renderTimeline();
         selectLayer(newLayer.id);
+        triggerAutoSave();
     }
 
     // --- Properties & Keyframing ---
@@ -1928,6 +1935,7 @@
         // Let's just update the base property for now, which acts as the default if no keyframes exist.
         
         layer[prop] = parseFloat(value);
+        triggerAutoSave();
     }
 
     function addKeyframe(prop) {
@@ -1935,6 +1943,7 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         const val = document.getElementById(`prop-${prop}`).value;
         layer.addKeyframe(prop, state.currentTime, val);
+        triggerAutoSave();
     }
 
     function updateText(val) {
@@ -1943,6 +1952,7 @@
             layer.content = val;
             if (layer.katex) markKatexLayerDirty(layer);
             layer.updateDimensions();
+            triggerAutoSave();
         }
     }
 
@@ -1951,6 +1961,7 @@
         if (layer) {
             layer.color = val;
             if (layer.katex) markKatexLayerDirty(layer);
+            triggerAutoSave();
         }
     }
 
@@ -2106,6 +2117,7 @@
         selectLayer(layer.id);
         focusPlayheadOnLayer(layer);
         renderTimeline();
+        triggerAutoSave();
 
         audio.addEventListener('loadedmetadata', () => {
             layer.duration = Math.max(0.5, audio.duration || layer.duration);
@@ -2169,6 +2181,7 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer) {
             layer.loopingAnimation = val;
+            triggerAutoSave();
         }
         if (floatSettingsPanel) {
             floatSettingsPanel.style.display = val === 'float' ? 'block' : 'none';
@@ -2274,6 +2287,7 @@
         if (entryDurationInput) {
             entryDurationInput.disabled = type === 'none';
         }
+        triggerAutoSave();
     }
 
     function updateEntryDuration(value) {
@@ -2283,6 +2297,7 @@
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed) || parsed <= 0) return;
         layer.entryAnimation.duration = parsed;
+        triggerAutoSave();
     }
 
     function updateExitAnimation(type) {
@@ -2297,6 +2312,7 @@
         if (exitDurationInput) {
             exitDurationInput.disabled = type === 'none';
         }
+        triggerAutoSave();
     }
 
     function updateExitDuration(value) {
@@ -2306,6 +2322,7 @@
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed) || parsed <= 0) return;
         layer.exitAnimation.duration = parsed;
+        triggerAutoSave();
     }
 
     // --- Global Zoom / Whole Control Helpers ---
@@ -3306,7 +3323,7 @@
         dragState.active = false;
         dragState.targetSlotIndex = -1;
         dragState.isReordering = false;
-        autoSaveProject(); // Save immediately after interaction
+        triggerAutoSave(); // Save immediately after interaction
     }
 
     // --- Canvas Interaction ---
@@ -3813,8 +3830,9 @@
         // Force WebSockets to bypass COEP (Cross-Origin Embedder Policy) restrictions
         // which are required for FFmpeg but block Firebase HTTP long-polling.
         try {
-            const db = firebase.database();
-            db.ref().root.repo.forceWebsockets = true;
+            const dbInstance = firebase.database();
+            const repo = dbInstance.ref().repo || dbInstance.ref().root.repo || dbInstance.repo_;
+            if (repo) repo.forceWebsockets = true;
         } catch (e) { console.warn('Could not force WebSockets', e); }
 
         firebase.auth().signInAnonymously().catch(console.error);
@@ -3842,11 +3860,16 @@
         }).then((url) => {
             layer.storageUrl = url;
             if(statusEl) statusEl.innerText = 'Asset uploaded.';
-            autoSaveProject(); // Save the new URL
+            triggerAutoSave(); // Save the new URL
         }).catch((error) => {
             console.error('Upload failed:', error);
             if(statusEl) statusEl.innerText = 'Upload failed';
         });
+    }
+
+    function triggerAutoSave() {
+        if (autoSaveDebounce) clearTimeout(autoSaveDebounce);
+        autoSaveDebounce = setTimeout(autoSaveProject, 1000);
     }
 
     function autoSaveProject() {
