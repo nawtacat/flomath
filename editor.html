@@ -11,7 +11,6 @@
             --accent: #007acc;
             --text: #cccccc;
             --border: #3e3e42;
-            --input-bg: #333333;
         }
 
         body {
@@ -221,11 +220,6 @@
             cursor: pointer;
             font-size: 14px;
             margin-right: 5px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            transition: background-color 0.2s;
         }
 
         button:hover { opacity: 0.9; }
@@ -247,13 +241,12 @@
 
         input[type="text"], input[type="number"], input[type="file"] {
             width: 100%;
-            background: var(--input-bg);
+            background: #333;
             border: 1px solid var(--border);
             color: white;
-            padding: 6px;
+            padding: 5px;
             margin-bottom: 10px;
             box-sizing: border-box;
-            border-radius: 3px;
         }
 
         .property-row {
@@ -471,9 +464,12 @@
 
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 </head>
 <body>
 
@@ -481,10 +477,11 @@
     <div style="display:flex; align-items:center; gap:10px;">
         <h1>Florian Editor</h1>
         <span style="font-size:12px; color:#888;">1080x1920</span>
+        <span id="save-status" style="font-size:12px; color:#0abf7a; margin-left:10px;"></span>
     </div>
     <div style="display:flex; gap:8px;">
-        <button id="btn-highlight" class="secondary" title="Highlight Tool (H)"><i class="fas fa-highlighter"></i></button>
-        <button id="btn-export"><i class="fas fa-file-export"></i> Export Video</button>
+        <button id="btn-highlight" class="secondary">H</button>
+        <button id="btn-export">Export Video</button>
     </div>
 </header>
 
@@ -492,10 +489,10 @@
     <div class="sidebar">
         <div class="control-group">
             <label>Add Media</label>
-            <button class="secondary" onclick="addTextLayer()"><i class="fas fa-font"></i> Text</button>
-            <button class="secondary" onclick="document.getElementById('img-upload').click()"><i class="fas fa-image"></i> Image</button>
-            <button class="secondary" onclick="document.getElementById('vid-upload').click()"><i class="fas fa-video"></i> Video</button>
-            <button class="secondary" onclick="document.getElementById('audio-upload').click()"><i class="fas fa-music"></i> Audio</button>
+            <button class="secondary" onclick="addTextLayer()">+ Text</button>
+            <button class="secondary" onclick="document.getElementById('img-upload').click()">+ Image</button>
+            <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
+            <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
             <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
@@ -508,27 +505,27 @@
             <div class="property-row">
                 <span>X Position</span>
                 <input type="number" id="prop-x" onchange="updateProperty('x', this.value)">
-                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('x')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
+                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('x')">◆</button>
             </div>
             <div class="property-row">
                 <span>Y Position</span>
                 <input type="number" id="prop-y" onchange="updateProperty('y', this.value)">
-                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('y')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
+                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('y')">◆</button>
             </div>
             <div class="property-row">
                 <span>Scale</span>
                 <input type="number" step="0.1" id="prop-scale" onchange="updateProperty('scale', this.value)">
-                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('scale')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
+                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('scale')">◆</button>
             </div>
             <div class="property-row">
                 <span>Rotation</span>
                 <input type="number" id="prop-rotation" onchange="updateProperty('rotation', this.value)">
-                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('rotation')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
+                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('rotation')">◆</button>
             </div>
             <div class="property-row">
                 <span>Opacity</span>
                 <input type="number" step="0.1" max="1" min="0" id="prop-opacity" onchange="updateProperty('opacity', this.value)">
-                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('opacity')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
+                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('opacity')">◆</button>
             </div>
             
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -590,8 +587,8 @@
                 </label>
             </div>
 
-            <button class="secondary" style="width:100%; margin-top:10px; background:#a33;" onclick="deleteSelectedLayer()" title="Delete (Del)"><i class="fas fa-trash"></i> Delete Layer</button>
-            <button class="secondary" style="width:100%; margin-top:5px;" onclick="splitSelectedLayer()" title="Split (S)"><i class="fas fa-cut"></i> Split Layer</button>
+            <button class="secondary" style="width:100%; margin-top:10px; background:#a33;" onclick="deleteSelectedLayer()">Delete Layer</button>
+            <button class="secondary" style="width:100%; margin-top:5px;" onclick="splitSelectedLayer()">Split Layer at Playhead</button>
 
             <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Looping Animation</label>
@@ -713,11 +710,11 @@
 
     <div class="viewport">
         <div class="global-controls">
-            <button id="btn-zoom-keyframe" title="Add Zoom Keyframe"><i class="fas fa-search-plus"></i> Zoom KF</button>
-            <button id="btn-motion-keyframe" class="secondary" title="Add Motion Keyframe"><i class="fas fa-running"></i> Motion KF</button>
-            <button id="btn-delete-zoom-keyframe" class="secondary" disabled title="Delete Zoom Keyframe"><i class="fas fa-trash"></i></button>
-            <button id="btn-delete-motion-keyframe" class="secondary" disabled title="Delete Motion Keyframe"><i class="fas fa-trash"></i></button>
-            <button id="btn-whole-control" class="secondary toggle" title="Toggle Whole Control"><i class="fas fa-expand"></i></button>
+            <button id="btn-zoom-keyframe">Add Zoom Keyframe</button>
+            <button id="btn-motion-keyframe" class="secondary">Add Motion Keyframe</button>
+            <button id="btn-delete-zoom-keyframe" class="secondary" disabled>Delete Zoom</button>
+            <button id="btn-delete-motion-keyframe" class="secondary" disabled>Delete Motion</button>
+            <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
             <span id="zoom-status">Zoom start unset</span>
             <span id="motion-status">Motion start unset</span>
             <div id="zoom-toast" class="zoom-toast"></div>
@@ -730,8 +727,8 @@
 
 <div class="timeline-container">
     <div class="timeline-controls">
-        <button id="btn-play" title="Play/Pause (Space)"><i class="fas fa-play"></i></button>
-        <button class="secondary" id="btn-stop" title="Stop"><i class="fas fa-stop"></i></button>
+        <button id="btn-play">Play</button>
+        <button class="secondary" id="btn-stop">Stop</button>
         <span id="time-display" style="margin-left:auto; font-family:monospace;">00:00.00</span>
     </div>
     <div class="timeline-tracks" id="timeline-tracks">
@@ -833,6 +830,11 @@
     const motionTracks = {};
     let motionMarkerDrag = null;
     let motionToastTimer = null;
+    
+    // Firebase & Project State
+    let currentProjectId = null;
+    let isAutosaving = false;
+
     const katexToggle = document.getElementById('prop-katex');
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
@@ -1117,8 +1119,9 @@
             }
             return;
         }
-        if (Math.abs(audio.currentTime - localTime) > 0.3) {
-            audio.currentTime = Math.max(0, localTime);
+        const sourceTime = localTime + (layer.trimStart || 0);
+        if (Math.abs(audio.currentTime - sourceTime) > 0.3) {
+            audio.currentTime = Math.max(0, sourceTime);
         }
         audio.volume = layer.volume ?? 1;
         audio.muted = layer.muted || false;
@@ -1167,6 +1170,7 @@
             this.x = CANVAS_WIDTH / 2;
             this.y = CANVAS_HEIGHT / 2;
             this.scale = 1;
+            this.trimStart = 0;
             this.rotation = 0;
             this.opacity = 1;
             this.color = '#ffffff'; // for text
@@ -1184,6 +1188,7 @@
         this.exitAnimation = { type: 'none', duration: 1 };
         this.volume = 1;
         this.muted = false;
+        this.storageUrl = null; // URL from Firebase Storage
 
             // Keyframes: { property: [ {time, value}, ... ] }
             this.keyframes = {
@@ -1253,7 +1258,13 @@
             Object.assign(newLayer, serialized);
             
             // Manually copy non-serializable content
-            newLayer.content = this.content;
+            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
+                newLayer.content = this.content.cloneNode(true);
+            } else {
+                newLayer.content = this.content;
+            }
+            newLayer.assetBlob = this.assetBlob;
+            newLayer.storageUrl = this.storageUrl;
             newLayer.id = state.nextId++; // Ensure a new unique ID
             newLayer.slotId = this.slotId;
             if (newLayer.katex) {
@@ -1264,6 +1275,23 @@
                 newLayer.katexImageLoading = false;
             }
             return newLayer;
+        }
+
+        toJSON() {
+            // Return a clean object for Firebase serialization
+            const data = Object.assign({}, this);
+            // Remove non-serializable DOM elements
+            delete data.content; 
+            delete data.assetBlob;
+            delete data.katexImage;
+            
+            // If it's text, we want to save the content string
+            if (this.type === 'text') {
+                data.content = this.content;
+            }
+            // For media, we rely on storageUrl. If storageUrl is missing, we might lose the asset on reload
+            // unless we re-upload.
+            return data;
         }
     }
 
@@ -1277,6 +1305,11 @@
         canvas.addEventListener('mousemove', handleCanvasMouseMove);
         canvas.addEventListener('mouseup', handleCanvasMouseUp);
         animationFrameId = requestAnimationFrame(gameLoop);
+
+        // Initialize Firebase
+        initFirebase();
+        // Start Autosave
+        setInterval(autoSaveProject, 5000);
     }
 
     function resizeCanvas() {
@@ -1490,7 +1523,7 @@
                 if (state.isPlaying && vid.paused) vid.play();
                 
                 // Seek if drifted
-                const vidTime = state.currentTime - layer.startTime;
+                const vidTime = (state.currentTime - layer.startTime) + (layer.trimStart || 0);
                 if (Math.abs(vid.currentTime - vidTime) > 0.3) {
                     vid.currentTime = vidTime;
                 }
@@ -1635,6 +1668,7 @@
                 const center = getViewportCenterWorld();
                 l.x = center.x;
                 l.y = center.y;
+                uploadAssetToFirebase(file, l);
                 ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnTopSlot(l);
@@ -1653,6 +1687,7 @@
                 const center = getViewportCenterWorld();
                 l.x = center.x;
                 l.y = center.y;
+                uploadAssetToFirebase(file, l);
                 ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnTopSlot(l);
@@ -1680,6 +1715,7 @@
             ensureLayerStartsAtPlayhead(l);
             l.assetBlob = file;
             l.assetFileName = file.name;
+            uploadAssetToFirebase(file, l);
             state.layers.push(l);
             placeLayerOnTopSlot(l);
             selectLayer(l.id);
@@ -1705,7 +1741,7 @@
                 const gainNode = offlineCtx.createGain();
                 gainNode.gain.value = layer.muted ? 0 : (layer.volume ?? 1);
                 source.connect(gainNode).connect(offlineCtx.destination);
-                source.start(layer.startTime);
+                source.start(layer.startTime, layer.trimStart || 0, layer.duration);
             } catch (err) {
                 console.warn('Failed to decode audio layer', layer.name, err);
             }
@@ -1841,15 +1877,17 @@
         }
 
         const endOfOriginal = originalLayer.startTime + originalLayer.duration;
+        const relativeCut = cutTime - originalLayer.startTime;
 
         // Create the new (right-hand side) layer from a clone
         const newLayer = originalLayer.clone();
         newLayer.startTime = cutTime;
         newLayer.duration = endOfOriginal - cutTime;
+        newLayer.trimStart = (originalLayer.trimStart || 0) + relativeCut;
         newLayer.name = originalLayer.name + ' (split)';
         
         // Adjust original layer's duration
-        originalLayer.duration = cutTime - originalLayer.startTime;
+        originalLayer.duration = relativeCut;
 
         // Move keyframes that are after the cut to the new layer
         Object.keys(originalLayer.keyframes).forEach(prop => {
@@ -3560,12 +3598,7 @@
     };
 
     function updatePlayButton() {
-        const btn = document.getElementById('btn-play');
-        if (state.isPlaying) {
-            btn.innerHTML = '<i class="fas fa-pause"></i>';
-        } else {
-            btn.innerHTML = '<i class="fas fa-play"></i>';
-        }
+        document.getElementById('btn-play').innerText = state.isPlaying ? 'Pause' : 'Play';
     }
 
     // --- Export Logic ---
@@ -3769,6 +3802,130 @@
 
     };
 
+    // --- Firebase Integration ---
+    function initFirebase() {
+        const firebaseConfig = { apiKey: "AIzaSyAbnPpcIt88B0jIAoLUdC71zmQDvR_fdu8", authDomain: "physmathacademy-722b3.firebaseapp.com", databaseURL: "https://physmathacademy-722b3-default-rtdb.firebaseio.com", projectId: "physmathacademy-722b3", storageBucket: "physmathacademy-722b3.appspot.com", messagingSenderId: "1093640992262", appId: "1:1093640992262:web:35b1bf4d2364bcf745f587" };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().signInAnonymously().catch(console.error);
+
+        // Check for project ID in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        currentProjectId = urlParams.get('project');
+
+        if (currentProjectId) {
+            loadProject(currentProjectId);
+        }
+    }
+
+    function uploadAssetToFirebase(file, layer) {
+        if (!currentProjectId) return; // Can't upload if not in a project context? Or just upload to temp?
+        // We'll upload anyway
+        const storageRef = firebase.storage().ref();
+        const fileRef = storageRef.child(`assets/${Date.now()}_${file.name}`);
+        
+        const statusEl = document.getElementById('save-status');
+        if(statusEl) statusEl.innerText = 'Uploading asset...';
+
+        fileRef.put(file).then((snapshot) => {
+            return snapshot.ref.getDownloadURL();
+        }).then((url) => {
+            layer.storageUrl = url;
+            if(statusEl) statusEl.innerText = 'Asset uploaded.';
+            autoSaveProject(); // Save the new URL
+        }).catch((error) => {
+            console.error('Upload failed:', error);
+            if(statusEl) statusEl.innerText = 'Upload failed';
+        });
+    }
+
+    function autoSaveProject() {
+        if (!currentProjectId) return;
+        
+        const statusEl = document.getElementById('save-status');
+        if(statusEl) statusEl.innerText = 'Saving...';
+
+        const projectData = {
+            lastModified: firebase.database.ServerValue.TIMESTAMP,
+            duration: state.duration,
+            nextId: state.nextId,
+            nextSlotId: state.nextSlotId,
+            layerSlots: state.layerSlots,
+            globalZoom: globalZoom,
+            motionTracks: motionTracks,
+            layers: state.layers.map(l => l.toJSON())
+        };
+
+        firebase.database().ref('states/' + currentProjectId).set(projectData).then(() => {
+            // Also update meta timestamp
+            firebase.database().ref('projects/' + currentProjectId).update({
+                lastModified: firebase.database.ServerValue.TIMESTAMP
+            });
+            if(statusEl) statusEl.innerText = 'Saved';
+            setTimeout(() => { if(statusEl.innerText === 'Saved') statusEl.innerText = ''; }, 2000);
+        }).catch(err => {
+            console.error('Autosave failed', err);
+            if(statusEl) statusEl.innerText = 'Save Error';
+        });
+    }
+
+    function loadProject(projectId) {
+        const statusEl = document.getElementById('save-status');
+        if(statusEl) statusEl.innerText = 'Loading project...';
+
+        firebase.database().ref('states/' + projectId).once('value').then((snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                if(statusEl) statusEl.innerText = 'Project empty';
+                return;
+            }
+
+            // Restore State
+            state.duration = data.duration || 10;
+            state.nextId = data.nextId || 1;
+            state.nextSlotId = data.nextSlotId || 1;
+            state.layerSlots = data.layerSlots || [];
+            
+            if (data.globalZoom) Object.assign(globalZoom, data.globalZoom);
+            if (data.motionTracks) Object.assign(motionTracks, data.motionTracks);
+
+            // Reconstruct Layers
+            state.layers = [];
+            if (data.layers) {
+                data.layers.forEach(lData => {
+                    const layer = new Layer(lData.type, lData.name, null);
+                    Object.assign(layer, lData);
+                    
+                    // Restore Content
+                    if (layer.type === 'text') {
+                        layer.content = lData.content;
+                    } else if (layer.type === 'image' && layer.storageUrl) {
+                        const img = new Image();
+                        img.crossOrigin = "anonymous";
+                        img.src = layer.storageUrl;
+                        layer.content = img;
+                    } else if (layer.type === 'video' && layer.storageUrl) {
+                        const vid = document.createElement('video');
+                        vid.crossOrigin = "anonymous";
+                        vid.src = layer.storageUrl;
+                        vid.muted = true; // Auto-mute for editor
+                        layer.content = vid;
+                    } else if (layer.type === 'audio' && layer.storageUrl) {
+                        const audio = new Audio(layer.storageUrl);
+                        audio.crossOrigin = "anonymous";
+                        layer.content = audio;
+                    }
+                    
+                    state.layers.push(layer);
+                });
+            }
+
+            renderTimeline();
+            if(statusEl) statusEl.innerText = 'Loaded';
+        });
+    }
+
     // Initialize
     // Add global listeners for drag operations
     document.addEventListener('mouseup', () => {
@@ -3776,32 +3933,6 @@
             stopDrag();
         }
     });
-
-    // --- Hotkeys ---
-    document.addEventListener('keydown', (e) => {
-        // Ignore if typing in an input
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-
-        switch(e.key) {
-            case ' ':
-                e.preventDefault();
-                document.getElementById('btn-play').click();
-                break;
-            case 'Delete':
-            case 'Backspace':
-                deleteSelectedLayer();
-                break;
-            case 's':
-            case 'S':
-                splitSelectedLayer();
-                break;
-            case 'h':
-            case 'H':
-                toggleHighlighterMode();
-                break;
-        }
-    });
-
     init();
 
 </script>
