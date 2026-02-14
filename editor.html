@@ -3959,6 +3959,13 @@
                     } else if (layer.type === 'image' && layer.storageUrl) {
                         const img = new Image();
                         img.crossOrigin = "anonymous";
+                        img.onload = () => {
+                            layer.updateDimensions();
+                            renderCanvas();
+                        };
+                        img.onerror = () => {
+                            console.warn('Failed to load image (CORS or missing):', layer.storageUrl);
+                        };
                         img.src = layer.storageUrl;
                         layer.content = img;
                     } else if (layer.type === 'video' && layer.storageUrl) {
