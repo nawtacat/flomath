@@ -1211,7 +1211,7 @@
                 this.width = metrics.width;
                 this.height = 100; // Approx height
             } else if (this.type === 'image' || this.type === 'video') {
-                if (this.content.width || this.content.videoWidth) {
+                if (this.content && (this.content.width || this.content.videoWidth)) {
                     this.width = this.content.width || this.content.videoWidth;
                     this.height = this.content.height || this.content.videoHeight;
                 }
