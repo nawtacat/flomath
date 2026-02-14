@@ -66,8 +66,10 @@
         
         // Force WebSockets to bypass COEP restrictions
         try {
-            const db = firebase.database();
-            db.ref().root.repo.forceWebsockets = true;
+            const dbInstance = firebase.database();
+            // Try multiple paths to find the internal repo safely
+            const repo = dbInstance.ref().repo || dbInstance.ref().root.repo || dbInstance.repo_;
+            if (repo) repo.forceWebsockets = true;
         } catch (e) { console.warn('Could not force WebSockets', e); }
 
         // Anonymous auth to ensure access
