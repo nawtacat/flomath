@@ -11,6 +11,7 @@
             --accent: #007acc;
             --text: #cccccc;
             --border: #3e3e42;
+            --input-bg: #333333;
         }
 
         body {
@@ -220,6 +221,11 @@
             cursor: pointer;
             font-size: 14px;
             margin-right: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: background-color 0.2s;
         }
 
         button:hover { opacity: 0.9; }
@@ -241,12 +247,13 @@
 
         input[type="text"], input[type="number"], input[type="file"] {
             width: 100%;
-            background: #333;
+            background: var(--input-bg);
             border: 1px solid var(--border);
             color: white;
-            padding: 5px;
+            padding: 6px;
             margin-bottom: 10px;
             box-sizing: border-box;
+            border-radius: 3px;
         }
 
         .property-row {
@@ -345,6 +352,17 @@
             font-size: 11px;
             text-transform: uppercase;
             background: rgba(255, 255, 255, 0.05);
+        }
+        .sound-row {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:6px;
+            font-size:12px;
+        }
+        .sound-row button {
+            padding:4px 10px;
+            font-size:12px;
         }
 
         .layer-block {
@@ -453,6 +471,7 @@
 
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
 </head>
@@ -464,8 +483,8 @@
         <span style="font-size:12px; color:#888;">1080x1920</span>
     </div>
     <div style="display:flex; gap:8px;">
-        <button id="btn-highlight" class="secondary">H</button>
-        <button id="btn-export">Export Video</button>
+        <button id="btn-highlight" class="secondary" title="Highlight Tool (H)"><i class="fas fa-highlighter"></i></button>
+        <button id="btn-export"><i class="fas fa-file-export"></i> Export Video</button>
     </div>
 </header>
 
@@ -473,10 +492,10 @@
     <div class="sidebar">
         <div class="control-group">
             <label>Add Media</label>
-            <button class="secondary" onclick="addTextLayer()">+ Text</button>
-            <button class="secondary" onclick="document.getElementById('img-upload').click()">+ Image</button>
-            <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
-            <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
+            <button class="secondary" onclick="addTextLayer()"><i class="fas fa-font"></i> Text</button>
+            <button class="secondary" onclick="document.getElementById('img-upload').click()"><i class="fas fa-image"></i> Image</button>
+            <button class="secondary" onclick="document.getElementById('vid-upload').click()"><i class="fas fa-video"></i> Video</button>
+            <button class="secondary" onclick="document.getElementById('audio-upload').click()"><i class="fas fa-music"></i> Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
             <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
@@ -489,27 +508,27 @@
             <div class="property-row">
                 <span>X Position</span>
                 <input type="number" id="prop-x" onchange="updateProperty('x', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('x')">◆</button>
+                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('x')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
             </div>
             <div class="property-row">
                 <span>Y Position</span>
                 <input type="number" id="prop-y" onchange="updateProperty('y', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('y')">◆</button>
+                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('y')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
             </div>
             <div class="property-row">
                 <span>Scale</span>
                 <input type="number" step="0.1" id="prop-scale" onchange="updateProperty('scale', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('scale')">◆</button>
+                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('scale')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
             </div>
             <div class="property-row">
                 <span>Rotation</span>
                 <input type="number" id="prop-rotation" onchange="updateProperty('rotation', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('rotation')">◆</button>
+                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('rotation')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
             </div>
             <div class="property-row">
                 <span>Opacity</span>
                 <input type="number" step="0.1" max="1" min="0" id="prop-opacity" onchange="updateProperty('opacity', this.value)">
-                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('opacity')">◆</button>
+                <button class="secondary" style="padding:4px 8px;" onclick="addKeyframe('opacity')" title="Add Keyframe"><i class="fas fa-key" style="font-size:10px;"></i></button>
             </div>
             
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -571,8 +590,8 @@
                 </label>
             </div>
 
-            <button class="secondary" style="width:100%; margin-top:10px; background:#a33;" onclick="deleteSelectedLayer()">Delete Layer</button>
-            <button class="secondary" style="width:100%; margin-top:5px;" onclick="splitSelectedLayer()">Split Layer at Playhead</button>
+            <button class="secondary" style="width:100%; margin-top:10px; background:#a33;" onclick="deleteSelectedLayer()" title="Delete (Del)"><i class="fas fa-trash"></i> Delete Layer</button>
+            <button class="secondary" style="width:100%; margin-top:5px;" onclick="splitSelectedLayer()" title="Split (S)"><i class="fas fa-cut"></i> Split Layer</button>
 
             <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Looping Animation</label>
@@ -620,6 +639,30 @@
             <p style="margin:0; font-size:11px; color:#999;">Add a zoom start + end keyframe pair to enable these controls.</p>
         </div>
         <div class="control-group">
+            <label>Sound Library</label>
+            <div class="sound-row">
+                <span>Mouse Click</span>
+                <button type="button" class="secondary" data-sound-id="mouseclick" data-sound-action="add">Add to track</button>
+            </div>
+            <div class="sound-row">
+                <span>Music</span>
+                <button type="button" class="secondary" data-sound-id="music" data-sound-action="add">Add to track</button>
+            </div>
+            <div class="sound-row">
+                <span>Drawing</span>
+                <button type="button" class="secondary" data-sound-id="drawing" data-sound-action="add">Add to track</button>
+            </div>
+            <div class="sound-row">
+                <span>Zoom</span>
+                <button type="button" class="secondary" data-sound-id="zoom" data-sound-action="add">Add to track</button>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+                <span>Default volume</span>
+                <span id="sound-volume-display">70%</span>
+            </div>
+            <input type="range" id="sound-volume-slider" min="0" max="100" step="1" value="70">
+        </div>
+        <div class="control-group">
             <label>Viewport Controls</label>
             <div class="control-row" style="display:flex; flex-direction:column; gap:6px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -634,6 +677,13 @@
                     <span id="viewport-pan-value" style="font-size:12px;">0 px</span>
                 </div>
                 <input type="range" id="viewport-pan-slider" min="-900" max="900" step="1" value="0">
+            </div>
+            <div class="control-row" style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Pan Y</span>
+                    <span id="viewport-pan-y-value" style="font-size:12px;">0 px</span>
+                </div>
+                <input type="range" id="viewport-pan-y-slider" min="-1600" max="1600" step="1" value="0">
             </div>
         </div>
         <div id="motion-controls-panel" class="control-group zoom-controls-panel disabled">
@@ -663,11 +713,11 @@
 
     <div class="viewport">
         <div class="global-controls">
-            <button id="btn-zoom-keyframe">Add Zoom Keyframe</button>
-            <button id="btn-motion-keyframe" class="secondary">Add Motion Keyframe</button>
-            <button id="btn-delete-zoom-keyframe" class="secondary" disabled>Delete Zoom</button>
-            <button id="btn-delete-motion-keyframe" class="secondary" disabled>Delete Motion</button>
-            <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
+            <button id="btn-zoom-keyframe" title="Add Zoom Keyframe"><i class="fas fa-search-plus"></i> Zoom KF</button>
+            <button id="btn-motion-keyframe" class="secondary" title="Add Motion Keyframe"><i class="fas fa-running"></i> Motion KF</button>
+            <button id="btn-delete-zoom-keyframe" class="secondary" disabled title="Delete Zoom Keyframe"><i class="fas fa-trash"></i></button>
+            <button id="btn-delete-motion-keyframe" class="secondary" disabled title="Delete Motion Keyframe"><i class="fas fa-trash"></i></button>
+            <button id="btn-whole-control" class="secondary toggle" title="Toggle Whole Control"><i class="fas fa-expand"></i></button>
             <span id="zoom-status">Zoom start unset</span>
             <span id="motion-status">Motion start unset</span>
             <div id="zoom-toast" class="zoom-toast"></div>
@@ -680,8 +730,8 @@
 
 <div class="timeline-container">
     <div class="timeline-controls">
-        <button id="btn-play">Play</button>
-        <button class="secondary" id="btn-stop">Stop</button>
+        <button id="btn-play" title="Play/Pause (Space)"><i class="fas fa-play"></i></button>
+        <button class="secondary" id="btn-stop" title="Stop"><i class="fas fa-stop"></i></button>
         <span id="time-display" style="margin-left:auto; font-family:monospace;">00:00.00</span>
     </div>
     <div class="timeline-tracks" id="timeline-tracks">
@@ -715,6 +765,7 @@
     const CANVAS_HEIGHT = 1920;
     const FPS = 60;
     const PIXELS_PER_SECOND = 50; // Timeline zoom
+    const KEYFRAME_TIME_EPS = 0.02;
     
     const canvas = document.getElementById('editor-canvas');
     const ctx = canvas.getContext('2d');
@@ -731,6 +782,7 @@
     };
 
     const manualGlobalTransform = { x: 0, y: 0, scale: 1 };
+    let editorTransform = { x: 0, y: 0, scale: 1 };
     let pendingViewportTransform = null;
     let viewportPreviewActive = false;
     const globalZoom = {
@@ -774,6 +826,8 @@
     const viewportZoomValueEl = document.getElementById('viewport-zoom-value');
     const viewportPanSlider = document.getElementById('viewport-pan-slider');
     const viewportPanValueEl = document.getElementById('viewport-pan-value');
+    const viewportPanYSlider = document.getElementById('viewport-pan-y-slider');
+    const viewportPanYValueEl = document.getElementById('viewport-pan-y-value');
     const audioDecodeCtx = new (window.AudioContext || window.webkitAudioContext)();
     const katexMeasureEl = document.getElementById('katex-measure');
     const motionTracks = {};
@@ -783,40 +837,56 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    const soundVolumeSlider = document.getElementById('sound-volume-slider');
+    const soundVolumeDisplay = document.getElementById('sound-volume-display');
+    const SOUND_BASE_URL = 'https://flomath.space/audio/';
+    const SOUND_LIBRARY = {
+        mouseclick: 'mouseclick.mp3',
+        music: 'music.mp3',
+        drawing: 'drawing.mp3',
+        zoom: 'zoom.mp3'
+    };
+    let soundVolume = 0.7;
 
     function updateViewportControls() {
         if (viewportZoomSlider) viewportZoomSlider.value = manualGlobalTransform.scale.toFixed(2);
         if (viewportZoomValueEl) viewportZoomValueEl.innerText = `${manualGlobalTransform.scale.toFixed(2)}x`;
         if (viewportPanSlider) viewportPanSlider.value = `${Math.round(manualGlobalTransform.x)}`;
         if (viewportPanValueEl) viewportPanValueEl.innerText = `${Math.round(manualGlobalTransform.x)} px`;
+        if (viewportPanYSlider) viewportPanYSlider.value = `${Math.round(manualGlobalTransform.y)}`;
+        if (viewportPanYValueEl) viewportPanYValueEl.innerText = `${Math.round(manualGlobalTransform.y)} px`;
     }
     const getViewportCenterWorld = () => {
-        const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        // Return center of the canvas in world coordinates (accounting for both editor and camera transforms)
+        return screenToWorld({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 });
+    };
+    const applyInverseTransform = (point, t) => {
         const centerX = CANVAS_WIDTH / 2;
         const centerY = CANVAS_HEIGHT / 2;
-        const scale = Math.max(0.0001, transform.scale);
+        const scale = Math.max(0.0001, t.scale);
         return {
-            x: ((2 * centerX - transform.x) / scale) - centerX,
-            y: ((2 * centerY - transform.y) / scale) - centerY
+            x: (point.x - centerX) / scale + centerX - t.x,
+            y: (point.y - centerY) / scale + centerY - t.y
         };
     };
-    const screenToWorld = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
+    const applyTransformPoint = (point, t) => {
         const centerX = CANVAS_WIDTH / 2;
         const centerY = CANVAS_HEIGHT / 2;
-        const scale = Math.max(0.0001, transform.scale);
+        const scale = Math.max(0.0001, t.scale);
         return {
-            x: (point.x - (-centerX + transform.x)) / scale - centerX,
-            y: (point.y - (-centerY + transform.y)) / scale - centerY
+            x: scale * (point.x - centerX + t.x) + centerX,
+            y: scale * (point.y - centerY + t.y) + centerY
         };
     };
-    const worldToScreen = (point, transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 }) => {
-        const centerX = CANVAS_WIDTH / 2;
-        const centerY = CANVAS_HEIGHT / 2;
-        const scale = Math.max(0.0001, transform.scale);
-        return {
-            x: scale * (point.x + centerX) + (-centerX + transform.x),
-            y: scale * (point.y + centerY) + (-centerY + transform.y)
-        };
+    const screenToWorld = (point) => {
+        const cameraT = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const p1 = applyInverseTransform(point, editorTransform);
+        return applyInverseTransform(p1, cameraT);
+    };
+    const worldToScreen = (point) => {
+        const cameraT = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
+        const p1 = applyTransformPoint(point, cameraT);
+        return applyTransformPoint(p1, editorTransform);
     };
     const getPointerRaw = (event) => {
         const rect = canvas.getBoundingClientRect();
@@ -1005,7 +1075,7 @@
             return;
         }
         const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
-        const topLeft = worldToScreen({ x: rect.left, y: rect.top }, transform);
+        const topLeft = worldToScreen({ x: rect.left, y: rect.top });
         const width = Math.max(0, rect.width * (transform.scale || 1));
         const height = Math.max(0, rect.height * (transform.scale || 1));
         const canvasRect = canvas.getBoundingClientRect();
@@ -1239,12 +1309,19 @@
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
-    function renderCanvas() {
+    function renderCanvas(isExport = false) {
         rebuildSlotAssignments();
         // Clear
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+        // 1. Apply Editor Transform (View Only)
+        if (!isExport) {
+            ctx.save();
+            applyGlobalTransform(editorTransform);
+        }
+
+        // 2. Apply Camera Transform (Video Output)
         const activeTransform = getActiveGlobalTransform();
         ctx.save();
         if (activeTransform) {
@@ -1309,11 +1386,7 @@
             const clipHorizontal = isEntryScanHorizontal || exitIsScanHorizontal;
             const clipVertical = isEntryScanVertical || exitIsScanVertical;
             const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
-            const totalChars = layer.content?.length || 0;
-            const typedChars = Math.floor(easedEntryProgress * totalChars);
-            const textToRender = (isTypewriterActive && !layer.katex)
-                ? layer.content.slice(0, Math.max(0, typedChars))
-                : layer.content;
+            const textContent = layer.content || '';
 
             // Apply looping animations on top of keyframed values
             if (layer.loopingAnimation && layer.loopingAnimation !== 'none') {
@@ -1374,7 +1447,19 @@
                 ctx.fillStyle = layer.color;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(textToRender, 0, 0);
+                if (isTypewriterActive) {
+                    const measuredWidth = ctx.measureText(textContent).width;
+                    const clipWidth = Math.max(0, measuredWidth * easedEntryProgress);
+                    const clipHeight = 140;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(-clipWidth / 2, -clipHeight / 2, clipWidth, clipHeight);
+                    ctx.clip();
+                    ctx.fillText(textContent, 0, 0);
+                    ctx.restore();
+                } else {
+                    ctx.fillText(textContent, 0, 0);
+                }
             } else if (layer.type === 'highlight') {
                 const rect = layer.highlightRect || { width: layer.width || 100, height: layer.height || 100 };
                 const highlightDuration = Math.max(0.1, layer.highlightDuration || 1);
@@ -1447,7 +1532,15 @@
             ctx.restore();
         });
 
-        ctx.restore();
+        ctx.restore(); // Restore Camera Transform
+
+        // 3. Draw Red Border (Camera Frame) in Editor Space
+        if (!isExport) {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.restore(); // Restore Editor Transform
+        }
     }
 
     function createLayerSlot(name = null, insertIndex = state.layerSlots.length) {
@@ -1720,6 +1813,8 @@
             if (highlightControls) highlightControls.style.display = 'none';
             if (audioControls) audioControls.style.display = 'none';
         }
+        updateMotionStatus();
+        updateMotionControlsPanel();
         renderTimeline();
     }
 
@@ -1932,6 +2027,55 @@
         if (layer && layer.type === 'highlight') {
             layer.highlightEase = value;
         }
+    }
+
+    function handleSoundVolumeChange(e) {
+        const percent = clamp(Number(e.target.value), 0, 100);
+        soundVolume = percent / 100;
+        if (soundVolumeDisplay) {
+            soundVolumeDisplay.innerText = `${percent}%`;
+        }
+    }
+
+    async function addSoundLayer(soundId) {
+        const filename = SOUND_LIBRARY[soundId];
+        if (!filename) return;
+        const resourceUrl = `${SOUND_BASE_URL}${filename}`;
+        let blobData;
+        try {
+            const response = await fetch(resourceUrl);
+            if (!response.ok) throw new Error(`Failed to load ${filename}`);
+            blobData = await response.blob();
+        } catch (err) {
+            console.warn('Sound download failed:', resourceUrl, err);
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(blobData);
+        const audio = new Audio(objectUrl);
+        audio.preload = 'metadata';
+        audio.volume = soundVolume;
+        audio.muted = false;
+
+        const layer = new Layer('audio', `Sound: ${soundId}`, audio);
+        layer.duration = 5;
+        layer.volume = soundVolume;
+        layer.assetFileName = filename;
+        layer.assetBlob = blobData;
+        ensureLayerStartsAtPlayhead(layer);
+        state.layers.push(layer);
+        placeLayerOnTopSlot(layer);
+        selectLayer(layer.id);
+        focusPlayheadOnLayer(layer);
+        renderTimeline();
+
+        audio.addEventListener('loadedmetadata', () => {
+            layer.duration = Math.max(0.5, audio.duration || layer.duration);
+            renderTimeline();
+        });
+        audio.addEventListener('error', () => {
+            console.warn('Could not play sound', filename);
+        });
     }
 
     function encodeSvgToBase64(svg) {
@@ -2252,6 +2396,22 @@
         btnDeleteZoomKeyframe.disabled = activeGlobalKeyframeIndex === null;
     }
 
+    function findGlobalKeyframeIndexNear(time) {
+        return globalZoom.keyframes.findIndex(k => Math.abs(k.time - time) <= KEYFRAME_TIME_EPS);
+    }
+
+    function updateKeyframeFromManualTransform() {
+        const idx = findGlobalKeyframeIndexNear(state.currentTime);
+        if (idx === -1) return false;
+        const frame = globalZoom.keyframes[idx];
+        frame.transform = cloneTransform(manualGlobalTransform);
+        activeGlobalKeyframeIndex = idx;
+        globalEditingOverride = cloneTransform(frame.transform);
+        renderGlobalZoomMarkers();
+        updateZoomStatus();
+        return true;
+    }
+
     function ensureKeyframesSorted() {
         globalZoom.keyframes.sort((a, b) => a.time - b.time);
     }
@@ -2558,6 +2718,9 @@
         renderTimeline();
         updateMotionStatus();
         updateMotionControlsPanel();
+        state.currentTime = frame.time;
+        updateTimelineUI();
+        updatePropertiesPanel();
     }
 
     function stopMotionMarkerDrag() {
@@ -2724,6 +2887,7 @@
         manualGlobalTransform.scale = Math.min(3, Math.max(0.3, value));
         setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         updateViewportControls();
+        updateKeyframeFromManualTransform();
     }
 
     function handleViewportPanChange(e) {
@@ -2732,6 +2896,16 @@
         manualGlobalTransform.x = value;
         setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         updateViewportControls();
+        updateKeyframeFromManualTransform();
+    }
+
+    function handleViewportPanYChange(e) {
+        const value = parseFloat(e.target.value);
+        if (Number.isNaN(value)) return;
+        manualGlobalTransform.y = value;
+        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
+        updateViewportControls();
+        updateKeyframeFromManualTransform();
     }
 
     function setViewportPreviewTransform(transform, syncKeyframe = false) {
@@ -2990,12 +3164,12 @@
         e.preventDefault();
 
         if (dragState.type === 'global-pan') {
-            const pos = getPointerPos(e);
+            const pos = getPointerRaw(e);
             const dx = pos.x - dragState.startX;
             const dy = pos.y - dragState.startY;
-            manualGlobalTransform.x = dragState.initialGlobalTransform.x + dx;
-            manualGlobalTransform.y = dragState.initialGlobalTransform.y + dy;
-            setViewportPreviewTransform(manualGlobalTransform, true);
+            const scale = Math.max(0.0001, dragState.initialEditorTransform.scale);
+            editorTransform.x = dragState.initialEditorTransform.x + dx / scale;
+            editorTransform.y = dragState.initialEditorTransform.y + dy / scale;
             return;
         }
 
@@ -3104,93 +3278,106 @@
             return;
         }
         const pos = getPointerPos(e);
-        if (wholeControlActive && activeGlobalKeyframeIndex === null) {
-            startGlobalPan(e);
-            return;
-        }
 
         const layersInOrder = getLayersInRenderOrder();
         const reversedLayers = [...layersInOrder].reverse();
         const candidates = [];
-        let hitLayer = null;
-        let hitType = 'canvas-drag';
         const HANDLE_HIT_RADIUS = 24;
         const BODY_HIT_PAD = 12;
+        const motionActiveLayerId = state.selectedLayerId && peekMotionTrack(state.selectedLayerId)?.activeKeyframeIndex !== null
+            ? state.selectedLayerId
+            : null;
 
-        for (const layer of reversedLayers) {
-            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
+        reversedLayers.forEach((layer, idx) => {
+            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) return;
 
-            const dx = pos.x - layer.getValue('x', state.currentTime);
-            const dy = pos.y - layer.getValue('y', state.currentTime);
+            let lx = layer.getValue('x', state.currentTime);
+            let ly = layer.getValue('y', state.currentTime);
+            const motionOverride = computeMotionTransformForLayer(layer, state.currentTime);
+            if (motionOverride) {
+                lx = motionOverride.x;
+                ly = motionOverride.y;
+            }
+            const dx = pos.x - lx;
+            const dy = pos.y - ly;
             const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
             const s = 1 / layer.getValue('scale', state.currentTime);
-
             const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
             const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
-
             const w = layer.width || 100;
             const h = layer.height || 100;
             const allowHandles = Math.max(w, h) > HANDLE_HIT_RADIUS;
-
             const rotX = 0;
-            const rotY = -h/2 - 50/s;
-            const handleScale = Math.max(s, 0.4);
-            const handleThreshold = Math.min(HANDLE_HIT_RADIUS, HANDLE_HIT_RADIUS / handleScale);
+            const rotY = -h / 2 - 50 / s;
+            const handleThreshold = Math.min(HANDLE_HIT_RADIUS, HANDLE_HIT_RADIUS / Math.max(s, 0.4));
             const innerMargin = Math.min(12, w / 4, h / 4);
             const insideSafeZone = innerMargin > 0 &&
-                Math.abs(localX) <= w/2 - innerMargin &&
-                Math.abs(localY) <= h/2 - innerMargin;
-            if (insideSafeZone) {
-                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
-                continue;
-            }
-            const distRot = Math.sqrt((localX - rotX)**2 + (localY - rotY)**2);
+                Math.abs(localX) <= w / 2 - innerMargin &&
+                Math.abs(localY) <= h / 2 - innerMargin;
 
-            if (allowHandles && distRot <= handleThreshold) {
-                candidates.push({ layer, type: 'canvas-rotate', order: candidates.length });
-                continue;
-            }
+            const checkHandle = () => allowHandles && Math.sqrt((localX - rotX) ** 2 + (localY - rotY) ** 2) <= handleThreshold;
 
-            const cornerThreshold = handleThreshold;
             const corners = [
-                {x: -w/2, y: -h/2}, {x: w/2, y: -h/2},
-                {x: w/2, y: h/2}, {x: -w/2, y: h/2}
+                { x: -w / 2, y: -h / 2 }, { x: w / 2, y: -h / 2 },
+                { x: w / 2, y: h / 2 }, { x: -w / 2, y: h / 2 }
             ];
-            const hitCorner = corners.some(c => Math.hypot(localX - c.x, localY - c.y) <= cornerThreshold);
+            const hitCorner = allowHandles && corners.some(c => Math.hypot(localX - c.x, localY - c.y) <= handleThreshold);
 
-            if (allowHandles && hitCorner) {
-                candidates.push({ layer, type: 'canvas-scale', order: candidates.length });
-                continue;
+            let type = null;
+            if (checkHandle()) {
+                type = 'canvas-rotate';
+            } else if (hitCorner) {
+                type = 'canvas-scale';
+            } else if (insideSafeZone ||
+                (localX >= -w / 2 - BODY_HIT_PAD && localX <= w / 2 + BODY_HIT_PAD &&
+                    localY >= -h / 2 - BODY_HIT_PAD && localY <= h / 2 + BODY_HIT_PAD)) {
+                type = 'canvas-drag';
             }
-            if (localX >= -w/2 - BODY_HIT_PAD && localX <= w/2 + BODY_HIT_PAD &&
-                localY >= -h/2 - BODY_HIT_PAD && localY <= h/2 + BODY_HIT_PAD) {
-                candidates.push({ layer, type: 'canvas-drag', order: candidates.length });
-            }
-        }
 
+            if (type) {
+                const candidate = {
+                    layer,
+                    type,
+                    slotIndex: getSlotIndexById(layer.slotId),
+                    renderOrder: reversedLayers.length - idx
+                };
+                candidates.push(candidate);
+            }
+        });
+
+        let hitLayer = null;
+        let hitType = 'canvas-drag';
         if (candidates.length > 0) {
-            const typePriority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
             candidates.sort((a, b) => {
-                if (typePriority[a.type] !== typePriority[b.type]) {
-                    return typePriority[a.type] - typePriority[b.type];
+                if (motionActiveLayerId) {
+                    if (a.layer.id === motionActiveLayerId && b.layer.id !== motionActiveLayerId) return -1;
+                    if (b.layer.id === motionActiveLayerId && a.layer.id !== motionActiveLayerId) return 1;
                 }
-                if (a.layer.katex !== b.layer.katex) {
-                    return a.layer.katex ? -1 : 1;
+                if (a.slotIndex !== b.slotIndex) {
+                    return b.slotIndex - a.slotIndex;
                 }
-                const areaA = (a.layer.width || 100) * (a.layer.height || 100);
-                const areaB = (b.layer.width || 100) * (b.layer.height || 100);
-                if (areaA !== areaB) {
-                    return areaA - areaB;
+                const priority = { 'canvas-rotate': 0, 'canvas-scale': 1, 'canvas-drag': 2 };
+                if (priority[a.type] !== priority[b.type]) {
+                    return priority[a.type] - priority[b.type];
                 }
-                return a.order - b.order;
+                return b.renderOrder - a.renderOrder;
             });
-            const chosen = candidates[0];
-            hitLayer = chosen.layer;
-            hitType = chosen.type;
+            hitLayer = candidates[0].layer;
+            hitType = candidates[0].type;
         }
 
         if (hitLayer) {
             selectLayer(hitLayer.id);
+
+            const motionTrack = peekMotionTrack(hitLayer.id);
+            const hasMotion = motionTrack && motionTrack.keyframes.length > 0;
+            const isEditingMotion = motionTrack && motionTrack.activeKeyframeIndex !== null;
+
+            if (hitType === 'canvas-drag' && hasMotion && !isEditingMotion) {
+                showMotionToast("Select a motion keyframe to move");
+                return;
+            }
+
             dragState = {
                 active: true,
                 type: hitType,
@@ -3202,29 +3389,25 @@
                 initialRotation: hitLayer.rotation,
                 initialScale: hitLayer.scale,
                 initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
-                initialDist: Math.sqrt((pos.x - hitLayer.x)**2 + (pos.y - hitLayer.y)**2)
+                initialDist: Math.sqrt((pos.x - hitLayer.x) ** 2 + (pos.y - hitLayer.y) ** 2)
             };
-            if (wholeControlActive && activeGlobalKeyframeIndex !== null) {
-                dragState.applyGlobalFromLayer = true;
-                dragState.initialManualGlobalTransform = cloneTransform(manualGlobalTransform);
-            }
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
         } else {
             selectLayer(null);
+            startGlobalPan(e);
         }
     }
 
     function startGlobalPan(e) {
-        const pos = getPointerPos(e);
+        const pos = getPointerRaw(e);
         dragState = {
             active: true,
             type: 'global-pan',
             startX: pos.x,
             startY: pos.y,
-            initialGlobalTransform: cloneTransform(manualGlobalTransform)
+            initialEditorTransform: cloneTransform(editorTransform)
         };
-        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
         document.addEventListener('mousemove', onDrag);
         document.addEventListener('mouseup', stopDrag);
     }
@@ -3234,13 +3417,10 @@
     }
 
     function handleGlobalZoomWheel(e) {
-        if (!wholeControlActive) return;
         e.preventDefault();
         const deltaScale = 1 - e.deltaY * 0.001;
-        const nextScale = manualGlobalTransform.scale * deltaScale;
-        manualGlobalTransform.scale = Math.min(3, Math.max(0.3, nextScale));
-        setViewportPreviewTransform(manualGlobalTransform, activeGlobalKeyframeIndex !== null);
-        updateViewportControls();
+        const nextScale = editorTransform.scale * deltaScale;
+        editorTransform.scale = Math.min(10, Math.max(0.1, nextScale));
     }
 
     function handleCanvasMouseUp(e) {
@@ -3259,14 +3439,6 @@
             // For now, update base property
             layer.x = dragState.initialX + dx;
             layer.y = dragState.initialY + dy;
-            if (dragState.applyGlobalFromLayer && dragState.initialManualGlobalTransform) {
-                const deltaX = layer.x - dragState.initialX;
-                const deltaY = layer.y - dragState.initialY;
-                manualGlobalTransform.x = dragState.initialManualGlobalTransform.x + deltaX;
-                manualGlobalTransform.y = dragState.initialManualGlobalTransform.y + deltaY;
-                setViewportPreviewTransform(manualGlobalTransform, true);
-                updateViewportControls();
-            }
             const motionTrack = peekMotionTrack(layer?.id ?? null);
             if (motionTrack && motionTrack.activeKeyframeIndex !== null) {
                 const frame = motionTrack.keyframes[motionTrack.activeKeyframeIndex];
@@ -3290,12 +3462,6 @@
             // Scale ratio
             const scaleRatio = currentDist / dragState.initialDist;
             layer.scale = dragState.initialScale * scaleRatio;
-            if (dragState.applyGlobalFromLayer && dragState.initialManualGlobalTransform) {
-                const globalScaleRatio = layer.scale / dragState.initialScale;
-                manualGlobalTransform.scale = dragState.initialManualGlobalTransform.scale * globalScaleRatio;
-                setViewportPreviewTransform(manualGlobalTransform, true);
-                updateViewportControls();
-            }
         }
     }
 
@@ -3344,13 +3510,29 @@
     if (viewportPanSlider) {
         viewportPanSlider.addEventListener('input', handleViewportPanChange);
     }
+    if (viewportPanYSlider) {
+        viewportPanYSlider.addEventListener('input', handleViewportPanYChange);
+    }
+    if (soundVolumeSlider) {
+        soundVolumeSlider.addEventListener('input', handleSoundVolumeChange);
+        handleSoundVolumeChange({ target: soundVolumeSlider });
+    }
+    document.querySelectorAll('[data-sound-id]').forEach(button => {
+        button.addEventListener('click', () => {
+            const id = button.getAttribute('data-sound-id');
+            const action = button.getAttribute('data-sound-action');
+            if (!id || action !== 'add') return;
+            addSoundLayer(id);
+        });
+    });
 
     document.addEventListener('click', (e) => {
         const target = e.target;
         const isControlClick = target.closest('.global-controls') ||
             target.closest('#zoom-controls-panel') ||
             target.closest('#motion-controls-panel');
-        if (target.closest('.global-zoom-marker') || target.closest('.motion-marker') || isControlClick) return;
+        const isViewportClick = target.closest('.viewport');
+        if (target.closest('.global-zoom-marker') || target.closest('.motion-marker') || isControlClick || isViewportClick) return;
         clearActiveGlobalKeyframe();
         clearActiveMotionKeyframe();
         clearViewportPreviewTransform();
@@ -3378,18 +3560,38 @@
     };
 
     function updatePlayButton() {
-        document.getElementById('btn-play').innerText = state.isPlaying ? 'Pause' : 'Play';
+        const btn = document.getElementById('btn-play');
+        if (state.isPlaying) {
+            btn.innerHTML = '<i class="fas fa-pause"></i>';
+        } else {
+            btn.innerHTML = '<i class="fas fa-play"></i>';
+        }
     }
 
     // --- Export Logic ---
 
-    const captureCanvasWithMediaRecorder = (progressCallback) => new Promise((resolve, reject) => {
+    const captureCanvasWithMediaRecorder = (progressCallback, audioBuffer = null) => new Promise((resolve, reject) => {
         if (!canvas.captureStream || typeof MediaRecorder === 'undefined') {
             reject(new Error('MediaRecorder captureStream is not supported in this browser'));
             return;
         }
 
-        const stream = canvas.captureStream(FPS);
+        const videoStream = canvas.captureStream(FPS);
+        let stream = videoStream;
+        let audioCtx;
+        let audioSource;
+        if (audioBuffer) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const dest = audioCtx.createMediaStreamDestination();
+            audioSource = audioCtx.createBufferSource();
+            audioSource.buffer = audioBuffer;
+            audioSource.connect(dest);
+            audioSource.start();
+            stream = new MediaStream([
+                ...videoStream.getVideoTracks(),
+                ...dest.stream.getAudioTracks()
+            ]);
+        }
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
         const chunks = [];
         let frame = 0;
@@ -3403,11 +3605,23 @@
             }
         };
         recorder.onerror = (event) => {
+            if (audioSource) {
+                try { audioSource.stop(); } catch {}
+            }
+            if (audioCtx) {
+                audioCtx.close();
+            }
             clearInterval(frameInterval);
             stream.getTracks().forEach(track => track.stop());
             reject(event.error || new Error('MediaRecorder error'));
         };
         recorder.onstop = () => {
+            if (audioSource) {
+                try { audioSource.stop(); } catch {}
+            }
+            if (audioCtx) {
+                audioCtx.close();
+            }
             stream.getTracks().forEach(track => track.stop());
             resolve(new Blob(chunks, { type: 'video/webm' }));
         };
@@ -3416,7 +3630,7 @@
             if (frame >= totalFrames) {
                 clearInterval(frameInterval);
                 state.currentTime = state.duration;
-                renderCanvas();
+                renderCanvas(true);
                 updateTimelineUI();
                 updatePropertiesPanel();
                 if (progressCallback) progressCallback(1);
@@ -3424,7 +3638,7 @@
                 return;
             }
             state.currentTime = frame / FPS;
-            renderCanvas();
+            renderCanvas(true);
             updateTimelineUI();
             updatePropertiesPanel();
             if (progressCallback) progressCallback(Math.min(1, frame / totalFrames));
@@ -3452,15 +3666,23 @@
 
         let ffmpeg;
         let exportBlob;
-        const useFFmpeg = typeof SharedArrayBuffer !== 'undefined' && window.crossOriginIsolated;
+        const ffmpegModuleSupported = typeof FFmpeg !== 'undefined' && typeof FFmpeg.createFFmpeg === 'function';
+        const useFFmpeg = ffmpegModuleSupported && typeof SharedArrayBuffer !== 'undefined' && window.crossOriginIsolated;
+        const hasAudioLayers = state.layers.some(layer => layer.type === 'audio');
+        let mixedAudioBuffer = null;
 
         try {
+            if (hasAudioLayers) {
+                exportStatus.innerText = 'Mixing audio tracks...';
+                mixedAudioBuffer = await mixAudioTracks();
+            }
+
             if (!useFFmpeg) {
                 exportStatus.innerText = 'Using MediaRecorder fallback (no SharedArrayBuffer)';
                 progress.style.width = '0%';
                 exportBlob = await captureCanvasWithMediaRecorder((ratio) => {
                     progress.style.width = `${ratio * 100}%`;
-                });
+                }, mixedAudioBuffer);
             } else {
                 const { createFFmpeg, fetchFile } = FFmpeg;
                 const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist';
@@ -3479,7 +3701,7 @@
                 const totalFrames = Math.round(state.duration * FPS);
                 for (let i = 0; i < totalFrames; i++) {
                     state.currentTime = i / FPS;
-                    renderCanvas();
+                    renderCanvas(true);
                     
                     const frameNumber = String(i).padStart(5, '0');
                     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -3488,7 +3710,6 @@
                     progress.style.width = `${((i + 1) / totalFrames) * 50}%`; // 0-50% for rendering
                 }
 
-                const mixedAudioBuffer = await mixAudioTracks();
                 if (mixedAudioBuffer) {
                     const wavBytes = audioBufferToWav(mixedAudioBuffer);
                     ffmpeg.FS('writeFile', 'audio.wav', new Uint8Array(wavBytes));
@@ -3555,6 +3776,32 @@
             stopDrag();
         }
     });
+
+    // --- Hotkeys ---
+    document.addEventListener('keydown', (e) => {
+        // Ignore if typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+        switch(e.key) {
+            case ' ':
+                e.preventDefault();
+                document.getElementById('btn-play').click();
+                break;
+            case 'Delete':
+            case 'Backspace':
+                deleteSelectedLayer();
+                break;
+            case 's':
+            case 'S':
+                splitSelectedLayer();
+                break;
+            case 'h':
+            case 'H':
+                toggleHighlighterMode();
+                break;
+        }
+    });
+
     init();
 
 </script>
