@@ -113,9 +113,8 @@
                 name: name,
                 created: firebase.database.ServerValue.TIMESTAMP,
                 lastModified: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                window.location.href = `editor.html?project=${newRef.key}`;
             });
+            window.location.href = `editor.html?project=${newRef.key}`;
         }
 
         loadProjects();
