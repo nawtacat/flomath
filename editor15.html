@@ -1769,6 +1769,28 @@
                 renderTimeline();
                 triggerAutoSave();
             };
+        } else if (fileType === 'audio') {
+            const audio = document.createElement('audio');
+            audio.src = URL.createObjectURL(file);
+            audio.preload = 'metadata';
+            audio.onloadedmetadata = () => {
+                saveHistory();
+                const l = new Layer('audio', file.name, audio);
+                l.duration = audio.duration || 5;
+                l.width = 400;
+                l.height = 60;
+                l.assetBlob = file;
+                l.assetFileName = file.name;
+                uploadAssetToFirebase(file, l);
+                ensureLayerStartsAtPlayhead(l);
+                state.layers.push(l);
+                placeLayerOnNewSlot(l);
+                selectLayer(l.id);
+                focusPlayheadOnLayer(l);
+                renderTimeline();
+                triggerAutoSave();
+            };
+            audio.load();
         }
     }
 
