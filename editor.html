@@ -1079,8 +1079,9 @@
         }
         const transform = getActiveGlobalTransform() || { x: 0, y: 0, scale: 1 };
         const topLeft = worldToScreen({ x: rect.left, y: rect.top });
-        const width = Math.max(0, rect.width * (transform.scale || 1));
-        const height = Math.max(0, rect.height * (transform.scale || 1));
+        const totalScale = (transform.scale || 1) * (editorTransform.scale || 1);
+        const width = Math.max(0, rect.width * totalScale);
+        const height = Math.max(0, rect.height * totalScale);
         const canvasRect = canvas.getBoundingClientRect();
         const scaleX = canvasRect.width / CANVAS_WIDTH;
         const scaleY = canvasRect.height / CANVAS_HEIGHT;
@@ -1746,14 +1747,21 @@
     }
 
     async function mixAudioTracks() {
-        const audioLayers = state.layers.filter(layer => layer.type === 'audio' && layer.assetBlob);
+        const audioLayers = state.layers.filter(layer => layer.type === 'audio');
         if (audioLayers.length === 0) return null;
         const sampleRate = audioDecodeCtx.sampleRate;
         const totalLength = Math.ceil(state.duration * sampleRate);
         const offlineCtx = new OfflineAudioContext(2, totalLength, sampleRate);
         for (const layer of audioLayers) {
             try {
-                const bufferData = await layer.assetBlob.arrayBuffer();
+                let blob = layer.assetBlob;
+                if (!blob && layer.storageUrl) {
+                    const resp = await fetch(layer.storageUrl);
+                    if (resp.ok) blob = await resp.blob();
+                }
+                if (!blob) continue;
+
+                const bufferData = await blob.arrayBuffer();
                 const decoded = await audioDecodeCtx.decodeAudioData(bufferData.slice(0));
                 const source = offlineCtx.createBufferSource();
                 source.buffer = decoded;
@@ -3713,6 +3721,28 @@
         recorder.start();
     });
 
+    async function preloadKatexForExport() {
+        const layers = state.layers.filter(l => l.type === 'text' && l.katex);
+        if (layers.length === 0) return;
+        
+        layers.forEach(l => {
+            if (l.katexNeedsRender || !l.katexImage) {
+                l.katexNeedsRender = true;
+                ensureKatexImage(l);
+            }
+        });
+
+        const check = () => layers.every(l => !l.katexImageLoading && l.katexImage && l.katexImage.complete);
+        if (check()) return;
+
+        return new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (check()) { clearInterval(interval); resolve(); }
+            }, 50);
+            setTimeout(() => { clearInterval(interval); resolve(); }, 5000);
+        });
+    }
+
     document.getElementById('btn-export').onclick = async () => {
         const overlay = document.getElementById('export-overlay');
         const progress = document.getElementById('export-progress');
@@ -3737,6 +3767,9 @@
         let mixedAudioBuffer = null;
 
         try {
+            exportStatus.innerText = 'Rendering Text...';
+            await preloadKatexForExport();
+
             if (hasAudioLayers) {
                 exportStatus.innerText = 'Mixing audio tracks...';
                 mixedAudioBuffer = await mixAudioTracks();
