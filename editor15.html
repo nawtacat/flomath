@@ -479,6 +479,8 @@
         <span id="save-status" style="font-size:12px; color:#0abf7a; margin-left:10px;"></span>
     </div>
     <div style="display:flex; gap:8px;">
+        <button id="btn-undo" class="secondary" disabled>↶ Undo</button>
+        <button id="btn-redo" class="secondary" disabled>↷ Redo</button>
         <button id="btn-highlight" class="secondary">H</button>
         <button id="btn-export">Export Video</button>
     </div>
@@ -501,6 +503,10 @@
             <label>Properties (Keyframable)</label>
             <div style="margin-bottom:10px; font-weight:bold;" id="selected-layer-name">Layer</div>
             
+            <div class="property-row">
+                <span>Name</span>
+                <input type="text" id="prop-name" onchange="updateLayerName(this.value)">
+            </div>
             <div class="property-row">
                 <span>X Position</span>
                 <input type="number" id="prop-x" onchange="updateProperty('x', this.value)">
@@ -587,6 +593,7 @@
             </div>
 
             <button class="secondary" style="width:100%; margin-top:10px; background:#a33;" onclick="deleteSelectedLayer()">Delete Layer</button>
+            <button class="secondary" style="width:100%; margin-top:5px;" onclick="duplicateSelectedLayer()">Duplicate Layer</button>
             <button class="secondary" style="width:100%; margin-top:5px;" onclick="splitSelectedLayer()">Split Layer at Playhead</button>
 
             <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -830,6 +837,10 @@
     let motionMarkerDrag = null;
     let motionToastTimer = null;
     
+    let historyStack = [];
+    let redoStack = [];
+    const MAX_HISTORY = 50;
+
     // Firebase & Project State
     let currentProjectId = null;
     let isAutosaving = false;
@@ -1280,6 +1291,25 @@
             return newLayer;
         }
 
+        copyForHistory() {
+            const newLayer = new Layer(this.type, this.name, this.content);
+            const serialized = JSON.parse(JSON.stringify(this));
+            Object.assign(newLayer, serialized);
+            
+            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
+                newLayer.content = this.content.cloneNode(true);
+            } else {
+                newLayer.content = this.content;
+            }
+            newLayer.assetBlob = this.assetBlob;
+            newLayer.storageUrl = this.storageUrl;
+            newLayer.id = this.id; // Keep ID for history
+            newLayer.katexImage = this.katexImage;
+            newLayer.katexImageWidth = this.katexImageWidth;
+            newLayer.katexImageHeight = this.katexImageHeight;
+            return newLayer;
+        }
+
         toJSON() {
             // Return a clean object for Firebase serialization
             const data = Object.assign({}, this);
@@ -1314,6 +1344,8 @@
         initFirebase();
         // Start Autosave
         setInterval(autoSaveProject, 5000);
+        
+        updateUndoRedoButtons();
     }
 
     function resizeCanvas() {
@@ -1683,6 +1715,7 @@
     // --- Layer Management ---
 
     function addTextLayer() {
+        saveHistory();
         const l = new Layer('text', 'Text Layer', 'HELLO');
         const center = getViewportCenterWorld();
         l.x = center.x;
@@ -1701,6 +1734,7 @@
         if (fileType === 'image') {
             const img = new Image();
             img.onload = () => {
+                saveHistory();
                 const l = new Layer('image', file.name, img);
                 const center = getViewportCenterWorld();
                 l.x = center.x;
@@ -1720,6 +1754,7 @@
             vid.src = URL.createObjectURL(file);
             vid.muted = true;
             vid.onloadedmetadata = () => {
+                saveHistory();
                 const l = new Layer('video', file.name, vid);
                 l.duration = vid.duration;
                 const center = getViewportCenterWorld();
@@ -1744,6 +1779,7 @@
         audio.src = URL.createObjectURL(file);
         audio.preload = 'metadata';
         audio.onloadedmetadata = () => {
+            saveHistory();
             const l = new Layer('audio', file.name, audio);
             l.duration = audio.duration || 5;
             const center = getViewportCenterWorld();
@@ -1867,6 +1903,7 @@
         if (layer) {
             panel.style.display = 'block';
             document.getElementById('selected-layer-name').innerText = layer.name;
+            document.getElementById('prop-name').value = layer.name;
             
             if (layer.type === 'text') {
                 textProps.style.display = 'block';
@@ -1903,11 +1940,26 @@
 
     function deleteSelectedLayer() {
         if (!state.selectedLayerId) return;
+        saveHistory();
         const removedId = state.selectedLayerId;
         state.layers = state.layers.filter(l => l.id !== removedId);
         delete motionTracks[removedId];
         state.selectedLayerId = null;
         selectLayer(null);
+        renderTimeline();
+        triggerAutoSave();
+    }
+
+    function duplicateSelectedLayer() {
+        if (!state.selectedLayerId) return;
+        saveHistory();
+        const original = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!original) return;
+        const copy = original.clone();
+        copy.name = original.name + ' (Copy)';
+        state.layers.push(copy);
+        placeLayerOnNewSlot(copy);
+        selectLayer(copy.id);
         renderTimeline();
         triggerAutoSave();
     }
@@ -1924,6 +1976,7 @@
             return;
         }
 
+        saveHistory();
         const endOfOriginal = originalLayer.startTime + originalLayer.duration;
         const relativeCut = cutTime - originalLayer.startTime;
 
@@ -1976,6 +2029,7 @@
         // However, to preview animation, we need to override the interpolated value temporarily?
         // Let's just update the base property for now, which acts as the default if no keyframes exist.
         
+        saveHistory();
         layer[prop] = parseFloat(value);
         triggerAutoSave();
     }
@@ -1983,14 +2037,28 @@
     function addKeyframe(prop) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        saveHistory();
         const val = document.getElementById(`prop-${prop}`).value;
         layer.addKeyframe(prop, state.currentTime, val);
         triggerAutoSave();
     }
 
+    function updateLayerName(val) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer) {
+            saveHistory();
+            layer.name = val;
+            document.getElementById('selected-layer-name').innerText = val;
+            renderTimeline();
+            triggerAutoSave();
+        }
+    }
+
     function updateText(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer) {
+            saveHistory();
             layer.content = val;
             if (layer.katex) markKatexLayerDirty(layer);
             layer.updateDimensions();
@@ -2001,6 +2069,7 @@
     function updateColor(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer) {
+            saveHistory();
             layer.color = val;
             if (layer.katex) markKatexLayerDirty(layer);
             triggerAutoSave();
@@ -2018,6 +2087,7 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer || layer.type !== 'text') return;
         const shouldRender = Boolean(enabled);
+        saveHistory();
         if (layer.katex === shouldRender) {
             return;
         }
@@ -2060,6 +2130,7 @@
         if (layer && layer.type === 'audio') {
             const parsed = parseFloat(value);
             if (Number.isNaN(parsed)) return;
+            saveHistory();
             layer.volume = parsed;
             if (layer.content) {
                 layer.content.volume = layer.volume;
@@ -2070,6 +2141,7 @@
     function updateAudioMute(checked) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && layer.type === 'audio') {
+            saveHistory();
             layer.muted = Boolean(checked);
             if (layer.content) {
                 layer.content.muted = layer.muted;
@@ -2080,6 +2152,7 @@
     function updateHighlightColor(value) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && layer.type === 'highlight') {
+            saveHistory();
             layer.highlightColor = value;
             renderCanvas();
         }
@@ -2088,6 +2161,7 @@
     function updateHighlightOpacity(value) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && layer.type === 'highlight') {
+            saveHistory();
             layer.highlightOpacity = parseFloat(value);
             renderCanvas();
         }
@@ -2096,6 +2170,7 @@
     function updateHighlightIntensity(value) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && layer.type === 'highlight') {
+            saveHistory();
             layer.highlightIntensity = parseFloat(value);
             renderCanvas();
         }
@@ -2106,6 +2181,7 @@
         if (layer && layer.type === 'highlight') {
             const parsed = parseFloat(value);
             if (!Number.isNaN(parsed) && parsed > 0) {
+                saveHistory();
                 layer.highlightDuration = parsed;
                 layer.duration = Math.max(parsed + 0.5, 1.5);
                 renderTimeline();
@@ -2116,6 +2192,7 @@
     function updateHighlightEase(value) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && layer.type === 'highlight') {
+            saveHistory();
             layer.highlightEase = value;
         }
     }
@@ -2148,6 +2225,7 @@
         audio.volume = soundVolume;
         audio.muted = false;
 
+        saveHistory();
         const layer = new Layer('audio', `Sound: ${soundId}`, audio);
         layer.duration = 5;
         layer.volume = soundVolume;
@@ -2222,6 +2300,7 @@
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer) {
+            saveHistory();
             layer.loopingAnimation = val;
             triggerAutoSave();
         }
@@ -2324,6 +2403,7 @@
         if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
             type = 'fade';
         }
+        saveHistory();
         layer.entryAnimation.type = type;
         const entryDurationInput = document.getElementById('prop-entry-duration');
         if (entryDurationInput) {
@@ -2338,6 +2418,7 @@
         if (!layer) return;
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed) || parsed <= 0) return;
+        saveHistory();
         layer.entryAnimation.duration = parsed;
         triggerAutoSave();
     }
@@ -2349,6 +2430,7 @@
         if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
             type = 'fade';
         }
+        saveHistory();
         layer.exitAnimation.type = type;
         const exitDurationInput = document.getElementById('prop-exit-duration');
         if (exitDurationInput) {
@@ -2363,6 +2445,7 @@
         if (!layer) return;
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed) || parsed <= 0) return;
+        saveHistory();
         layer.exitAnimation.duration = parsed;
         triggerAutoSave();
     }
@@ -2516,6 +2599,7 @@
     function addZoomKeyframe(transform, time) {
         const clamped = Math.max(0, Math.min(state.duration, time));
         const newId = globalZoom.nextId++;
+        saveHistory();
         const finalTransform = cloneTransform(pendingViewportTransform || transform);
         globalZoom.keyframes.push({
             id: newId,
@@ -2536,6 +2620,7 @@
             showZoomToast('Select a zoom keyframe first');
             return;
         }
+        saveHistory();
         globalZoom.keyframes.splice(activeGlobalKeyframeIndex, 1);
         activeGlobalKeyframeIndex = null;
         globalEditingOverride = null;
@@ -2627,6 +2712,7 @@
             startX: event.clientX,
             startTime: globalZoom.keyframes.find(k => k.id === id)?.time ?? 0
         };
+        saveHistory();
         document.addEventListener('pointermove', handleZoomMarkerDrag);
         document.addEventListener('pointerup', stopZoomMarkerDrag);
     }
@@ -2703,6 +2789,7 @@
             showMotionToast('Select a motion keyframe first');
             return;
         }
+        saveHistory();
         track.keyframes.splice(track.activeKeyframeIndex, 1);
         track.activeKeyframeIndex = null;
         renderTimeline();
@@ -2715,6 +2802,7 @@
         const track = ensureMotionTrack(layer.id);
         const time = Math.max(0, Math.min(state.duration, state.currentTime));
         const newId = track.nextId++;
+        saveHistory();
         const transform = { x: layer.x, y: layer.y };
         track.keyframes = track.keyframes.filter(k => Math.abs(k.time - time) > 0.01);
         track.keyframes.push({
@@ -2797,6 +2885,7 @@
             startX: event.clientX,
             startTime: frame.time
         };
+        saveHistory();
         document.addEventListener('pointermove', handleMotionMarkerDrag);
         document.addEventListener('pointerup', stopMotionMarkerDrag);
     }
@@ -2955,6 +3044,7 @@
         if (!track) return;
         const value = parseFloat(e.target.value);
         if (Number.isNaN(value)) return;
+        saveHistory();
         track.durationScale = value;
         if (motionDurationValue) {
             motionDurationValue.innerText = `${value.toFixed(1)}x`;
@@ -2964,6 +3054,7 @@
     function handleMotionCurveChange(e) {
         const track = state.selectedLayerId ? peekMotionTrack(state.selectedLayerId) : null;
         if (!track) return;
+        saveHistory();
         track.easing = e.target.value;
     }
 
@@ -2972,6 +3063,7 @@
         if (!track) return;
         const value = parseInt(e.target.value, 10);
         if (Number.isNaN(value) || value < 1) return;
+        saveHistory();
         track.motionFPS = value;
         if (motionFpsValue) {
             motionFpsValue.innerText = `${value}`;
@@ -3057,6 +3149,7 @@
 
     function handleZoomDurationChange(e) {
         const value = parseFloat(e.target.value);
+        saveHistory();
         globalZoom.durationScale = value;
         if (zoomDurationValue) {
             zoomDurationValue.innerText = `${value.toFixed(1)}x`;
@@ -3064,10 +3157,12 @@
     }
 
     function handleZoomCurveChange(e) {
+        saveHistory();
         globalZoom.easing = e.target.value;
     }
 
     function handleZoomFpsChange(e) {
+        saveHistory();
         const value = parseInt(e.target.value, 10);
         globalZoom.motionFPS = value;
         if (zoomFpsValue) {
@@ -3218,6 +3313,7 @@
         const layer = state.layers.find(l => l.id === layerId);
         if (!layer) return;
 
+        saveHistory();
         dragState = {
             active: true,
             type: 'resize-timeline',
@@ -3237,6 +3333,7 @@
         selectLayer(layerId); // Select on click
         const layer = state.layers.find(l => l.id === layerId);
         
+        saveHistory();
         dragState = {
             active: true,
             type: 'move-timeline',
@@ -3479,6 +3576,7 @@
                 return;
             }
 
+            saveHistory();
             dragState = {
                 active: true,
                 type: hitType,
@@ -3617,6 +3715,12 @@
     if (soundVolumeSlider) {
         soundVolumeSlider.addEventListener('input', handleSoundVolumeChange);
         handleSoundVolumeChange({ target: soundVolumeSlider });
+    }
+    if (document.getElementById('btn-undo')) {
+        document.getElementById('btn-undo').addEventListener('click', undo);
+    }
+    if (document.getElementById('btn-redo')) {
+        document.getElementById('btn-redo').addEventListener('click', redo);
     }
     document.querySelectorAll('[data-sound-id]').forEach(button => {
         button.addEventListener('click', () => {
@@ -4068,6 +4172,76 @@
             renderTimeline();
             if(statusEl) statusEl.innerText = 'Loaded';
         });
+    }
+
+    // --- Undo / Redo System ---
+
+    function updateUndoRedoButtons() {
+        const btnUndo = document.getElementById('btn-undo');
+        const btnRedo = document.getElementById('btn-redo');
+        if(btnUndo) btnUndo.disabled = historyStack.length === 0;
+        if(btnRedo) btnRedo.disabled = redoStack.length === 0;
+    }
+
+    function cloneState() {
+        return {
+            duration: state.duration,
+            nextId: state.nextId,
+            nextSlotId: state.nextSlotId,
+            layers: state.layers.map(l => l.copyForHistory()),
+            layerSlots: JSON.parse(JSON.stringify(state.layerSlots)),
+            globalZoom: JSON.parse(JSON.stringify(globalZoom)),
+            motionTracks: JSON.parse(JSON.stringify(motionTracks))
+        };
+    }
+
+    function restoreState(saved) {
+        state.duration = saved.duration;
+        state.nextId = saved.nextId;
+        state.nextSlotId = saved.nextSlotId;
+        state.layers = saved.layers.map(l => l.copyForHistory()); // Clone again to avoid ref issues
+        state.layerSlots = JSON.parse(JSON.stringify(saved.layerSlots));
+        
+        // Restore globals
+        globalZoom.keyframes = JSON.parse(JSON.stringify(saved.globalZoom.keyframes));
+        globalZoom.easing = saved.globalZoom.easing;
+        globalZoom.durationScale = saved.globalZoom.durationScale;
+        globalZoom.motionFPS = saved.globalZoom.motionFPS;
+        globalZoom.nextId = saved.globalZoom.nextId;
+        
+        // Restore motion tracks
+        for (const key in motionTracks) delete motionTracks[key];
+        Object.assign(motionTracks, JSON.parse(JSON.stringify(saved.motionTracks)));
+        
+        renderTimeline();
+        renderCanvas();
+        if (state.selectedLayerId) selectLayer(state.selectedLayerId);
+    }
+
+    function saveHistory() {
+        const snapshot = cloneState();
+        historyStack.push(snapshot);
+        if (historyStack.length > MAX_HISTORY) historyStack.shift();
+        redoStack = [];
+        updateUndoRedoButtons();
+    }
+
+    function undo() {
+        if (historyStack.length === 0) return;
+        const snapshot = historyStack.pop();
+        redoStack.push(cloneState());
+        restoreState(snapshot);
+        updateUndoRedoButtons();
+        triggerAutoSave();
+    }
+
+    function redo() {
+        if (redoStack.length === 0) return;
+        const snapshot = redoStack.pop();
+        historyStack.push(cloneState());
+        restoreState(snapshot);
+        updateUndoRedoButtons();
+        triggerAutoSave();
     }
 
     // Initialize
