@@ -918,8 +918,12 @@
         updatePropertiesPanel();
     };
     const recalcStateDuration = () => {
-        const nextDuration = Math.max(10, ...state.layers.map(layer => layer.startTime + layer.duration));
-        state.duration = Math.max(state.duration, nextDuration);
+        if (state.layers.length === 0) {
+            state.duration = 10;
+        } else {
+            const maxEnd = Math.max(...state.layers.map(layer => layer.startTime + layer.duration));
+            state.duration = Math.max(1, maxEnd);
+        }
     };
     const highlightHelperEl = document.getElementById('highlight-helper');
     const highlightPreviewEl = document.getElementById('highlight-preview');
