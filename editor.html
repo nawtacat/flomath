@@ -464,11 +464,11 @@
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -3814,7 +3814,14 @@
                 ...dest.stream.getAudioTracks()
             ]);
         }
-        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
+        
+        // Try to use MP4 if supported (e.g. Safari), otherwise WebM
+        let mimeType = 'video/webm;codecs=vp8';
+        if (MediaRecorder.isTypeSupported('video/mp4')) {
+            mimeType = 'video/mp4';
+        }
+        
+        const recorder = new MediaRecorder(stream, { mimeType });
         const chunks = [];
         let frame = 0;
         const totalFrames = Math.max(1, Math.round(state.duration * FPS));
@@ -3845,7 +3852,7 @@
                 audioCtx.close();
             }
             stream.getTracks().forEach(track => track.stop());
-            resolve(new Blob(chunks, { type: 'video/webm' }));
+            resolve(new Blob(chunks, { type: mimeType }));
         };
 
         frameInterval = setInterval(() => {
@@ -3910,8 +3917,10 @@
 
         let ffmpeg;
         let exportBlob;
+        let exportExt = 'webm';
         const ffmpegModuleSupported = typeof FFmpeg !== 'undefined' && typeof FFmpeg.createFFmpeg === 'function';
-        const useFFmpeg = ffmpegModuleSupported && typeof SharedArrayBuffer !== 'undefined' && window.crossOriginIsolated;
+        // Use FFmpeg 0.9.8 which works without SharedArrayBuffer (slower but compatible with Firebase)
+        const useFFmpeg = ffmpegModuleSupported;
         const hasAudioLayers = state.layers.some(layer => layer.type === 'audio');
         let mixedAudioBuffer = null;
 
@@ -3930,14 +3939,13 @@
                 exportBlob = await captureCanvasWithMediaRecorder((ratio) => {
                     progress.style.width = `${ratio * 100}%`;
                 }, mixedAudioBuffer);
+                if (exportBlob.type.includes('mp4')) exportExt = 'mp4';
             } else {
                 const { createFFmpeg, fetchFile } = FFmpeg;
-                const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist';
+                const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.9.8/dist';
                 ffmpeg = createFFmpeg({ 
                     log: true,
-                    corePath: `${FFCORE_CDN}/ffmpeg-core.js`,
-                    workerPath: `${FFCORE_CDN}/ffmpeg-core.worker.js`,
-                    wasmPath: `${FFCORE_CDN}/ffmpeg-core.wasm`
+                    corePath: `${FFCORE_CDN}/ffmpeg-core.js`
                 });
                     
                 exportStatus.innerText = 'Loading FFMPEG Core (~30MB)...';
@@ -3983,12 +3991,13 @@
 
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 exportBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                exportExt = 'mp4';
             }
 
             const downloadUrl = URL.createObjectURL(exportBlob);
             const a = document.createElement('a');
             a.href = downloadUrl;
-            a.download = useFFmpeg ? 'shorts-export.mp4' : 'shorts-export.webm';
+            a.download = `shorts-export.${exportExt}`;
             a.click();
             URL.revokeObjectURL(downloadUrl);
 
