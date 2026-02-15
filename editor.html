@@ -952,7 +952,12 @@
     fetch(katexCssUrl)
         .then((response) => response.text())
         .then((text) => {
-            katexCssText = text;
+            // Fix relative font paths to be absolute CDN paths so they load in SVG data URIs
+            const baseUrl = katexCssUrl.substring(0, katexCssUrl.lastIndexOf('/') + 1);
+            katexCssText = text.replace(/url\((['"]?)([^'")]+)\1\)/g, (match, quote, url) => {
+                if (url.startsWith('data:')) return match;
+                return `url(${quote}${baseUrl}${url}${quote})`;
+            });
             state.layers.forEach((layer) => {
                 if (layer.katex) layer.katexNeedsRender = true;
             });
@@ -2276,17 +2281,24 @@
 
     function ensureKatexImage(layer) {
         if (!layer || !layer.katex || typeof katex === 'undefined') return;
-        const textValue = layer.content || '';
-        if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === textValue) {
+        const rawContent = layer.content || '';
+        if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === rawContent) {
             return;
         }
         layer.katexNeedsRender = false;
-        layer.katexContentHash = textValue;
-        let katexHtml = textValue;
+        layer.katexContentHash = rawContent;
+
+        let textToRender = rawContent.trim();
+        // Strip surrounding $ or $$ for user convenience
+        while (textToRender.startsWith('$') && textToRender.endsWith('$') && textToRender.length > 1) {
+            textToRender = textToRender.substring(1, textToRender.length - 1);
+        }
+
+        let katexHtml = textToRender;
         try {
-            katexHtml = katex.renderToString(textValue, { throwOnError: false });
+            katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true });
         } catch (error) {
-            katexHtml = `<span>${textValue}</span>`;
+            katexHtml = `<span>${textToRender}</span>`;
         }
         const colorStyle = layer.color ? `color:${layer.color};` : '';
         const styleBlock = katexCssText ? `<style>${katexCssText}</style>` : '';
