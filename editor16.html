@@ -464,7 +464,7 @@
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js" crossorigin="anonymous"></script>
@@ -3919,7 +3919,8 @@
         let exportBlob;
         let exportExt = 'webm';
         const ffmpegModuleSupported = typeof FFmpeg !== 'undefined' && typeof FFmpeg.createFFmpeg === 'function';
-        const useFFmpeg = ffmpegModuleSupported && typeof SharedArrayBuffer !== 'undefined' && window.crossOriginIsolated;
+        // Use FFmpeg 0.9.8 which works without SharedArrayBuffer (slower but compatible with Firebase)
+        const useFFmpeg = ffmpegModuleSupported;
         const hasAudioLayers = state.layers.some(layer => layer.type === 'audio');
         let mixedAudioBuffer = null;
 
@@ -3941,12 +3942,10 @@
                 if (exportBlob.type.includes('mp4')) exportExt = 'mp4';
             } else {
                 const { createFFmpeg, fetchFile } = FFmpeg;
-                const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist';
+                const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.9.8/dist';
                 ffmpeg = createFFmpeg({ 
                     log: true,
-                    corePath: `${FFCORE_CDN}/ffmpeg-core.js`,
-                    workerPath: `${FFCORE_CDN}/ffmpeg-core.worker.js`,
-                    wasmPath: `${FFCORE_CDN}/ffmpeg-core.wasm`
+                    corePath: `${FFCORE_CDN}/ffmpeg-core.js`
                 });
                     
                 exportStatus.innerText = 'Loading FFMPEG Core (~30MB)...';
