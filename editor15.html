@@ -906,9 +906,7 @@
     const getPointerWorldPos = (event) => getPointerPos(event);
     const ensureLayerStartsAtPlayhead = (layer) => {
         if (!layer) return;
-        const duration = Math.max(0.01, layer.duration);
-        const latestStart = Math.max(0, state.duration - duration);
-        layer.startTime = Math.min(Math.max(0, state.currentTime), latestStart);
+        layer.startTime = Math.max(0, state.currentTime);
     };
     const focusPlayheadOnLayer = (layer) => {
         if (!layer) return;
@@ -1677,6 +1675,11 @@
         assignLayerToSlot(layer, topSlot.id);
     }
 
+    function placeLayerOnNewSlot(layer) {
+        const slot = createLayerSlot();
+        assignLayerToSlot(layer, slot.id);
+    }
+
     // --- Layer Management ---
 
     function addTextLayer() {
@@ -1686,7 +1689,7 @@
         l.y = center.y;
         ensureLayerStartsAtPlayhead(l);
         state.layers.push(l);
-        placeLayerOnTopSlot(l);
+        placeLayerOnNewSlot(l);
         selectLayer(l.id);
         focusPlayheadOnLayer(l);
         renderTimeline();
@@ -1705,7 +1708,7 @@
                 uploadAssetToFirebase(file, l);
                 ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
-                placeLayerOnTopSlot(l);
+                placeLayerOnNewSlot(l);
                 selectLayer(l.id);
                 focusPlayheadOnLayer(l);
                 renderTimeline();
@@ -1725,7 +1728,7 @@
                 uploadAssetToFirebase(file, l);
                 ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
-                placeLayerOnTopSlot(l);
+                placeLayerOnNewSlot(l);
                 selectLayer(l.id);
                 focusPlayheadOnLayer(l);
                 renderTimeline();
@@ -1753,7 +1756,7 @@
             l.assetFileName = file.name;
             uploadAssetToFirebase(file, l);
             state.layers.push(l);
-            placeLayerOnTopSlot(l);
+            placeLayerOnNewSlot(l);
             selectLayer(l.id);
             focusPlayheadOnLayer(l);
             renderTimeline();
@@ -2152,7 +2155,7 @@
         layer.assetBlob = blobData;
         ensureLayerStartsAtPlayhead(layer);
         state.layers.push(layer);
-        placeLayerOnTopSlot(layer);
+        placeLayerOnNewSlot(layer);
         selectLayer(layer.id);
         focusPlayheadOnLayer(layer);
         renderTimeline();
