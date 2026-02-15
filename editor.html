@@ -2064,7 +2064,34 @@
         // Let's just update the base property for now, which acts as the default if no keyframes exist.
         
         saveHistory();
-        layer[prop] = parseFloat(value);
+        const val = parseFloat(value);
+        layer[prop] = val;
+
+        // Sync with motion override if active to ensure WYSIWYG and correct keyframe capture
+        if (prop === 'x' || prop === 'y' || prop === 'scale') {
+            const track = peekMotionTrack(layer.id);
+            if (track && track.keyframes.length > 0) {
+                if (!motionEditingOverride) {
+                    const current = computeMotionTransformForLayer(layer, state.currentTime);
+                    if (current) {
+                        if (prop !== 'x') layer.x = current.x;
+                        if (prop !== 'y') layer.y = current.y;
+                        if (prop !== 'scale') layer.scale = current.scale !== undefined ? current.scale : 1;
+                        
+                        motionEditingOverride = {
+                            x: layer.x,
+                            y: layer.y,
+                            scale: layer.scale
+                        };
+                    }
+                }
+                if (motionEditingOverride) {
+                    motionEditingOverride[prop] = val;
+                }
+                renderCanvas();
+            }
+        }
+
         triggerAutoSave();
     }
 
