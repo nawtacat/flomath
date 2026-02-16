@@ -4066,7 +4066,7 @@
                 if (exportBlob.type.includes('mp4')) exportExt = 'mp4';
             } else {
                 const { createFFmpeg, fetchFile } = FFmpeg;
-                const FFCORE_CDN = 'https://unpkg.com/@ffmpeg/core@0.8.5/dist';
+                const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.8.5/dist';
                 ffmpeg = createFFmpeg({ 
                     log: true,
                     corePath: `${FFCORE_CDN}/ffmpeg-core.js`
