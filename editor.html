@@ -4043,8 +4043,8 @@
         let exportBlob;
         let exportExt = 'webm';
         const ffmpegModuleSupported = typeof FFmpeg !== 'undefined' && typeof FFmpeg.createFFmpeg === 'function';
-        // Use FFmpeg 0.9.8 which works without SharedArrayBuffer (slower but compatible with Firebase)
-        const useFFmpeg = ffmpegModuleSupported;
+        // FFmpeg requires SharedArrayBuffer. If missing (due to no security headers), fallback to MediaRecorder.
+        const useFFmpeg = ffmpegModuleSupported && typeof SharedArrayBuffer !== 'undefined';
         const hasAudioLayers = state.layers.some(layer => layer.type === 'audio');
         let mixedAudioBuffer = null;
 
