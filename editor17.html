@@ -464,7 +464,7 @@
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js" crossorigin="anonymous"></script>
@@ -4066,7 +4066,7 @@
                 if (exportBlob.type.includes('mp4')) exportExt = 'mp4';
             } else {
                 const { createFFmpeg, fetchFile } = FFmpeg;
-                const FFCORE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.9.8/dist';
+                const FFCORE_CDN = 'https://unpkg.com/@ffmpeg/core@0.9.8/dist';
                 ffmpeg = createFFmpeg({ 
                     log: true,
                     corePath: `${FFCORE_CDN}/ffmpeg-core.js`
