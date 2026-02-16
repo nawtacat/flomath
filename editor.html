@@ -688,6 +688,24 @@
                 </div>
                 <input type="range" id="viewport-pan-y-slider" min="-1600" max="1600" step="1" value="0">
             </div>
+            <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                    <input type="checkbox" id="viewport-float-active" onchange="updateViewportFloat(this.checked)">
+                    Looping Float
+                </label>
+            </div>
+            <div id="viewport-float-settings" style="display:none; margin-top:8px; padding-left:5px;">
+                <div class="control-row">
+                    <span>Dist.</span>
+                    <input type="range" id="viewport-float-distance" min="0" max="200" step="5" value="40" oninput="updateViewportFloatDistance(this.value)" onchange="saveHistory(); triggerAutoSave();">
+                    <span id="viewport-float-distance-value">40px</span>
+                </div>
+                <div class="control-row">
+                    <span>Pace</span>
+                    <input type="range" id="viewport-float-pace" min="0.1" max="3" step="0.1" value="0.5" oninput="updateViewportFloatPace(this.value)" onchange="saveHistory(); triggerAutoSave();">
+                    <span id="viewport-float-pace-value">0.5x</span>
+                </div>
+            </div>
         </div>
         <div id="motion-controls-panel" class="control-group zoom-controls-panel disabled">
             <label>Motion Controls</label>
@@ -794,6 +812,12 @@
         durationScale: 1,
         motionFPS: 60,
         nextId: 1
+    };
+    const globalFloat = {
+        active: false,
+        distance: 40,
+        pace: 0.5,
+        seed: Math.random() * 100
     };
     const floatSettings = {
         distance: 40,
@@ -1408,6 +1432,16 @@
         const activeTransform = getActiveGlobalTransform();
         ctx.save();
         if (activeTransform) {
+            if (globalFloat.active) {
+                const time = state.currentTime;
+                const dist = globalFloat.distance;
+                const pace = globalFloat.pace;
+                const phase = time * pace + globalFloat.seed;
+                const xOff = Math.sin(phase) * dist * 0.5 + Math.cos(phase * 0.7) * dist * 0.5;
+                const yOff = Math.cos(phase * 0.8) * dist * 0.5 + Math.sin(phase * 1.2) * dist * 0.5;
+                activeTransform.x += xOff;
+                activeTransform.y += yOff;
+            }
             applyGlobalTransform(activeTransform);
         }
 
@@ -3169,6 +3203,34 @@
         updateKeyframeFromManualTransform();
     }
 
+    function updateViewportFloat(active) {
+        saveHistory();
+        globalFloat.active = active;
+        updateViewportFloatUI();
+        triggerAutoSave();
+    }
+
+    function updateViewportFloatDistance(val) {
+        globalFloat.distance = parseFloat(val);
+        document.getElementById('viewport-float-distance-value').innerText = `${Math.round(globalFloat.distance)}px`;
+    }
+
+    function updateViewportFloatPace(val) {
+        globalFloat.pace = parseFloat(val);
+        document.getElementById('viewport-float-pace-value').innerText = `${globalFloat.pace.toFixed(1)}x`;
+    }
+
+    function updateViewportFloatUI() {
+        const activeEl = document.getElementById('viewport-float-active');
+        if (!activeEl) return;
+        activeEl.checked = globalFloat.active;
+        document.getElementById('viewport-float-settings').style.display = globalFloat.active ? 'block' : 'none';
+        document.getElementById('viewport-float-distance').value = globalFloat.distance;
+        document.getElementById('viewport-float-distance-value').innerText = `${Math.round(globalFloat.distance)}px`;
+        document.getElementById('viewport-float-pace').value = globalFloat.pace;
+        document.getElementById('viewport-float-pace-value').innerText = `${globalFloat.pace.toFixed(1)}x`;
+    }
+
     function setViewportPreviewTransform(transform, syncKeyframe = false) {
         const preview = cloneTransform(transform);
         pendingViewportTransform = preview;
@@ -3831,6 +3893,7 @@
     updateMotionStatus();
     updateMotionControlsPanel();
     updateViewportControls();
+    updateViewportFloatUI();
 
     // --- Playback Controls ---
 
@@ -4165,6 +4228,7 @@
             layerSlots: state.layerSlots,
             globalZoom: globalZoom,
             motionTracks: motionTracks,
+            globalFloat: globalFloat,
             layers: state.layers.map(l => l.toJSON())
         };
 
@@ -4209,6 +4273,7 @@
             
             if (data.globalZoom) Object.assign(globalZoom, data.globalZoom);
             if (data.motionTracks) Object.assign(motionTracks, data.motionTracks);
+            if (data.globalFloat) Object.assign(globalFloat, data.globalFloat);
 
             // Reconstruct Layers
             state.layers = [];
@@ -4261,6 +4326,7 @@
                 });
             }
 
+            updateViewportFloatUI();
             renderTimeline();
             if(statusEl) statusEl.innerText = 'Loaded';
         });
@@ -4284,6 +4350,7 @@
             layerSlots: JSON.parse(JSON.stringify(state.layerSlots)),
             globalZoom: JSON.parse(JSON.stringify(globalZoom)),
             motionTracks: JSON.parse(JSON.stringify(motionTracks))
+            ,globalFloat: JSON.parse(JSON.stringify(globalFloat))
         };
     }
 
@@ -4304,6 +4371,9 @@
         // Restore motion tracks
         for (const key in motionTracks) delete motionTracks[key];
         Object.assign(motionTracks, JSON.parse(JSON.stringify(saved.motionTracks)));
+        
+        if (saved.globalFloat) Object.assign(globalFloat, saved.globalFloat);
+        updateViewportFloatUI();
         
         renderTimeline();
         renderCanvas();
