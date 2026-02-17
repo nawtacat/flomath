@@ -670,21 +670,21 @@
             <div class="control-row" style="display:flex; flex-direction:column; gap:6px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span>Zoom</span>
-                    <span id="viewport-zoom-value" style="font-size:12px;">1.00x</span>
+                    <input type="number" id="viewport-zoom-value" style="width: 70px; margin-bottom: 0;" step="0.01" min="0.3" max="3">
                 </div>
                 <input type="range" id="viewport-zoom-slider" min="0.3" max="3" step="0.01" value="1">
             </div>
             <div class="control-row" style="display:flex; flex-direction:column; gap:6px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span>Pan X</span>
-                    <span id="viewport-pan-value" style="font-size:12px;">0 px</span>
+                    <input type="number" id="viewport-pan-value" style="width: 70px; margin-bottom: 0;" step="1" min="-900" max="900">
                 </div>
                 <input type="range" id="viewport-pan-slider" min="-900" max="900" step="1" value="0">
             </div>
             <div class="control-row" style="display:flex; flex-direction:column; gap:6px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span>Pan Y</span>
-                    <span id="viewport-pan-y-value" style="font-size:12px;">0 px</span>
+                    <input type="number" id="viewport-pan-y-value" style="width: 70px; margin-bottom: 0;" step="1" min="-1600" max="1600">
                 </div>
                 <input type="range" id="viewport-pan-y-slider" min="-1600" max="1600" step="1" value="0">
             </div>
@@ -887,12 +887,12 @@
     let soundVolume = 0.7;
 
     function updateViewportControls() {
-        if (viewportZoomSlider) viewportZoomSlider.value = manualGlobalTransform.scale.toFixed(2);
-        if (viewportZoomValueEl) viewportZoomValueEl.innerText = `${manualGlobalTransform.scale.toFixed(2)}x`;
-        if (viewportPanSlider) viewportPanSlider.value = `${Math.round(manualGlobalTransform.x)}`;
-        if (viewportPanValueEl) viewportPanValueEl.innerText = `${Math.round(manualGlobalTransform.x)} px`;
-        if (viewportPanYSlider) viewportPanYSlider.value = `${Math.round(manualGlobalTransform.y)}`;
-        if (viewportPanYValueEl) viewportPanYValueEl.innerText = `${Math.round(manualGlobalTransform.y)} px`;
+        if (viewportZoomSlider) viewportZoomSlider.value = manualGlobalTransform.scale;
+        if (viewportZoomValueEl) viewportZoomValueEl.value = manualGlobalTransform.scale.toFixed(2);
+        if (viewportPanSlider) viewportPanSlider.value = Math.round(manualGlobalTransform.x);
+        if (viewportPanValueEl) viewportPanValueEl.value = Math.round(manualGlobalTransform.x);
+        if (viewportPanYSlider) viewportPanYSlider.value = Math.round(manualGlobalTransform.y);
+        if (viewportPanYValueEl) viewportPanYValueEl.value = Math.round(manualGlobalTransform.y);
     }
     const getViewportCenterWorld = () => {
         // Return center of the canvas in world coordinates (accounting for both editor and camera transforms)
@@ -3864,6 +3864,15 @@
     }
     if (viewportPanYSlider) {
         viewportPanYSlider.addEventListener('input', handleViewportPanYChange);
+    }
+    if (viewportZoomValueEl) {
+        viewportZoomValueEl.addEventListener('input', handleViewportZoomChange);
+    }
+    if (viewportPanValueEl) {
+        viewportPanValueEl.addEventListener('input', handleViewportPanChange);
+    }
+    if (viewportPanYValueEl) {
+        viewportPanYValueEl.addEventListener('input', handleViewportPanYChange);
     }
     if (soundVolumeSlider) {
         soundVolumeSlider.addEventListener('input', handleSoundVolumeChange);
