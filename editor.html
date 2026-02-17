@@ -1757,6 +1757,12 @@
         assignLayerToSlot(layer, slot.id);
     }
 
+    function cleanupEmptySlots() {
+        while (state.layerSlots.length > 1 && state.layerSlots[state.layerSlots.length - 1].itemIds.length === 0) {
+            state.layerSlots.pop();
+        }
+    }
+
     // --- Layer Management ---
 
     function addTextLayer() {
@@ -3319,6 +3325,8 @@
         document.getElementById('scrubber').style.width = `${width}px`;
 
         rebuildSlotAssignments();
+
+        cleanupEmptySlots();
 
         state.layerSlots.forEach((slot, slotIndex) => {
             const track = document.createElement('div');
