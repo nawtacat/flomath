@@ -1622,7 +1622,7 @@
     function renderCanvas(isExport = false) {
         // Calculate Blur
         let currentBlur = manualBlur;
-        if (globalBlur.keyframes.length > 0 && !activeBlurKeyframeIndex) {
+        if (globalBlur.keyframes.length > 0 && activeBlurKeyframeIndex === null) {
             currentBlur = computeGlobalBlur(state.currentTime);
         } else if (activeBlurKeyframeIndex !== null) {
             currentBlur = globalBlur.keyframes[activeBlurKeyframeIndex].value;
@@ -4238,6 +4238,7 @@
         if (target.closest('.global-blur-marker')) return;
         clearActiveGlobalKeyframe();
         clearActiveMotionKeyframe();
+        setActiveBlurKeyframe(null);
         clearViewportPreviewTransform();
     });
 
@@ -4253,6 +4254,10 @@
 
     document.getElementById('btn-play').onclick = () => {
         state.isPlaying = !state.isPlaying;
+        if (state.isPlaying) {
+            activeBlurKeyframeIndex = null;
+            updateBlurUI();
+        }
         updatePlayButton();
     };
 
@@ -4637,6 +4642,7 @@
                 data.layers.forEach(lData => {
                     const layer = new Layer(lData.type, lData.name, null);
                     Object.assign(layer, lData);
+                    if (!layer.keyframes.color) layer.keyframes.color = [];
                     
                     // Restore Content
                     if (layer.type === 'text') {
