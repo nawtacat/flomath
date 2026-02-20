@@ -194,6 +194,20 @@
             transform: translateX(-50%) scale(1.2);
         }
 
+        .global-blur-marker {
+            position: absolute;
+            top: 70px;
+            width: 12px;
+            height: 26px;
+            background: #bd00ff;
+            transform: translateX(-50%);
+            border-radius: 4px;
+            z-index: 40;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .global-blur-marker.active { box-shadow: 0 0 0 3px rgba(189, 0, 255, 0.45); }
+
         .timeline-container {
             height: 200px;
             background-color: var(--bg-panel);
@@ -201,6 +215,13 @@
             display: flex;
             flex-direction: column;
         }
+        
+        /* Exclude Mode Styles */
+        body.blur-exclude-mode .viewport { cursor: crosshair; }
+        body.blur-exclude-mode .layer-block { cursor: crosshair; }
+        body.blur-exclude-mode .layer-block:hover { outline: 2px solid #bd00ff; }
+        
+        .layer-block.excluded::after { content: "👁️‍🗨️"; position: absolute; right: 2px; top: 0; font-size: 10px; }
 
         /* Canvas */
         canvas {
@@ -387,6 +408,12 @@
             transform: translateX(-50%);
             pointer-events: none;
         }
+        .keyframe-marker.keyframe-color {
+            box-sizing: border-box;
+            border: 1px solid #fff;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            width: 10px; height: 10px; top: 10px; /* Make them slightly bigger */
+        }
 
         /* Export Overlay */
         #export-overlay {
@@ -481,6 +508,8 @@
     <div style="display:flex; gap:8px;">
         <button id="btn-undo" class="secondary" disabled>↶ Undo</button>
         <button id="btn-redo" class="secondary" disabled>↷ Redo</button>
+        <button id="btn-blur-keyframe" class="secondary">Add Blur Keyframe</button>
+        <button id="btn-delete-blur-keyframe" class="secondary" disabled>Delete Blur</button>
         <button id="btn-highlight" class="secondary">H</button>
         <button id="btn-export">Export Video</button>
     </div>
@@ -497,6 +526,14 @@
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
             <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
+        </div>
+
+        <div class="control-group">
+            <label>Background</label>
+            <select id="background-select" onchange="updateBackground(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                <option value="none">None (Black)</option>
+                <option value="paper">Paper</option>
+            </select>
         </div>
 
         <div class="control-group" id="properties-panel" style="display:none;">
@@ -536,8 +573,11 @@
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Text Content</label>
                 <input type="text" id="prop-text" oninput="updateText(this.value)">
-                <label>Color</label>
-                <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width:100%">
+                <div class="property-row">
+                    <span>Color</span>
+                    <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
+                    <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('color')">◆</button>
+                </div>
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;">
                     <input type="checkbox" id="prop-katex" onchange="updateKatexMode(this.checked)">
                     Render as KaTeX
@@ -730,6 +770,27 @@
             </div>
             <p style="margin:0; font-size:11px; color:#999;">Add at least two motion keyframes for the selected layer to unlock these controls.</p>
         </div>
+        
+        <div class="control-group">
+            <label>Blur Effects</label>
+            <div class="control-row">
+                <span>Intensity</span>
+                <input type="range" id="blur-intensity-slider" min="0" max="40" step="0.5" value="0" oninput="updateManualBlur(this.value)">
+                <span id="blur-intensity-value">0px</span>
+            </div>
+            <button id="btn-blur-exclude" class="secondary" style="width:100%; margin-top:5px;" onclick="toggleBlurExcludeMode()">Exclude Layers (Off)</button>
+            <p style="font-size:11px; color:#888; margin-top:5px;">
+                Activate 'Exclude' then click layers to protect them from blur.
+            </p>
+            <div id="blur-transition-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px; display:none;">
+                <label>Transition Ease</label>
+                <select id="blur-ease-select" onchange="updateBlurEase(this.value)">
+                    <option value="ease-out">Ease Out</option>
+                    <option value="linear">Linear</option>
+                    <option value="ease-in">Ease In</option>
+                </select>
+            </div>
+        </div>
     </div>
 
     <div class="viewport">
@@ -739,6 +800,7 @@
             <button id="btn-delete-zoom-keyframe" class="secondary" disabled>Delete Zoom</button>
             <button id="btn-delete-motion-keyframe" class="secondary" disabled>Delete Motion</button>
             <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
+            <span id="blur-status" style="color:#bd00ff;">Blur unset</span>
             <span id="zoom-status">Zoom start unset</span>
             <span id="motion-status">Motion start unset</span>
             <div id="zoom-toast" class="zoom-toast"></div>
@@ -797,6 +859,7 @@
         isPlaying: false,
         layers: [],
         selectedLayerId: null,
+        background: 'none',
         nextId: 1,
         layerSlots: [],
         nextSlotId: 1
@@ -813,6 +876,12 @@
         motionFPS: 60,
         nextId: 1
     };
+    const globalBlur = {
+        keyframes: [],
+        easing: 'ease-out',
+        nextId: 1
+    };
+    let manualBlur = 0;
     const globalFloat = {
         active: false,
         distance: 40,
@@ -824,6 +893,7 @@
         pace: 1
     };
     let wholeControlActive = false;
+    let blurExcludeMode = false;
     let globalEditingOverride = null;
     let motionEditingOverride = null;
     let zoomToastTimer = null;
@@ -856,6 +926,11 @@
     const viewportPanValueEl = document.getElementById('viewport-pan-value');
     const viewportPanYSlider = document.getElementById('viewport-pan-y-slider');
     const viewportPanYValueEl = document.getElementById('viewport-pan-y-value');
+    const btnBlurKeyframe = document.getElementById('btn-blur-keyframe');
+    const btnDeleteBlurKeyframe = document.getElementById('btn-delete-blur-keyframe');
+    const blurStatusEl = document.getElementById('blur-status');
+    const blurIntensitySlider = document.getElementById('blur-intensity-slider');
+    const blurIntensityValue = document.getElementById('blur-intensity-value');
     const audioDecodeCtx = new (window.AudioContext || window.webkitAudioContext)();
     const katexMeasureEl = document.getElementById('katex-measure');
     const motionTracks = {};
@@ -870,6 +945,8 @@
     let currentProjectId = null;
     let isAutosaving = false;
     let autoSaveDebounce = null;
+    
+    let activeBlurKeyframeIndex = null;
 
     const katexToggle = document.getElementById('prop-katex');
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
@@ -999,9 +1076,31 @@
     let highlightDrawing = null;
     let highlightPreviewRect = null;
 
+    const paperSeeds = [1, 45, 12, 88, 33];
+    const paperDuration = 0.625;
+    const paperFrames = [];
+    
+    paperSeeds.forEach(seed => {
+        const svg = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <filter id='detailedBoil' x='0' y='0' width='100%' height='100%'>
+    <feTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='5' result='noise' seed='${seed}'>
+    </feTurbulence>
+    <feDiffuseLighting in='noise' lighting-color='#ffffff' surfaceScale='0.4'>
+      <feDistantLight azimuth='45' elevation='80' />
+    </feDiffuseLighting>
+    <feComposite operator='arithmetic' k1='1' k2='0' k3='0' k4='0' in2='SourceGraphic' />
+  </filter>
+  <rect width='100%' height='100%' fill='#fdfdfd' filter='url(#detailedBoil)' />
+</svg>`;
+        const img = new Image();
+        img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
+        paperFrames.push(img);
+    });
+
     let animationFrameId;
     let lastTime = 0;
     let zoomMarkerDrag = null;
+    let blurMarkerDrag = null;
     let dragState = {
         active: false,
         type: null, // 'resize-timeline', 'move-timeline', 'canvas-drag', 'canvas-scale', 'canvas-rotate'
@@ -1153,6 +1252,122 @@
         }
     }
 
+    // --- Blur System ---
+
+    function toggleBlurExcludeMode() {
+        blurExcludeMode = !blurExcludeMode;
+        const btn = document.getElementById('btn-blur-exclude');
+        if (btn) {
+            btn.innerText = blurExcludeMode ? "Exclude Layers (ON)" : "Exclude Layers (Off)";
+            btn.classList.toggle('active', blurExcludeMode);
+        }
+        document.body.classList.toggle('blur-exclude-mode', blurExcludeMode);
+    }
+
+    function updateManualBlur(val) {
+        manualBlur = parseFloat(val);
+        if (blurIntensityValue) blurIntensityValue.innerText = manualBlur.toFixed(1) + 'px';
+        
+        // If editing a keyframe, update it
+        if (activeBlurKeyframeIndex !== null && globalBlur.keyframes[activeBlurKeyframeIndex]) {
+            saveHistory();
+            globalBlur.keyframes[activeBlurKeyframeIndex].value = manualBlur;
+            renderTimeline();
+            triggerAutoSave();
+        }
+    }
+
+    function updateBlurEase(val) {
+        saveHistory();
+        globalBlur.easing = val;
+        triggerAutoSave();
+    }
+
+    function addBlurKeyframe() {
+        const time = Math.max(0, Math.min(state.duration, state.currentTime));
+        // Remove existing at same time
+        globalBlur.keyframes = globalBlur.keyframes.filter(k => Math.abs(k.time - time) > 0.01);
+        
+        const newId = globalBlur.nextId++;
+        saveHistory();
+        globalBlur.keyframes.push({
+            id: newId,
+            time: time,
+            value: manualBlur
+        });
+        globalBlur.keyframes.sort((a, b) => a.time - b.time);
+        
+        activeBlurKeyframeIndex = globalBlur.keyframes.findIndex(k => k.id === newId);
+        renderTimeline();
+        updateBlurUI();
+        triggerAutoSave();
+    }
+
+    function deleteBlurKeyframe() {
+        if (activeBlurKeyframeIndex === null) return;
+        saveHistory();
+        globalBlur.keyframes.splice(activeBlurKeyframeIndex, 1);
+        activeBlurKeyframeIndex = null;
+        renderTimeline();
+        updateBlurUI();
+        triggerAutoSave();
+    }
+
+    function computeGlobalBlur(time) {
+        if (globalBlur.keyframes.length === 0) return manualBlur;
+        
+        // If we are editing a specific keyframe, show that value
+        if (activeBlurKeyframeIndex !== null) {
+             // But only if playhead is near it? No, let's follow standard playback logic unless paused on it.
+             // Actually, standard behavior: interpolate.
+        }
+
+        const kfs = globalBlur.keyframes;
+        if (time <= kfs[0].time) return kfs[0].value;
+        if (time >= kfs[kfs.length - 1].time) return kfs[kfs.length - 1].value;
+
+        for (let i = 0; i < kfs.length - 1; i++) {
+            if (time >= kfs[i].time && time < kfs[i+1].time) {
+                const t1 = kfs[i].time;
+                const t2 = kfs[i+1].time;
+                const v1 = kfs[i].value;
+                const v2 = kfs[i+1].value;
+                let progress = (time - t1) / (t2 - t1);
+                
+                // Apply easing
+                if (globalBlur.easing === 'ease-in') progress = progress * progress;
+                else if (globalBlur.easing === 'ease-out') progress = 1 - (1 - progress) * (1 - progress);
+                
+                return v1 + (v2 - v1) * progress;
+            }
+        }
+        return 0;
+    }
+
+    function updateBlurUI() {
+        const hasKeyframes = globalBlur.keyframes.length > 0;
+        document.getElementById('blur-transition-controls').style.display = hasKeyframes ? 'block' : 'none';
+        if (btnDeleteBlurKeyframe) btnDeleteBlurKeyframe.disabled = activeBlurKeyframeIndex === null;
+        
+        if (activeBlurKeyframeIndex !== null) {
+            const kf = globalBlur.keyframes[activeBlurKeyframeIndex];
+            blurStatusEl.innerText = `Editing Blur Keyframe @ ${formatTimeLabel(kf.time)}`;
+            // Sync slider to keyframe
+            if (document.activeElement !== blurIntensitySlider) {
+                blurIntensitySlider.value = kf.value;
+                blurIntensityValue.innerText = kf.value.toFixed(1) + 'px';
+            }
+        } else {
+            if (hasKeyframes) {
+                blurStatusEl.innerText = `Blur Active (${globalBlur.keyframes.length} kfs)`;
+            } else {
+                blurStatusEl.innerText = "Blur unset";
+            }
+        }
+        
+        document.getElementById('blur-ease-select').value = globalBlur.easing;
+    }
+
     function syncAudioLayerPlayback(layer) {
         if (!layer || layer.type !== 'audio' || !layer.content) return;
         const audio = layer.content;
@@ -1187,6 +1402,21 @@
             g: (intVal >> 8) & 255,
             b: intVal & 255
         };
+    }
+
+    function rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).padStart(6, '0');
+    }
+
+    function interpolateColor(color1, color2, factor) {
+        if (factor <= 0) return color1;
+        if (factor >= 1) return color2;
+        const c1 = hexToRgb(color1);
+        const c2 = hexToRgb(color2);
+        const r = Math.round(c1.r + factor * (c2.r - c1.r));
+        const g = Math.round(c1.g + factor * (c2.g - c1.g));
+        const b = Math.round(c1.b + factor * (c2.b - c1.b));
+        return rgbToHex(r, g, b);
     }
 
     function lightenColor(color, amount) {
@@ -1232,11 +1462,12 @@
         this.exitAnimation = { type: 'none', duration: 1 };
         this.volume = 1;
         this.muted = false;
+        this.excludeFromBlur = false;
         this.storageUrl = null; // URL from Firebase Storage
 
             // Keyframes: { property: [ {time, value}, ... ] }
             this.keyframes = {
-                x: [], y: [], scale: [], rotation: [], opacity: []
+                x: [], y: [], scale: [], rotation: [], opacity: [], color: []
             };
 
             this.updateDimensions();
@@ -1281,7 +1512,12 @@
                     const v1 = kfs[i].value;
                     const v2 = kfs[i+1].value;
                     const progress = (time - t1) / (t2 - t1);
-                    return v1 + (v2 - v1) * progress; // Linear interpolation
+
+                    if (prop === 'color') {
+                        return interpolateColor(v1, v2, progress);
+                    }
+                    
+                    return v1 + (v2 - v1) * progress; // Linear interpolation for numbers
                 }
             }
             return this[prop];
@@ -1290,7 +1526,8 @@
         addKeyframe(prop, time, value) {
             // Remove existing keyframe at exact same time
             this.keyframes[prop] = this.keyframes[prop].filter(k => Math.abs(k.time - time) > 0.01);
-            this.keyframes[prop].push({ time, value: parseFloat(value) });
+            const val = prop === 'color' ? value : parseFloat(value);
+            this.keyframes[prop].push({ time, value: val });
             this.keyframes[prop].sort((a, b) => a.time - b.time);
             renderTimeline(); // Update UI markers
         }
@@ -1318,6 +1555,7 @@
                 newLayer.katexImageHeight = 0;
                 newLayer.katexImageLoading = false;
             }
+            newLayer.excludeFromBlur = this.excludeFromBlur;
             return newLayer;
         }
 
@@ -1406,6 +1644,7 @@
             if (state.currentTime >= state.duration) {
                 state.currentTime = 0;
                 state.isPlaying = false;
+                activeBlurKeyframeIndex = null; // Deselect keyframes on finish
                 updatePlayButton();
             }
             updateTimelineUI();
@@ -1417,10 +1656,27 @@
     }
 
     function renderCanvas(isExport = false) {
+        // Calculate Blur
+        let currentBlur = manualBlur;
+        if (globalBlur.keyframes.length > 0 && activeBlurKeyframeIndex === null) {
+            currentBlur = computeGlobalBlur(state.currentTime);
+        } else if (activeBlurKeyframeIndex !== null) {
+            currentBlur = globalBlur.keyframes[activeBlurKeyframeIndex].value;
+        }
+
         rebuildSlotAssignments();
         // Clear
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = state.background === 'none' ? '#000' : '#fdfdfd';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        if (state.background === 'paper') {
+            const frameDuration = paperDuration / paperSeeds.length;
+            const frameIndex = Math.floor((state.currentTime % paperDuration) / frameDuration) % paperSeeds.length;
+            const img = paperFrames[frameIndex];
+            if (img && img.complete) {
+                ctx.drawImage(img, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            }
+        }
 
         // 1. Apply Editor Transform (View Only)
         if (!isExport) {
@@ -1450,7 +1706,7 @@
 
         layersToRender.forEach(layer => {
             if (layer.katex) {
-                ensureKatexImage(layer);
+                ensureKatexImage(layer, state.currentTime);
             }
             if (layer.type === 'audio') {
                 syncAudioLayerPlayback(layer);
@@ -1549,6 +1805,12 @@
             }
 
             ctx.save();
+            
+            // Apply Blur if not excluded
+            if (currentBlur > 0 && !layer.excludeFromBlur) {
+                ctx.filter = `blur(${currentBlur}px)`;
+            }
+
             ctx.globalAlpha = combinedAlpha;
             ctx.translate(x, y);
             ctx.rotate(rotation * Math.PI / 180);
@@ -1570,8 +1832,9 @@
                     ctx.drawImage(img, -w / 2, -h / 2, w, h);
                 }
             } else if (layer.type === 'text') {
+                const textColor = layer.getValue('color', state.currentTime);
                 ctx.font = 'bold 100px Arial';
-                ctx.fillStyle = layer.color;
+                ctx.fillStyle = textColor;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 if (isTypewriterActive) {
@@ -1761,6 +2024,12 @@
         while (state.layerSlots.length > 1 && state.layerSlots[state.layerSlots.length - 1].itemIds.length === 0) {
             state.layerSlots.pop();
         }
+    }
+
+    function updateBackground(value) {
+        saveHistory();
+        state.background = value;
+        triggerAutoSave();
     }
 
     // --- Layer Management ---
@@ -2090,6 +2359,10 @@
         document.getElementById('prop-scale').value = layer.getValue('scale', state.currentTime).toFixed(2);
         document.getElementById('prop-rotation').value = Math.round(layer.getValue('rotation', state.currentTime));
         document.getElementById('prop-opacity').value = layer.getValue('opacity', state.currentTime).toFixed(2);
+
+        if (layer.type === 'text') {
+            document.getElementById('prop-color').value = layer.getValue('color', state.currentTime);
+        }
     }
 
     function updateProperty(prop, value) {
@@ -2169,10 +2442,23 @@
 
     function updateColor(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (layer) {
+        if (layer && layer.type === 'text') {
             saveHistory();
+            
+            // Update the base property. The user can press the '◆' button to create a new keyframe.
             layer.color = val;
+
+            // If the playhead is on an existing keyframe, update that keyframe's value too.
+            // This makes editing existing keyframes intuitive.
+            const kfs = layer.keyframes.color || [];
+            const keyframeIndex = kfs.findIndex(k => Math.abs(k.time - state.currentTime) < KEYFRAME_TIME_EPS);
+
+            if (keyframeIndex > -1) {
+                layer.keyframes.color[keyframeIndex].value = val;
+            }
+
             if (layer.katex) markKatexLayerDirty(layer);
+            renderTimeline(); // To show updated keyframe if any
             triggerAutoSave();
         }
     }
@@ -2353,28 +2639,32 @@
         return btoa(unescape(encodeURIComponent(svg)));
     }
 
-    function ensureKatexImage(layer) {
+    function ensureKatexImage(layer, time) {
         if (!layer || !layer.katex || typeof katex === 'undefined') return;
         const rawContent = layer.content || '';
-        if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === rawContent) {
+        const color = layer.getValue('color', time);
+        const contentHash = `${rawContent}|${color}`;
+
+        if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === contentHash) {
             return;
         }
         layer.katexNeedsRender = false;
-        layer.katexContentHash = rawContent;
+        layer.katexContentHash = contentHash;
 
         let textToRender = rawContent.trim();
         // Strip surrounding $ or $$ for user convenience
         while (textToRender.startsWith('$') && textToRender.endsWith('$') && textToRender.length > 1) {
             textToRender = textToRender.substring(1, textToRender.length - 1);
         }
-
+        
         let katexHtml = textToRender;
         try {
             katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true });
         } catch (error) {
             katexHtml = `<span>${textToRender}</span>`;
         }
-        const colorStyle = layer.color ? `color:${layer.color};` : '';
+
+        const colorStyle = `color:${color};`;
         const styleBlock = katexCssText ? `<style>${katexCssText}</style>` : '';
         const contentHtml = `<span style="${colorStyle}" class="katex-custom">${katexHtml}</span>`;
         if (katexMeasureEl) {
@@ -2816,6 +3106,15 @@
         });
     }
 
+    function setActiveBlurKeyframe(index) {
+        activeBlurKeyframeIndex = index;
+        if (index !== null) {
+            manualBlur = globalBlur.keyframes[index].value;
+        }
+        renderTimeline();
+        updateBlurUI();
+    }
+
     function startZoomMarkerDrag(id, event) {
         zoomMarkerDrag = {
             id,
@@ -2846,6 +3145,51 @@
         zoomMarkerDrag = null;
         document.removeEventListener('pointermove', handleZoomMarkerDrag);
         document.removeEventListener('pointerup', stopZoomMarkerDrag);
+    }
+
+    function renderGlobalBlurMarkers() {
+        const container = document.getElementById('timeline-tracks');
+        container.querySelectorAll('.global-blur-marker').forEach(el => el.remove());
+        globalBlur.keyframes.forEach((frame, index) => {
+            const marker = document.createElement('div');
+            marker.className = 'global-blur-marker';
+            marker.style.left = `${frame.time * PIXELS_PER_SECOND}px`;
+            marker.title = `Blur ${index + 1} @ ${formatTimeLabel(frame.time)}`;
+            marker.classList.toggle('active', activeBlurKeyframeIndex === index);
+            marker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setActiveBlurKeyframe(index);
+            });
+            marker.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                startBlurMarkerDrag(frame.id, e);
+            });
+            container.appendChild(marker);
+        });
+    }
+
+    function startBlurMarkerDrag(id, event) {
+        blurMarkerDrag = { id, startX: event.clientX, startTime: globalBlur.keyframes.find(k => k.id === id)?.time ?? 0 };
+        saveHistory();
+        document.addEventListener('pointermove', handleBlurMarkerDrag);
+        document.addEventListener('pointerup', stopBlurMarkerDrag);
+    }
+    function handleBlurMarkerDrag(e) {
+        if (!blurMarkerDrag) return;
+        const frame = globalBlur.keyframes.find(k => k.id === blurMarkerDrag.id);
+        if (!frame) return;
+        const dx = e.clientX - blurMarkerDrag.startX;
+        frame.time = Math.max(0, Math.min(state.duration, blurMarkerDrag.startTime + dx / PIXELS_PER_SECOND));
+        globalBlur.keyframes.sort((a,b)=>a.time-b.time);
+        activeBlurKeyframeIndex = globalBlur.keyframes.findIndex(k => k.id === blurMarkerDrag.id);
+        renderTimeline();
+        updateBlurUI();
+    }
+    function stopBlurMarkerDrag() {
+        blurMarkerDrag = null;
+        document.removeEventListener('pointermove', handleBlurMarkerDrag);
+        document.removeEventListener('pointerup', stopBlurMarkerDrag);
     }
 
     function showMotionToast(message) {
@@ -3342,6 +3686,7 @@
                 const block = document.createElement('div');
                 block.className = `layer-block ${state.selectedLayerId === layer.id ? 'selected' : ''}`;
                 block.innerText = layer.name;
+                if (layer.excludeFromBlur) block.classList.add('excluded');
                 block.style.left = `${layer.startTime * PIXELS_PER_SECOND}px`;
                 block.style.width = `${layer.duration * PIXELS_PER_SECOND}px`;
                 block.dataset.layerId = layer.id;
@@ -3363,15 +3708,20 @@
                 block.appendChild(handleLeft);
                 block.appendChild(handleRight);
 
-                const allKeys = new Set();
-                Object.values(layer.keyframes).forEach(kfs => kfs.forEach(k => allKeys.add(k.time)));
-                allKeys.forEach(time => {
-                    if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
+                Object.entries(layer.keyframes).forEach(([prop, kfs]) => {
+                    if (!kfs) return;
+                    kfs.forEach(keyframe => {
+                        if (keyframe.time < layer.startTime || keyframe.time > layer.startTime + layer.duration) return;
+
                         const marker = document.createElement('div');
                         marker.className = 'keyframe-marker';
-                        marker.style.left = `${(time - layer.startTime) * PIXELS_PER_SECOND}px`;
+                        marker.classList.add(`keyframe-${prop}`);
+                        marker.style.left = `${(keyframe.time - layer.startTime) * PIXELS_PER_SECOND}px`;
+                        if (prop === 'color') {
+                            marker.style.background = keyframe.value;
+                        }
                         block.appendChild(marker);
-                    }
+                    });
                 });
 
                 track.appendChild(block);
@@ -3389,6 +3739,7 @@
 
         renderGlobalZoomMarkers();
         renderMotionMarkers();
+        renderGlobalBlurMarkers();
         updateTimelineUI();
         updatePlayheadHeight();
     }
@@ -3474,6 +3825,15 @@
     function startTimelineMove(e, layerId) {
         e.stopPropagation();
         selectLayer(layerId); // Select on click
+        
+        // Exclude Mode Check
+        if (blurExcludeMode) {
+            const layer = state.layers.find(l => l.id === layerId);
+            if (layer) layer.excludeFromBlur = !layer.excludeFromBlur;
+            renderTimeline();
+            return; // Stop drag
+        }
+
         const layer = state.layers.find(l => l.id === layerId);
         
         saveHistory();
@@ -3618,6 +3978,17 @@
         }
         const pos = getPointerPos(e);
 
+        // Exclude Mode Check
+        if (blurExcludeMode) {
+            // Find top layer under cursor
+            const hit = findLayerAtPosition(pos);
+            if (hit) {
+                hit.excludeFromBlur = !hit.excludeFromBlur;
+                renderTimeline();
+            }
+            return;
+        }
+
         const layersInOrder = getLayersInRenderOrder();
         const reversedLayers = [...layersInOrder].reverse();
         const candidates = [];
@@ -3734,6 +4105,33 @@
         }
     }
 
+    function findLayerAtPosition(pos) {
+        const layersInOrder = getLayersInRenderOrder();
+        const reversedLayers = [...layersInOrder].reverse();
+        for (const layer of reversedLayers) {
+            if (state.currentTime < layer.startTime || state.currentTime > layer.startTime + layer.duration) continue;
+            
+            let lx = layer.getValue('x', state.currentTime);
+            let ly = layer.getValue('y', state.currentTime);
+            const motionOverride = computeMotionTransformForLayer(layer, state.currentTime);
+            if (motionOverride) { lx = motionOverride.x; ly = motionOverride.y; }
+            
+            const dx = pos.x - lx;
+            const dy = pos.y - ly;
+            const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
+            const s = 1 / layer.getValue('scale', state.currentTime);
+            const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
+            const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
+            const w = layer.width || 100;
+            const h = layer.height || 100;
+            
+            if (Math.abs(localX) <= w/2 && Math.abs(localY) <= h/2) {
+                return layer;
+            }
+        }
+        return null;
+    }
+
     function startGlobalPan(e) {
         const pos = getPointerRaw(e);
         dragState = {
@@ -3829,6 +4227,12 @@
     if (btnDeleteMotionKeyframe) {
         btnDeleteMotionKeyframe.addEventListener('click', deleteMotionKeyframe);
     }
+    if (btnBlurKeyframe) {
+        btnBlurKeyframe.addEventListener('click', addBlurKeyframe);
+    }
+    if (btnDeleteBlurKeyframe) {
+        btnDeleteBlurKeyframe.addEventListener('click', deleteBlurKeyframe);
+    }
     if (btnWholeControl) {
         btnWholeControl.addEventListener('click', toggleWholeControlMode);
     }
@@ -3900,8 +4304,10 @@
             target.closest('#motion-controls-panel');
         const isViewportClick = target.closest('.viewport');
         if (target.closest('.global-zoom-marker') || target.closest('.motion-marker') || isControlClick || isViewportClick) return;
+        if (target.closest('.global-blur-marker')) return;
         clearActiveGlobalKeyframe();
         clearActiveMotionKeyframe();
+        setActiveBlurKeyframe(null);
         clearViewportPreviewTransform();
     });
 
@@ -3911,11 +4317,17 @@
     updateMotionControlsPanel();
     updateViewportControls();
     updateViewportFloatUI();
+    document.getElementById('background-select').value = state.background || 'none';
+    updateBlurUI();
 
     // --- Playback Controls ---
 
     document.getElementById('btn-play').onclick = () => {
         state.isPlaying = !state.isPlaying;
+        if (state.isPlaying) {
+            activeBlurKeyframeIndex = null;
+            updateBlurUI();
+        }
         updatePlayButton();
     };
 
@@ -4243,9 +4655,11 @@
             nextId: state.nextId,
             nextSlotId: state.nextSlotId,
             layerSlots: state.layerSlots,
+            background: state.background,
             globalZoom: globalZoom,
             motionTracks: motionTracks,
             globalFloat: globalFloat,
+            globalBlur: globalBlur,
             layers: state.layers.map(l => l.toJSON())
         };
 
@@ -4286,11 +4700,14 @@
             state.duration = data.duration || 10;
             state.nextId = data.nextId || 1;
             state.nextSlotId = data.nextSlotId || 1;
+            state.background = data.background || 'none';
+            document.getElementById('background-select').value = state.background;
             state.layerSlots = data.layerSlots || [];
             
             if (data.globalZoom) Object.assign(globalZoom, data.globalZoom);
             if (data.motionTracks) Object.assign(motionTracks, data.motionTracks);
             if (data.globalFloat) Object.assign(globalFloat, data.globalFloat);
+            if (data.globalBlur) Object.assign(globalBlur, data.globalBlur);
 
             // Reconstruct Layers
             state.layers = [];
@@ -4298,6 +4715,7 @@
                 data.layers.forEach(lData => {
                     const layer = new Layer(lData.type, lData.name, null);
                     Object.assign(layer, lData);
+                    if (!layer.keyframes.color) layer.keyframes.color = [];
                     
                     // Restore Content
                     if (layer.type === 'text') {
@@ -4346,6 +4764,7 @@
             updateViewportFloatUI();
             renderTimeline();
             if(statusEl) statusEl.innerText = 'Loaded';
+            updateBlurUI();
         });
     }
 
@@ -4364,10 +4783,12 @@
             nextId: state.nextId,
             nextSlotId: state.nextSlotId,
             layers: state.layers.map(l => l.copyForHistory()),
+            background: state.background,
             layerSlots: JSON.parse(JSON.stringify(state.layerSlots)),
             globalZoom: JSON.parse(JSON.stringify(globalZoom)),
             motionTracks: JSON.parse(JSON.stringify(motionTracks))
-            ,globalFloat: JSON.parse(JSON.stringify(globalFloat))
+            ,globalFloat: JSON.parse(JSON.stringify(globalFloat)),
+            globalBlur: JSON.parse(JSON.stringify(globalBlur))
         };
     }
 
@@ -4375,6 +4796,8 @@
         state.duration = saved.duration;
         state.nextId = saved.nextId;
         state.nextSlotId = saved.nextSlotId;
+        state.background = saved.background || 'none';
+        document.getElementById('background-select').value = state.background;
         state.layers = saved.layers.map(l => l.copyForHistory()); // Clone again to avoid ref issues
         state.layerSlots = JSON.parse(JSON.stringify(saved.layerSlots));
         
@@ -4390,6 +4813,8 @@
         Object.assign(motionTracks, JSON.parse(JSON.stringify(saved.motionTracks)));
         
         if (saved.globalFloat) Object.assign(globalFloat, saved.globalFloat);
+        if (saved.globalBlur) Object.assign(globalBlur, saved.globalBlur);
+        updateBlurUI();
         updateViewportFloatUI();
         
         renderTimeline();
