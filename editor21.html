@@ -408,6 +408,12 @@
             transform: translateX(-50%);
             pointer-events: none;
         }
+        .keyframe-marker.keyframe-color {
+            box-sizing: border-box;
+            border: 1px solid #fff;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            width: 10px; height: 10px; top: 10px; /* Make them slightly bigger */
+        }
 
         /* Export Overlay */
         #export-overlay {
@@ -3702,15 +3708,20 @@
                 block.appendChild(handleLeft);
                 block.appendChild(handleRight);
 
-                const allKeys = new Set();
-                Object.values(layer.keyframes).forEach(kfs => kfs.forEach(k => allKeys.add(k.time)));
-                allKeys.forEach(time => {
-                    if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
+                Object.entries(layer.keyframes).forEach(([prop, kfs]) => {
+                    if (!kfs) return;
+                    kfs.forEach(keyframe => {
+                        if (keyframe.time < layer.startTime || keyframe.time > layer.startTime + layer.duration) return;
+
                         const marker = document.createElement('div');
                         marker.className = 'keyframe-marker';
-                        marker.style.left = `${(time - layer.startTime) * PIXELS_PER_SECOND}px`;
+                        marker.classList.add(`keyframe-${prop}`);
+                        marker.style.left = `${(keyframe.time - layer.startTime) * PIXELS_PER_SECOND}px`;
+                        if (prop === 'color') {
+                            marker.style.background = keyframe.value;
+                        }
                         block.appendChild(marker);
-                    }
+                    });
                 });
 
                 track.appendChild(block);
