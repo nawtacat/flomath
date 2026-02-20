@@ -522,6 +522,14 @@
             <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
         </div>
 
+        <div class="control-group">
+            <label>Background</label>
+            <select id="background-select" onchange="updateBackground(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                <option value="none">None (Black)</option>
+                <option value="paper">Paper</option>
+            </select>
+        </div>
+
         <div class="control-group" id="properties-panel" style="display:none;">
             <label>Properties (Keyframable)</label>
             <div style="margin-bottom:10px; font-weight:bold;" id="selected-layer-name">Layer</div>
@@ -844,6 +852,7 @@
         isPlaying: false,
         layers: [],
         selectedLayerId: null,
+        background: 'none',
         nextId: 1,
         layerSlots: [],
         nextSlotId: 1
@@ -1059,6 +1068,29 @@
     let highlighterMode = false;
     let highlightDrawing = null;
     let highlightPreviewRect = null;
+
+    const paperSvg = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <filter id='detailedBoil' x='0' y='0' width='100%' height='100%'>
+    <feTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='5' result='noise'>
+      <animate 
+        attributeName="seed" 
+        values="1; 45; 12; 88; 33" 
+        dur="0.625s" 
+        repeatCount="indefinite" 
+        calcMode="discrete" />
+    </feTurbulence>
+
+    <feDiffuseLighting in='noise' lighting-color='#ffffff' surfaceScale='0.4'>
+      <feDistantLight azimuth='45' elevation='80' />
+    </feDiffuseLighting>
+
+    <feComposite operator='arithmetic' k1='1' k2='0' k3='0' k4='0' in2='SourceGraphic' />
+  </filter>
+
+  <rect width='100%' height='100%' fill='#fdfdfd' filter='url(#detailedBoil)' />
+</svg>`;
+    const paperBgImage = new Image();
+    paperBgImage.src = `data:image/svg+xml;base64,${btoa(paperSvg)}`;
 
     let animationFrameId;
     let lastTime = 0;
@@ -1629,8 +1661,12 @@
 
         rebuildSlotAssignments();
         // Clear
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = state.background === 'none' ? '#000' : '#fdfdfd';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        if (state.background === 'paper' && paperBgImage.complete) {
+            ctx.drawImage(paperBgImage, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
 
         // 1. Apply Editor Transform (View Only)
         if (!isExport) {
@@ -1978,6 +2014,12 @@
         while (state.layerSlots.length > 1 && state.layerSlots[state.layerSlots.length - 1].itemIds.length === 0) {
             state.layerSlots.pop();
         }
+    }
+
+    function updateBackground(value) {
+        saveHistory();
+        state.background = value;
+        triggerAutoSave();
     }
 
     // --- Layer Management ---
@@ -4253,6 +4295,7 @@
     updateMotionControlsPanel();
     updateViewportControls();
     updateViewportFloatUI();
+    document.getElementById('background-select').value = state.background || 'none';
     updateBlurUI();
 
     // --- Playback Controls ---
@@ -4590,6 +4633,7 @@
             nextId: state.nextId,
             nextSlotId: state.nextSlotId,
             layerSlots: state.layerSlots,
+            background: state.background,
             globalZoom: globalZoom,
             motionTracks: motionTracks,
             globalFloat: globalFloat,
@@ -4634,6 +4678,8 @@
             state.duration = data.duration || 10;
             state.nextId = data.nextId || 1;
             state.nextSlotId = data.nextSlotId || 1;
+            state.background = data.background || 'none';
+            document.getElementById('background-select').value = state.background;
             state.layerSlots = data.layerSlots || [];
             
             if (data.globalZoom) Object.assign(globalZoom, data.globalZoom);
@@ -4715,6 +4761,7 @@
             nextId: state.nextId,
             nextSlotId: state.nextSlotId,
             layers: state.layers.map(l => l.copyForHistory()),
+            background: state.background,
             layerSlots: JSON.parse(JSON.stringify(state.layerSlots)),
             globalZoom: JSON.parse(JSON.stringify(globalZoom)),
             motionTracks: JSON.parse(JSON.stringify(motionTracks))
@@ -4727,6 +4774,8 @@
         state.duration = saved.duration;
         state.nextId = saved.nextId;
         state.nextSlotId = saved.nextSlotId;
+        state.background = saved.background || 'none';
+        document.getElementById('background-select').value = state.background;
         state.layers = saved.layers.map(l => l.copyForHistory()); // Clone again to avoid ref issues
         state.layerSlots = JSON.parse(JSON.stringify(saved.layerSlots));
         
