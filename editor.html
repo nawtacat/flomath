@@ -4471,9 +4471,9 @@
         let ffmpeg;
         let exportBlob;
         let exportExt = 'webm';
-        const ffmpegModuleSupported = typeof FFmpeg !== 'undefined' && typeof FFmpeg.createFFmpeg === 'function';
-        // Force FFmpeg usage even without SharedArrayBuffer (using the polyfill above)
-        const useFFmpeg = ffmpegModuleSupported;
+        const ffmpegModuleSupported = typeof FFmpeg !== 'undefined' && typeof FFmpeg.createFFmpeg === 'function'
+        // Use FFmpeg only if SharedArrayBuffer is available, otherwise it will crash.
+        const useFFmpeg = ffmpegModuleSupported && (typeof SharedArrayBuffer !== 'undefined');
         const hasAudioLayers = state.layers.some(layer => layer.type === 'audio');
         let mixedAudioBuffer = null;
 
