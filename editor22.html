@@ -924,8 +924,6 @@
             style: {
                 fontSize: 60,
                 color: '#ffffff',
-                strokeColor: '#000000',
-                strokeWidth: 0,
                 bottomOffset: 150,
                 fontFamily: '"Manrope", sans-serif',
                 fontWeight: 800,
@@ -2020,7 +2018,6 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 ctx.lineJoin = 'round';
-                ctx.lineWidth = style.strokeWidth;
                 const x = CANVAS_WIDTH / 2;
                 const y = CANVAS_HEIGHT - style.bottomOffset;
 
@@ -2041,10 +2038,6 @@
                     ctx.restore();
                 }
                 
-                if (style.strokeWidth > 0) {
-                    ctx.strokeStyle = style.strokeColor;
-                    ctx.strokeText(activeCap.text, x, y);
-                }
                 ctx.fillStyle = style.color;
                 ctx.fillText(activeCap.text, x, y);
                 ctx.restore();
