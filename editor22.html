@@ -843,7 +843,10 @@
                         <input type="number" id="cap-end" placeholder="End" step="0.1" style="width:50%">
                     </div>
                     <textarea id="cap-text" placeholder="Caption text..." rows="2" style="width:100%; background:#333; color:white; border:1px solid #3e3e42; margin-bottom:5px; resize:vertical;"></textarea>
-                    <button class="secondary" style="width:100%" onclick="addCaption()">+ Add Caption</button>
+                    <div style="display:flex; gap:5px;">
+                        <button id="btn-add-caption" class="secondary" style="flex:1" onclick="addCaption()">+ Add Caption</button>
+                        <button id="btn-cancel-caption" class="secondary" style="width:auto; display:none; background:#555;" onclick="cancelCaptionEdit()">Cancel</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -921,6 +924,7 @@
         nextSlotId: 1,
         captions: {
             expanded: false,
+            editingId: null,
             style: {
                 fontSize: 60,
                 color: '#ffffff',
@@ -3012,22 +3016,75 @@
         if (isNaN(start) || isNaN(end) || !text) return;
 
         saveHistory();
-        state.captions.entries.push({ id: Date.now(), start, end, text });
-        state.captions.entries.sort((a, b) => a.start - b.start);
+        
+        if (state.captions.editingId) {
+            const index = state.captions.entries.findIndex(c => c.id === state.captions.editingId);
+            if (index !== -1) {
+                state.captions.entries[index].start = start;
+                state.captions.entries[index].end = end;
+                state.captions.entries[index].text = text;
+            }
+            state.captions.editingId = null;
+            resetCaptionForm();
+        } else {
+            state.captions.entries.push({ id: Date.now(), start, end, text });
+            // Auto-advance
+            startInput.value = end;
+            endInput.value = end + 2;
+            textInput.value = '';
+            textInput.focus();
+        }
 
-        // Auto-advance
-        startInput.value = end;
-        endInput.value = end + 2;
-        textInput.value = '';
-        textInput.focus();
+        state.captions.entries.sort((a, b) => a.start - b.start);
 
         renderCaptionsList();
         renderCanvas();
         triggerAutoSave();
     }
 
+    function editCaption(id) {
+        const entry = state.captions.entries.find(c => c.id === id);
+        if (!entry) return;
+        
+        state.captions.editingId = id;
+        document.getElementById('cap-start').value = entry.start;
+        document.getElementById('cap-end').value = entry.end;
+        document.getElementById('cap-text').value = entry.text;
+        
+        const btnAdd = document.getElementById('btn-add-caption');
+        const btnCancel = document.getElementById('btn-cancel-caption');
+        if (btnAdd) btnAdd.innerText = "Update Caption";
+        if (btnCancel) btnCancel.style.display = "block";
+        
+        renderCaptionsList();
+        
+        state.currentTime = entry.start;
+        updateTimelineUI();
+        renderCanvas();
+    }
+
+    function cancelCaptionEdit() {
+        state.captions.editingId = null;
+        resetCaptionForm();
+        renderCaptionsList();
+    }
+
+    function resetCaptionForm() {
+        document.getElementById('cap-start').value = '';
+        document.getElementById('cap-end').value = '';
+        document.getElementById('cap-text').value = '';
+        
+        const btnAdd = document.getElementById('btn-add-caption');
+        const btnCancel = document.getElementById('btn-cancel-caption');
+        if (btnAdd) btnAdd.innerText = "+ Add Caption";
+        if (btnCancel) btnCancel.style.display = "none";
+    }
+
     function deleteCaption(id) {
         saveHistory();
+        if (state.captions.editingId === id) {
+            cancelCaptionEdit();
+        }
         state.captions.entries = state.captions.entries.filter(c => c.id !== id);
         renderCaptionsList();
         renderCanvas();
@@ -3044,7 +3101,8 @@
         }
         state.captions.entries.forEach(c => {
             const item = document.createElement('div');
-            item.style.cssText = 'background:#252526; padding:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between; align-items:center; border-radius:4px; cursor:pointer;';
+            const isEditing = state.captions.editingId === c.id;
+            item.style.cssText = `background:${isEditing ? '#37373d' : '#252526'}; border:${isEditing ? '1px solid #0abf7a' : 'none'}; padding:6px; margin-bottom:4px; font-size:12px; display:flex; justify-content:space-between; align-items:center; border-radius:4px; cursor:pointer;`;
             item.innerHTML = `
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;">
                     <span style="color:#0abf7a; font-family:monospace;">${c.start.toFixed(1)}-${c.end.toFixed(1)}s</span> <span style="color:#ccc;">${c.text}</span>
@@ -3053,9 +3111,7 @@
             `;
             item.onclick = (e) => {
                 if (e.target.tagName !== 'BUTTON') {
-                    state.currentTime = c.start;
-                    updateTimelineUI();
-                    renderCanvas();
+                    editCaption(c.id);
                 }
             };
             list.appendChild(item);
@@ -4925,6 +4981,7 @@
             if (data.globalBlur) Object.assign(globalBlur, data.globalBlur);
             if (data.captions) {
                 state.captions = data.captions;
+                state.captions.editingId = null;
                 updateCaptionsUI();
             }
 
