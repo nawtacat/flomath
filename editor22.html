@@ -492,6 +492,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js" crossorigin="anonymous"></script>
@@ -810,6 +813,29 @@
                     <span>Y Offset</span>
                     <input type="range" id="cap-style-offset" min="0" max="1000" value="150" oninput="updateCaptionStyle('bottomOffset', this.value)">
                 </div>
+                <div class="control-row">
+                    <span>Weight</span>
+                    <select id="cap-style-weight" onchange="updateCaptionStyle('fontWeight', this.value)" style="width:100px; background:#333; color:white; border:1px solid #3e3e42;">
+                        <option value="200">ExtraLight (200)</option>
+                        <option value="300">Light (300)</option>
+                        <option value="400">Regular (400)</option>
+                        <option value="500">Medium (500)</option>
+                        <option value="600">SemiBold (600)</option>
+                        <option value="700">Bold (700)</option>
+                        <option value="800">ExtraBold (800)</option>
+                    </select>
+                </div>
+                <div class="control-row">
+                    <label style="display:flex; align-items:center; gap:6px; margin:0; font-size:12px; color:#aaa;">
+                        <input type="checkbox" id="cap-style-bg-check" onchange="updateCaptionStyle('hasBackground', this.checked)">
+                        Background
+                    </label>
+                    <input type="color" id="cap-style-bg-color" value="#000000" onchange="updateCaptionStyle('backgroundColor', this.value)" style="width:40px; padding:0; border:none;">
+                </div>
+                <div class="control-row">
+                    <span>Bg Opacity</span>
+                    <input type="range" id="cap-style-bg-opacity" min="0" max="1" step="0.05" value="0.5" oninput="updateCaptionStyle('backgroundOpacity', this.value)">
+                </div>
                 <div id="captions-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px; border: 1px solid #444; padding: 5px; background:#111;"></div>
                 <div style="border-top: 1px solid #444; padding-top: 5px;">
                     <div style="display:flex; gap:5px; margin-bottom:5px;">
@@ -901,7 +927,11 @@
                 strokeColor: '#000000',
                 strokeWidth: 6,
                 bottomOffset: 150,
-                fontFamily: 'Arial'
+                fontFamily: '"Manrope", sans-serif',
+                fontWeight: 800,
+                hasBackground: false,
+                backgroundColor: '#000000',
+                backgroundOpacity: 0.5
             },
             entries: []
         }
@@ -1986,13 +2016,30 @@
             if (activeCap) {
                 const style = state.captions.style;
                 ctx.save();
-                ctx.font = `bold ${style.fontSize}px ${style.fontFamily || 'Arial'}`;
+                ctx.font = `${style.fontWeight || 800} ${style.fontSize}px ${style.fontFamily || '"Manrope", sans-serif'}`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 ctx.lineJoin = 'round';
                 ctx.lineWidth = style.strokeWidth;
                 const x = CANVAS_WIDTH / 2;
                 const y = CANVAS_HEIGHT - style.bottomOffset;
+
+                if (style.hasBackground) {
+                    const textMetrics = ctx.measureText(activeCap.text);
+                    const textWidth = textMetrics.width;
+                    const boxHeight = style.fontSize * 1.2; 
+                    const padding = style.fontSize * 0.3;
+                    const boxWidth = textWidth + padding * 2;
+                    
+                    ctx.save();
+                    ctx.globalAlpha = style.backgroundOpacity !== undefined ? style.backgroundOpacity : 0.5;
+                    ctx.fillStyle = style.backgroundColor || '#000000';
+                    const boxBottom = y + (style.fontSize * 0.2);
+                    const boxTop = boxBottom - boxHeight;
+                    
+                    ctx.fillRect(x - boxWidth / 2, boxTop, boxWidth, boxHeight);
+                    ctx.restore();
+                }
                 
                 ctx.strokeStyle = style.strokeColor;
                 ctx.strokeText(activeCap.text, x, y);
@@ -2929,14 +2976,29 @@
             document.getElementById('cap-style-size').value = state.captions.style.fontSize;
             document.getElementById('cap-style-color').value = state.captions.style.color;
             document.getElementById('cap-style-offset').value = state.captions.style.bottomOffset;
+            
+            const weightEl = document.getElementById('cap-style-weight');
+            if(weightEl) weightEl.value = state.captions.style.fontWeight || 800;
+            
+            const bgCheck = document.getElementById('cap-style-bg-check');
+            if(bgCheck) bgCheck.checked = !!state.captions.style.hasBackground;
+            
+            const bgColor = document.getElementById('cap-style-bg-color');
+            if(bgColor) bgColor.value = state.captions.style.backgroundColor || '#000000';
+            
+            const bgOp = document.getElementById('cap-style-bg-opacity');
+            if(bgOp) bgOp.value = state.captions.style.backgroundOpacity !== undefined ? state.captions.style.backgroundOpacity : 0.5;
+
             renderCaptionsList();
         }
     }
 
     function updateCaptionStyle(prop, value) {
         saveHistory();
-        if (prop === 'fontSize' || prop === 'bottomOffset') {
+        if (prop === 'fontSize' || prop === 'bottomOffset' || prop === 'backgroundOpacity') {
             state.captions.style[prop] = parseFloat(value);
+        } else if (prop === 'hasBackground') {
+            state.captions.style[prop] = value;
         } else {
             state.captions.style[prop] = value;
         }
