@@ -925,7 +925,7 @@
                 fontSize: 60,
                 color: '#ffffff',
                 strokeColor: '#000000',
-                strokeWidth: 6,
+                strokeWidth: 0,
                 bottomOffset: 150,
                 fontFamily: '"Manrope", sans-serif',
                 fontWeight: 800,
@@ -2041,8 +2041,10 @@
                     ctx.restore();
                 }
                 
-                ctx.strokeStyle = style.strokeColor;
-                ctx.strokeText(activeCap.text, x, y);
+                if (style.strokeWidth > 0) {
+                    ctx.strokeStyle = style.strokeColor;
+                    ctx.strokeText(activeCap.text, x, y);
+                }
                 ctx.fillStyle = style.color;
                 ctx.fillText(activeCap.text, x, y);
                 ctx.restore();
