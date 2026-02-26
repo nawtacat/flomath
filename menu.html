@@ -110,12 +110,22 @@
             const name = prompt("Enter project name:", "New Video");
             if (!name) return;
             
+            const isLandscape = confirm("Create in Landscape mode (1920x1080)?\nClick OK for Landscape, Cancel for Portrait (1080x1920).");
+            const width = isLandscape ? 1920 : 1080;
+            const height = isLandscape ? 1080 : 1920;
+
             const newRef = db.ref('projects').push();
             newRef.set({
                 name: name,
+                width: width,
+                height: height,
                 created: firebase.database.ServerValue.TIMESTAMP,
                 lastModified: firebase.database.ServerValue.TIMESTAMP
             });
+            
+            // Initialize state with dimensions
+            db.ref('states/' + newRef.key).set({ width, height });
+            
             window.location.href = `editor.html?project=${newRef.key}`;
         }
 
