@@ -536,6 +536,36 @@
             </select>
         </div>
 
+        <div class="control-group">
+            <label>Watermark</label>
+            <div style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-bottom: 10px;">
+                <input type="checkbox" id="watermark-active" onchange="updateWatermark('active', this.checked)">
+                <label for="watermark-active" style="cursor:pointer;">Active</label>
+            </div>
+            <div id="watermark-controls" style="display:none;">
+                <label>Text</label>
+                <input type="text" id="watermark-text" oninput="updateWatermark('text', this.value)">
+                <div class="property-row">
+                    <span>X Position</span>
+                    <input type="number" id="watermark-x" onchange="updateWatermark('x', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Y Position</span>
+                    <input type="number" id="watermark-y" onchange="updateWatermark('y', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Size</span>
+                    <input type="number" id="watermark-size" onchange="updateWatermark('size', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Color</span>
+                    <input type="color" id="watermark-color" onchange="updateWatermark('color', this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
+                </div>
+                <label>Opacity</label>
+                <input type="range" id="watermark-opacity" min="0" max="1" step="0.05" oninput="updateWatermark('opacity', this.value)">
+            </div>
+        </div>
+
         <div class="control-group" id="properties-panel" style="display:none;">
             <label>Properties (Keyframable)</label>
             <div style="margin-bottom:10px; font-weight:bold;" id="selected-layer-name">Layer</div>
@@ -863,6 +893,16 @@
         nextId: 1,
         layerSlots: [],
         nextSlotId: 1
+    };
+
+    let watermark = {
+        active: false,
+        text: 'flomath',
+        x: CANVAS_WIDTH / 2,
+        y: CANVAS_HEIGHT - 50,
+        size: 40,
+        color: '#ffffff',
+        opacity: 0.5
     };
 
     const manualGlobalTransform = { x: 0, y: 0, scale: 1 };
@@ -1612,6 +1652,7 @@
         initFirebase();
         // Start Autosave
         setInterval(autoSaveProject, 5000);
+        updateWatermarkUI();
         
         updateUndoRedoButtons();
     }
@@ -1807,7 +1848,7 @@
             ctx.save();
             
             // Apply Blur if not excluded
-            if (currentBlur > 0 && !layer.excludeFromBlur) {
+            if (currentBlur > 0 && !layer.excludeFromBlur && layer.type !== 'text') {
                 ctx.filter = `blur(${currentBlur}px)`;
             }
 
@@ -1938,6 +1979,11 @@
 
         ctx.restore(); // Restore Camera Transform
 
+        // Draw Watermark (after camera, inside editor transform)
+        if (watermark.active) {
+            drawWatermark(ctx);
+        }
+
         // 3. Draw Red Border (Camera Frame) in Editor Space
         if (!isExport) {
             ctx.strokeStyle = 'red';
@@ -2030,6 +2076,54 @@
         saveHistory();
         state.background = value;
         triggerAutoSave();
+    }
+
+    function updateWatermarkUI() {
+        const controls = document.getElementById('watermark-controls');
+        if (!controls) return;
+
+        document.getElementById('watermark-active').checked = watermark.active;
+        controls.style.display = watermark.active ? 'block' : 'none';
+
+        if (watermark.active) {
+            document.getElementById('watermark-text').value = watermark.text;
+            document.getElementById('watermark-x').value = Math.round(watermark.x);
+            document.getElementById('watermark-y').value = Math.round(watermark.y);
+            document.getElementById('watermark-size').value = watermark.size;
+            document.getElementById('watermark-color').value = watermark.color;
+            document.getElementById('watermark-opacity').value = watermark.opacity;
+        }
+    }
+
+    function updateWatermark(prop, value) {
+        saveHistory();
+        if (prop === 'active') {
+            watermark.active = !!value;
+        } else if (prop === 'text' || prop === 'color') {
+            watermark[prop] = value;
+        } else {
+            const parsed = parseFloat(value);
+            if (!isNaN(parsed)) {
+                watermark[prop] = parsed;
+            }
+        }
+        updateWatermarkUI();
+        triggerAutoSave();
+    }
+
+    function drawWatermark(ctx) {
+        ctx.save();
+        ctx.font = `bold ${watermark.size}px Arial`;
+        ctx.fillStyle = watermark.color;
+        ctx.globalAlpha = watermark.opacity;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText(watermark.text, watermark.x, watermark.y);
+        ctx.restore();
     }
 
     // --- Layer Management ---
@@ -4662,6 +4756,7 @@
             motionTracks: motionTracks,
             globalFloat: globalFloat,
             globalBlur: globalBlur,
+            watermark: watermark,
             layers: state.layers.map(l => l.toJSON())
         };
 
@@ -4721,6 +4816,7 @@
             if (data.motionTracks) Object.assign(motionTracks, data.motionTracks);
             if (data.globalFloat) Object.assign(globalFloat, data.globalFloat);
             if (data.globalBlur) Object.assign(globalBlur, data.globalBlur);
+            if (data.watermark) Object.assign(watermark, data.watermark);
 
             // Reconstruct Layers
             state.layers = [];
@@ -4775,6 +4871,7 @@
             }
 
             updateViewportFloatUI();
+            updateWatermarkUI();
             renderTimeline();
             if(statusEl) statusEl.innerText = 'Loaded';
             updateBlurUI();
@@ -4800,8 +4897,9 @@
             layerSlots: JSON.parse(JSON.stringify(state.layerSlots)),
             globalZoom: JSON.parse(JSON.stringify(globalZoom)),
             motionTracks: JSON.parse(JSON.stringify(motionTracks))
-            ,globalFloat: JSON.parse(JSON.stringify(globalFloat)),
-            globalBlur: JSON.parse(JSON.stringify(globalBlur))
+            ,globalFloat: JSON.parse(JSON.stringify(globalFloat))
+            ,globalBlur: JSON.parse(JSON.stringify(globalBlur)),
+            watermark: JSON.parse(JSON.stringify(watermark))
         };
     }
 
@@ -4827,7 +4925,9 @@
         
         if (saved.globalFloat) Object.assign(globalFloat, saved.globalFloat);
         if (saved.globalBlur) Object.assign(globalBlur, saved.globalBlur);
+        if (saved.watermark) Object.assign(watermark, saved.watermark);
         updateBlurUI();
+        updateWatermarkUI();
         updateViewportFloatUI();
         
         renderTimeline();
