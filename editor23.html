@@ -4027,6 +4027,22 @@
             return;
         }
 
+        if (dragState.type === 'watermark-drag') {
+            const rawPos = getPointerRaw(e);
+            const cameraSpacePos = applyInverseTransform(rawPos, editorTransform);
+            const dx = cameraSpacePos.x - dragState.startX;
+            const dy = cameraSpacePos.y - dragState.startY;
+
+            watermark.x = Math.round(dragState.initialX + dx);
+            watermark.y = Math.round(dragState.initialY + dy);
+
+            // Also update the UI input fields in real-time
+            document.getElementById('watermark-x').value = watermark.x;
+            document.getElementById('watermark-y').value = watermark.y;
+            
+            return;
+        }
+
         // Canvas Logic
         if (dragState.type.startsWith('canvas-')) {
             handleCanvasDrag(e);
@@ -4194,6 +4210,37 @@
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
         } else {
+            // Check for watermark hit if no layer was hit
+            const rawPos = getPointerRaw(e);
+            const cameraSpacePos = applyInverseTransform(rawPos, editorTransform);
+
+            if (watermark.active) {
+                ctx.font = `bold ${watermark.size}px Arial`;
+                const metrics = ctx.measureText(watermark.text);
+                const w = metrics.width;
+                const h = watermark.size; // Approximation for hit testing
+
+                const wmLeft = watermark.x - w / 2;
+                const wmRight = watermark.x + w / 2;
+                const wmTop = watermark.y - h / 2;
+                const wmBottom = watermark.y + h / 2;
+
+                if (cameraSpacePos.x >= wmLeft && cameraSpacePos.x <= wmRight && cameraSpacePos.y >= wmTop && cameraSpacePos.y <= wmBottom) {
+                    saveHistory();
+                    dragState = {
+                        active: true,
+                        type: 'watermark-drag',
+                        startX: cameraSpacePos.x,
+                        startY: cameraSpacePos.y,
+                        initialX: watermark.x,
+                        initialY: watermark.y
+                    };
+                    document.addEventListener('mousemove', onDrag);
+                    document.addEventListener('mouseup', stopDrag);
+                    return; // Prevent global pan
+                }
+            }
+
             selectLayer(null);
             startGlobalPan(e);
         }
