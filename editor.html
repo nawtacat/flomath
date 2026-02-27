@@ -522,6 +522,7 @@
             <button class="secondary" onclick="addTextLayer()">+ Text</button>
             <button class="secondary" onclick="document.getElementById('img-upload').click()">+ Image</button>
             <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
+            <button class="secondary" onclick="addShape()">+ Shape</button>
             <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
             <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
@@ -612,6 +613,22 @@
                     <input type="checkbox" id="prop-katex" onchange="updateKatexMode(this.checked)">
                     Render as KaTeX
                 </label>
+            </div>
+            
+            <div id="shape-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Shape Properties</label>
+                <select id="prop-shape-type" onchange="updateShapeType(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px; margin-bottom:5px;">
+                    <option value="square">Square</option>
+                    <option value="circle">Circle</option>
+                    <option value="triangle">Triangle</option>
+                    <option value="line">Line</option>
+                </select>
+                <div class="property-row">
+                    <span>Color</span>
+                    <input type="color" id="prop-shape-color" onchange="updateShapeColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
+                    <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('color')">◆</button>
+                </div>
+                <button id="btn-shapecutter-toggle" class="secondary" style="width:100%; margin-top:5px; background:#444;" onclick="toggleShapecutter()">Open Shapecutter Tool</button>
             </div>
 
             <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -821,6 +838,17 @@
                 </select>
             </div>
         </div>
+        
+        <div id="shapecutter-controls" class="control-group" style="display:none; border: 1px solid #e53935; background: rgba(229, 57, 53, 0.1); padding: 10px;">
+            <label style="color:#e53935; font-weight:bold;">Shapecutter Active</label>
+            <label>Cutter Shape</label>
+            <select id="shapecutter-shape" onchange="updateShapecutterShape(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                <option value="square">Square</option>
+                <option value="circle">Circle</option>
+            </select>
+            <button class="secondary" style="width:100%; margin-top:10px; background:#e53935; color:white; font-weight:bold;" onclick="performCut()">✂ CUT NOW</button>
+            <button class="secondary" style="width:100%; margin-top:5px;" onclick="toggleShapecutter()">Cancel / Close</button>
+        </div>
     </div>
 
     <div class="viewport">
@@ -894,6 +922,17 @@
         layerSlots: [],
         nextSlotId: 1
     };
+
+    let shapecutter = {
+        active: false,
+        x: CANVAS_WIDTH / 2,
+        y: CANVAS_HEIGHT / 2,
+        width: 200,
+        height: 200,
+        type: 'square'
+    };
+    const shapeHelperCanvas = document.createElement('canvas');
+    const shapeHelperCtx = shapeHelperCanvas.getContext('2d');
 
     let watermark = {
         active: false,
@@ -977,6 +1016,7 @@
     let motionMarkerDrag = null;
     let motionToastTimer = null;
     
+    let shapecutterDrag = null;
     let historyStack = [];
     let redoStack = [];
     const MAX_HISTORY = 50;
@@ -1472,7 +1512,7 @@
     class Layer {
         constructor(type, name, content) {
             this.id = state.nextId++;
-            this.type = type; // 'text', 'image', 'video'
+            this.type = type; // 'text', 'image', 'video', 'shape'
             this.name = name;
             this.content = content; // Text string or Image/Video Element
             this.startTime = 0;
@@ -1504,6 +1544,8 @@
         this.muted = false;
         this.excludeFromBlur = false;
         this.storageUrl = null; // URL from Firebase Storage
+        this.shapeType = 'square'; // for type='shape'
+        this.cuts = []; // Array of {type, x, y, width, height, rotation} (local space)
 
             // Keyframes: { property: [ {time, value}, ... ] }
             this.keyframes = {
@@ -1528,6 +1570,12 @@
                 if (this.content && (this.content.width || this.content.videoWidth)) {
                     this.width = this.content.width || this.content.videoWidth;
                     this.height = this.content.height || this.content.videoHeight;
+                }
+            } else if (this.type === 'shape') {
+                if (this.shapeType === 'line') {
+                    this.width = 300; this.height = 10;
+                } else {
+                    this.width = 200; this.height = 200;
                 }
             }
         }
@@ -1596,6 +1644,7 @@
                 newLayer.katexImageLoading = false;
             }
             newLayer.excludeFromBlur = this.excludeFromBlur;
+            newLayer.cuts = JSON.parse(JSON.stringify(this.cuts || []));
             return newLayer;
         }
 
@@ -1615,6 +1664,7 @@
             newLayer.katexImage = this.katexImage;
             newLayer.katexImageWidth = this.katexImageWidth;
             newLayer.katexImageHeight = this.katexImageHeight;
+            newLayer.cuts = JSON.parse(JSON.stringify(this.cuts || []));
             return newLayer;
         }
 
@@ -1891,6 +1941,53 @@
                 } else {
                     ctx.fillText(textContent, 0, 0);
                 }
+            } else if (layer.type === 'shape') {
+                const color = layer.getValue('color', state.currentTime);
+                
+                // Use helper canvas to handle cuts
+                const w = layer.width || 200;
+                const h = layer.height || 200;
+                
+                // Resize helper if needed
+                if (shapeHelperCanvas.width < w || shapeHelperCanvas.height < h) {
+                    shapeHelperCanvas.width = Math.max(shapeHelperCanvas.width, w);
+                    shapeHelperCanvas.height = Math.max(shapeHelperCanvas.height, h);
+                }
+                
+                // Clear helper area we will use
+                shapeHelperCtx.clearRect(0, 0, w, h);
+                shapeHelperCtx.save();
+                shapeHelperCtx.translate(w/2, h/2);
+                
+                // Draw Base Shape
+                shapeHelperCtx.fillStyle = color;
+                shapeHelperCtx.beginPath();
+                if (layer.shapeType === 'circle') {
+                    shapeHelperCtx.arc(0, 0, Math.min(w, h)/2, 0, Math.PI * 2);
+                } else if (layer.shapeType === 'triangle') {
+                    shapeHelperCtx.moveTo(0, -h/2);
+                    shapeHelperCtx.lineTo(w/2, h/2);
+                    shapeHelperCtx.lineTo(-w/2, h/2);
+                    shapeHelperCtx.closePath();
+                } else {
+                    // Square, Rectangle, Line
+                    shapeHelperCtx.rect(-w/2, -h/2, w, h);
+                }
+                shapeHelperCtx.fill();
+                
+                // Apply Cuts
+                if (layer.cuts && layer.cuts.length > 0) {
+                    shapeHelperCtx.globalCompositeOperation = 'destination-out';
+                    shapeHelperCtx.fillStyle = 'black';
+                    layer.cuts.forEach(cut => {
+                        drawCutOnContext(shapeHelperCtx, cut);
+                    });
+                    shapeHelperCtx.globalCompositeOperation = 'source-over';
+                }
+                
+                shapeHelperCtx.restore();
+                ctx.drawImage(shapeHelperCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
+
             } else if (layer.type === 'highlight') {
                 const rect = layer.highlightRect || { width: layer.width || 100, height: layer.height || 100 };
                 const highlightDuration = Math.max(0.1, layer.highlightDuration || 1);
@@ -1979,6 +2076,42 @@
 
         ctx.restore(); // Restore Camera Transform
 
+        // Draw Shapecutter Overlay (Editor Only)
+        if (!isExport && shapecutter.active && state.selectedLayerId) {
+            const layer = state.layers.find(l => l.id === state.selectedLayerId);
+            if (layer && layer.type === 'shape') {
+                // Draw in screen space (apply editor transform only)
+                ctx.save();
+                applyGlobalTransform(editorTransform);
+                
+                ctx.strokeStyle = '#e53935';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                
+                if (shapecutter.type === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(shapecutter.x, shapecutter.y, Math.min(shapecutter.width, shapecutter.height)/2, 0, Math.PI*2);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeRect(shapecutter.x - shapecutter.width/2, shapecutter.y - shapecutter.height/2, shapecutter.width, shapecutter.height);
+                }
+                
+                // Draw handles
+                ctx.fillStyle = '#e53935';
+                const hw = shapecutter.width/2;
+                const hh = shapecutter.height/2;
+                const corners = [
+                    {x: shapecutter.x - hw, y: shapecutter.y - hh},
+                    {x: shapecutter.x + hw, y: shapecutter.y - hh},
+                    {x: shapecutter.x + hw, y: shapecutter.y + hh},
+                    {x: shapecutter.x - hw, y: shapecutter.y + hh}
+                ];
+                corners.forEach(c => ctx.fillRect(c.x - 4, c.y - 4, 8, 8));
+                
+                ctx.restore();
+            }
+        }
+
         // Draw Watermark (after camera, inside editor transform)
         if (watermark.active) {
             drawWatermark(ctx);
@@ -1991,6 +2124,20 @@
             ctx.strokeRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
             ctx.restore(); // Restore Editor Transform
         }
+    }
+
+    function drawCutOnContext(ctx, cut) {
+        ctx.save();
+        ctx.translate(cut.x, cut.y);
+        ctx.rotate((cut.rotation || 0) * Math.PI / 180);
+        ctx.beginPath();
+        if (cut.type === 'circle') {
+            ctx.arc(0, 0, Math.min(cut.width, cut.height)/2, 0, Math.PI*2);
+        } else {
+            ctx.rect(-cut.width/2, -cut.height/2, cut.width, cut.height);
+        }
+        ctx.fill();
+        ctx.restore();
     }
 
     function createLayerSlot(name = null, insertIndex = state.layerSlots.length) {
@@ -2131,6 +2278,23 @@
     function addTextLayer() {
         saveHistory();
         const l = new Layer('text', 'Text Layer', 'HELLO');
+        const center = getViewportCenterWorld();
+        l.x = center.x;
+        l.y = center.y;
+        ensureLayerStartsAtPlayhead(l);
+        state.layers.push(l);
+        placeLayerOnNewSlot(l);
+        selectLayer(l.id);
+        focusPlayheadOnLayer(l);
+        renderTimeline();
+        triggerAutoSave();
+    }
+
+    function addShape() {
+        saveHistory();
+        const l = new Layer('shape', 'Shape Layer', null);
+        l.shapeType = 'square';
+        l.color = '#007acc';
         const center = getViewportCenterWorld();
         l.x = center.x;
         l.y = center.y;
@@ -2335,6 +2499,7 @@
         
         const panel = document.getElementById('properties-panel');
         const textProps = document.getElementById('text-props');
+        const shapeProps = document.getElementById('shape-props');
         
         if (layer) {
             panel.style.display = 'block';
@@ -2348,6 +2513,15 @@
             } else {
                 textProps.style.display = 'none';
             }
+            
+            if (layer.type === 'shape') {
+                shapeProps.style.display = 'block';
+                document.getElementById('prop-shape-type').value = layer.shapeType || 'square';
+                document.getElementById('prop-shape-color').value = layer.color || '#ffffff';
+            } else {
+                shapeProps.style.display = 'none';
+            }
+
             document.getElementById('prop-loop').value = layer.loopingAnimation || 'none';
             if (katexToggle) katexToggle.checked = !!layer.katex;
             ensureAnimationInputs(layer);
@@ -2368,6 +2542,7 @@
             if (exitDurationInput) exitDurationInput.value = '1.0';
             if (highlightControls) highlightControls.style.display = 'none';
             if (audioControls) audioControls.style.display = 'none';
+            if (shapeProps) shapeProps.style.display = 'none';
         }
         motionEditingOverride = null;
         updateMotionStatus();
@@ -2454,7 +2629,7 @@
         document.getElementById('prop-rotation').value = Math.round(layer.getValue('rotation', state.currentTime));
         document.getElementById('prop-opacity').value = layer.getValue('opacity', state.currentTime).toFixed(2);
 
-        if (layer.type === 'text') {
+        if (layer.type === 'text' || layer.type === 'shape') {
             document.getElementById('prop-color').value = layer.getValue('color', state.currentTime);
         }
     }
@@ -2536,7 +2711,7 @@
 
     function updateColor(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (layer && layer.type === 'text') {
+        if (layer && (layer.type === 'text' || layer.type === 'shape')) {
             saveHistory();
             
             // Update the base property. The user can press the '◆' button to create a new keyframe.
@@ -2555,6 +2730,106 @@
             renderTimeline(); // To show updated keyframe if any
             triggerAutoSave();
         }
+    }
+
+    function updateShapeType(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'shape') {
+            saveHistory();
+            layer.shapeType = val;
+            layer.updateDimensions();
+            renderCanvas();
+            triggerAutoSave();
+        }
+    }
+
+    function updateShapeColor(val) {
+        updateColor(val);
+    }
+
+    // --- Shapecutter Logic ---
+    function toggleShapecutter() {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer || layer.type !== 'shape') {
+            alert("Select a shape layer first.");
+            return;
+        }
+        
+        shapecutter.active = !shapecutter.active;
+        const controls = document.getElementById('shapecutter-controls');
+        const btn = document.getElementById('btn-shapecutter-toggle');
+        
+        if (shapecutter.active) {
+            controls.style.display = 'block';
+            btn.innerText = "Close Shapecutter Tool";
+            // Center cutter on screen
+            shapecutter.x = CANVAS_WIDTH / 2;
+            shapecutter.y = CANVAS_HEIGHT / 2;
+            shapecutter.width = 200;
+            shapecutter.height = 200;
+        } else {
+            controls.style.display = 'none';
+            btn.innerText = "Open Shapecutter Tool";
+        }
+        renderCanvas();
+    }
+
+    function updateShapecutterShape(val) {
+        shapecutter.type = val;
+        renderCanvas();
+    }
+
+    function performCut() {
+        if (!shapecutter.active || !state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+
+        saveHistory();
+        
+        // Transform cutter world coords to layer local coords
+        // 1. Get layer transform at current time
+        let lx = layer.getValue('x', state.currentTime);
+        let ly = layer.getValue('y', state.currentTime);
+        let ls = layer.getValue('scale', state.currentTime);
+        let lr = layer.getValue('rotation', state.currentTime);
+        
+        const motionOverride = computeMotionTransformForLayer(layer, state.currentTime);
+        if (motionOverride) {
+            lx = motionOverride.x;
+            ly = motionOverride.y;
+            if (motionOverride.scale !== undefined) ls = motionOverride.scale;
+        }
+
+        // 2. Inverse Transform
+        // Translate
+        const dx = shapecutter.x - lx;
+        const dy = shapecutter.y - ly;
+        
+        // Rotate (negative layer rotation)
+        const rad = -lr * Math.PI / 180;
+        const rx = dx * Math.cos(rad) - dy * Math.sin(rad);
+        const ry = dx * Math.sin(rad) + dy * Math.cos(rad);
+        
+        // Scale
+        const localX = rx / ls;
+        const localY = ry / ls;
+        const localW = shapecutter.width / ls;
+        const localH = shapecutter.height / ls;
+        
+        // Add cut
+        if (!layer.cuts) layer.cuts = [];
+        layer.cuts.push({
+            type: shapecutter.type,
+            x: localX,
+            y: localY,
+            width: localW,
+            height: localH,
+            rotation: -lr // Cutter is axis aligned in world, so rotated by -lr in local
+        });
+        
+        renderCanvas();
+        triggerAutoSave();
     }
 
     function markKatexLayerDirty(layer) {
@@ -4074,6 +4349,7 @@
         document.removeEventListener('mousemove', onDrag);
         document.removeEventListener('mouseup', stopDrag);
         dragState.active = false;
+        shapecutterDrag = null;
         dragState.targetSlotIndex = -1;
         dragState.isReordering = false;
         triggerAutoSave(); // Save immediately after interaction
@@ -4084,6 +4360,11 @@
     function handleCanvasMouseDown(e) {
         if (highlighterMode) {
             startHighlightDrawing(e);
+            return;
+        }
+        
+        if (shapecutter.active) {
+            handleShapecutterMouseDown(e);
             return;
         }
         const pos = getPointerPos(e);
@@ -4246,6 +4527,46 @@
         }
     }
 
+    function handleShapecutterMouseDown(e) {
+        const rawPos = getPointerRaw(e);
+        const pos = applyInverseTransform(rawPos, editorTransform); // Screen space (editor transform only)
+        
+        const hw = shapecutter.width / 2;
+        const hh = shapecutter.height / 2;
+        const corners = [
+            {x: shapecutter.x - hw, y: shapecutter.y - hh, type: 'tl'},
+            {x: shapecutter.x + hw, y: shapecutter.y - hh, type: 'tr'},
+            {x: shapecutter.x + hw, y: shapecutter.y + hh, type: 'br'},
+            {x: shapecutter.x - hw, y: shapecutter.y + hh, type: 'bl'}
+        ];
+        
+        // Check corners
+        for (const c of corners) {
+            if (Math.hypot(pos.x - c.x, pos.y - c.y) < 15) {
+                shapecutterDrag = {
+                    type: 'resize',
+                    corner: c.type,
+                    startX: pos.x,
+                    startY: pos.y,
+                    initialX: shapecutter.x,
+                    initialY: shapecutter.y,
+                    initialW: shapecutter.width,
+                    initialH: shapecutter.height
+                };
+                document.addEventListener('mousemove', onDrag);
+                document.addEventListener('mouseup', stopDrag);
+                return;
+            }
+        }
+        
+        // Check body
+        if (Math.abs(pos.x - shapecutter.x) < hw && Math.abs(pos.y - shapecutter.y) < hh) {
+            shapecutterDrag = { type: 'move', startX: pos.x, startY: pos.y, initialX: shapecutter.x, initialY: shapecutter.y };
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+    }
+
     function findLayerAtPosition(pos) {
         const layersInOrder = getLayersInRenderOrder();
         const reversedLayers = [...layersInOrder].reverse();
@@ -4305,6 +4626,34 @@
         const pos = getPointerPos(e);
         const layer = state.layers.find(l => l.id === dragState.layerId);
         
+        if (shapecutterDrag) {
+            const rawPos = getPointerRaw(e);
+            const p = applyInverseTransform(rawPos, editorTransform);
+            const dx = p.x - shapecutterDrag.startX;
+            const dy = p.y - shapecutterDrag.startY;
+            
+            if (shapecutterDrag.type === 'move') {
+                shapecutter.x = shapecutterDrag.initialX + dx;
+                shapecutter.y = shapecutterDrag.initialY + dy;
+            } else if (shapecutterDrag.type === 'resize') {
+                // Simple symmetric resize for now or corner based
+                // Let's do corner based
+                let newW = shapecutterDrag.initialW;
+                let newH = shapecutterDrag.initialH;
+                
+                if (shapecutterDrag.corner.includes('r')) newW += dx;
+                else newW -= dx;
+                
+                if (shapecutterDrag.corner.includes('b')) newH += dy;
+                else newH -= dy;
+                
+                shapecutter.width = Math.max(20, Math.abs(newW));
+                shapecutter.height = Math.max(20, Math.abs(newH));
+            }
+            renderCanvas();
+            return;
+        }
+
         if (dragState.type === 'canvas-drag') {
             const dx = pos.x - dragState.startX;
             const dy = pos.y - dragState.startY;
