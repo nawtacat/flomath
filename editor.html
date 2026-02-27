@@ -2121,30 +2121,37 @@
             if (layer && layer.type === 'shape') {
                 // Draw in screen space (apply editor transform only)
                 ctx.save();
+                ctx.translate(shapecutter.x, shapecutter.y);
+                ctx.rotate((shapecutter.rotation || 0) * Math.PI / 180);
                 
                 ctx.strokeStyle = '#e53935';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 5]);
                 
+                const w = shapecutter.width;
+                const h = shapecutter.height;
+
                 if (shapecutter.type === 'circle') {
                     ctx.beginPath();
-                    ctx.arc(shapecutter.x, shapecutter.y, Math.min(shapecutter.width, shapecutter.height)/2, 0, Math.PI*2);
+                    ctx.arc(0, 0, Math.min(w, h)/2, 0, Math.PI*2);
                     ctx.stroke();
                 } else {
-                    ctx.strokeRect(shapecutter.x - shapecutter.width/2, shapecutter.y - shapecutter.height/2, shapecutter.width, shapecutter.height);
+                    ctx.strokeRect(-w/2, -h/2, w, h);
                 }
                 
                 // Draw handles
                 ctx.fillStyle = '#e53935';
-                const hw = shapecutter.width/2;
-                const hh = shapecutter.height/2;
+                const hw = w/2;
+                const hh = h/2;
                 const corners = [
-                    {x: shapecutter.x - hw, y: shapecutter.y - hh},
-                    {x: shapecutter.x + hw, y: shapecutter.y - hh},
-                    {x: shapecutter.x + hw, y: shapecutter.y + hh},
-                    {x: shapecutter.x - hw, y: shapecutter.y + hh}
+                    {x: -hw, y: -hh}, {x: hw, y: -hh},
+                    {x: hw, y: hh}, {x: -hw, y: hh}
                 ];
                 corners.forEach(c => ctx.fillRect(c.x - 4, c.y - 4, 8, 8));
+                
+                // Draw Rotation Handle
+                ctx.beginPath(); ctx.moveTo(0, -hh); ctx.lineTo(0, -hh - 30); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, -hh - 30, 6, 0, Math.PI*2); ctx.fill();
                 
                 ctx.restore();
             }
@@ -4627,18 +4634,37 @@
         const rawPos = getPointerRaw(e);
         const pos = applyInverseTransform(rawPos, editorTransform); // Screen space (editor transform only)
         
+        // Transform mouse to local cutter space
+        const dx = pos.x - shapecutter.x;
+        const dy = pos.y - shapecutter.y;
+        const r = -(shapecutter.rotation || 0) * Math.PI / 180;
+        const lx = dx * Math.cos(r) - dy * Math.sin(r);
+        const ly = dx * Math.sin(r) + dy * Math.cos(r);
+
         const hw = shapecutter.width / 2;
         const hh = shapecutter.height / 2;
+
+        // Check Rotation Handle (0, -hh - 30)
+        if (Math.hypot(lx - 0, ly - (-hh - 30)) < 15) {
+            shapecutterDrag = {
+                type: 'rotate',
+                startX: pos.x, startY: pos.y,
+                initialRotation: shapecutter.rotation || 0,
+                initialAngle: Math.atan2(pos.y - shapecutter.y, pos.x - shapecutter.x)
+            };
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+            return;
+        }
+
         const corners = [
-            {x: shapecutter.x - hw, y: shapecutter.y - hh, type: 'tl'},
-            {x: shapecutter.x + hw, y: shapecutter.y - hh, type: 'tr'},
-            {x: shapecutter.x + hw, y: shapecutter.y + hh, type: 'br'},
-            {x: shapecutter.x - hw, y: shapecutter.y + hh, type: 'bl'}
+            {x: -hw, y: -hh, type: 'tl'}, {x: hw, y: -hh, type: 'tr'},
+            {x: hw, y: hh, type: 'br'}, {x: -hw, y: hh, type: 'bl'}
         ];
         
         // Check corners
         for (const c of corners) {
-            if (Math.hypot(pos.x - c.x, pos.y - c.y) < 15) {
+            if (Math.hypot(lx - c.x, ly - c.y) < 15) {
                 shapecutterDrag = {
                     type: 'resize',
                     corner: c.type,
@@ -4647,7 +4673,8 @@
                     initialX: shapecutter.x,
                     initialY: shapecutter.y,
                     initialW: shapecutter.width,
-                    initialH: shapecutter.height
+                    initialH: shapecutter.height,
+                    rotation: shapecutter.rotation || 0
                 };
                 document.addEventListener('mousemove', onDrag);
                 document.addEventListener('mouseup', stopDrag);
@@ -4656,7 +4683,7 @@
         }
         
         // Check body
-        if (Math.abs(pos.x - shapecutter.x) < hw && Math.abs(pos.y - shapecutter.y) < hh) {
+        if (Math.abs(lx) < hw && Math.abs(ly) < hh) {
             shapecutterDrag = { type: 'move', startX: pos.x, startY: pos.y, initialX: shapecutter.x, initialY: shapecutter.y };
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
