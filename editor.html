@@ -934,6 +934,7 @@
         y: CANVAS_HEIGHT / 2,
         width: 200,
         height: 200,
+        rotation: 0,
         type: 'square'
     };
     const shapeHelperCanvas = document.createElement('canvas');
@@ -2825,6 +2826,7 @@
             shapecutter.y = CANVAS_HEIGHT / 2;
             shapecutter.width = 200;
             shapecutter.height = 200;
+            shapecutter.rotation = 0;
         } else {
             controls.style.display = 'none';
             btn.innerText = "Open Shapecutter Tool";
@@ -2883,7 +2885,7 @@
             y: localY,
             width: localW,
             height: localH,
-            rotation: -lr // Cutter is axis aligned in world, so rotated by -lr in local
+            rotation: (shapecutter.rotation || 0) - lr // Relative rotation
         });
         
         renderCanvas();
@@ -4291,22 +4293,31 @@
             const p = applyInverseTransform(rawPos, editorTransform);
             const dx = p.x - shapecutterDrag.startX;
             const dy = p.y - shapecutterDrag.startY;
+            const dxWorld = p.x - shapecutterDrag.startX;
+            const dyWorld = p.y - shapecutterDrag.startY;
             
             if (shapecutterDrag.type === 'move') {
                 shapecutter.x = shapecutterDrag.initialX + dx;
                 shapecutter.y = shapecutterDrag.initialY + dy;
+            } else if (shapecutterDrag.type === 'rotate') {
+                const currentAngle = Math.atan2(p.y - shapecutter.y, p.x - shapecutter.x);
+                const dAngle = currentAngle - shapecutterDrag.initialAngle;
+                shapecutter.rotation = shapecutterDrag.initialRotation + (dAngle * 180 / Math.PI);
             } else if (shapecutterDrag.type === 'resize') {
+                // Rotate vector by -rotation to get local delta
+                const r = -(shapecutterDrag.rotation || 0) * Math.PI / 180;
+                const localDx = dxWorld * Math.cos(r) - dyWorld * Math.sin(r);
+                const localDy = dxWorld * Math.sin(r) + dyWorld * Math.cos(r);
+
                 let newW = shapecutterDrag.initialW;
                 let newH = shapecutterDrag.initialH;
                 
-                if (shapecutterDrag.corner.includes('r')) newW += dx;
-                else newW -= dx;
+                if (shapecutterDrag.corner.includes('r')) newW += localDx; else newW -= localDx;
+                if (shapecutterDrag.corner.includes('b')) newH += localDy; else newH -= localDy;
                 
-                if (shapecutterDrag.corner.includes('b')) newH += dy;
-                else newH -= dy;
-                
-                shapecutter.width = Math.max(20, Math.abs(newW));
-                shapecutter.height = Math.max(20, Math.abs(newH));
+                // Allow flipping? For now just clamp min size
+                shapecutter.width = Math.max(20, newW);
+                shapecutter.height = Math.max(20, newH);
             }
             renderCanvas();
             return;
