@@ -628,7 +628,22 @@
                     <input type="color" id="prop-shape-color" onchange="updateShapeColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
                     <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('color')">◆</button>
                 </div>
+                <div class="property-row" id="prop-shape-line-thickness-row" style="display:none;">
+                    <span>Thickness</span>
+                    <input type="number" id="prop-shape-line-thickness" min="1" max="100" onchange="updateShapeThickness(this.value)">
+                </div>
                 <button id="btn-shapecutter-toggle" class="secondary" style="width:100%; margin-top:5px; background:#444;" onclick="toggleShapecutter()">Open Shapecutter Tool</button>
+            </div>
+            
+            <div id="shapecutter-controls" class="control-group" style="display:none; border: 1px solid #e53935; background: rgba(229, 57, 53, 0.1); padding: 10px; margin-top: 10px;">
+                <label style="color:#e53935; font-weight:bold;">Shapecutter Active</label>
+                <label>Cutter Shape</label>
+                <select id="shapecutter-shape" onchange="updateShapecutterShape(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                    <option value="square">Square</option>
+                    <option value="circle">Circle</option>
+                </select>
+                <button class="secondary" style="width:100%; margin-top:10px; background:#e53935; color:white; font-weight:bold;" onclick="performCut()">✂ CUT NOW</button>
+                <button class="secondary" style="width:100%; margin-top:5px;" onclick="toggleShapecutter()">Cancel / Close</button>
             </div>
 
             <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -838,17 +853,6 @@
                 </select>
             </div>
         </div>
-        
-        <div id="shapecutter-controls" class="control-group" style="display:none; border: 1px solid #e53935; background: rgba(229, 57, 53, 0.1); padding: 10px;">
-            <label style="color:#e53935; font-weight:bold;">Shapecutter Active</label>
-            <label>Cutter Shape</label>
-            <select id="shapecutter-shape" onchange="updateShapecutterShape(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
-                <option value="square">Square</option>
-                <option value="circle">Circle</option>
-            </select>
-            <button class="secondary" style="width:100%; margin-top:10px; background:#e53935; color:white; font-weight:bold;" onclick="performCut()">✂ CUT NOW</button>
-            <button class="secondary" style="width:100%; margin-top:5px;" onclick="toggleShapecutter()">Cancel / Close</button>
-        </div>
     </div>
 
     <div class="viewport">
@@ -859,6 +863,7 @@
             <button id="btn-delete-motion-keyframe" class="secondary" disabled>Delete Motion</button>
             <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
             <span id="blur-status" style="color:#bd00ff;">Blur unset</span>
+            <button id="btn-shapecutter-cut" style="display:none; background:#e53935; font-weight:bold; margin-left:10px;" onclick="performCut()">✂ Cut</button>
             <span id="zoom-status">Zoom start unset</span>
             <span id="motion-status">Motion start unset</span>
             <div id="zoom-toast" class="zoom-toast"></div>
@@ -929,6 +934,7 @@
         y: CANVAS_HEIGHT / 2,
         width: 200,
         height: 200,
+        rotation: 0,
         type: 'square'
     };
     const shapeHelperCanvas = document.createElement('canvas');
@@ -1838,8 +1844,8 @@
                 ? 1
                 : clamp((state.currentTime - layer.startTime) / entryDuration, 0, 1);
             const easedEntryProgress = easeOutQuad(entryProgress);
-            const isEntryScanHorizontal = entryAnim.type === 'scan-horizontal' && layer.type === 'image';
-            const isEntryScanVertical = entryAnim.type === 'scan-vertical' && layer.type === 'image';
+            const isEntryScanHorizontal = entryAnim.type === 'scan-horizontal';
+            const isEntryScanVertical = entryAnim.type === 'scan-vertical';
             const motionTrackActive = Boolean(peekMotionTrack(layer.id)?.keyframes.length >= 2);
             const exitStart = Math.max(layer.startTime, layer.startTime + layer.duration - exitDuration);
             const exitProgress = (motionTrackActive || exitAnim.type === 'none')
@@ -1849,8 +1855,8 @@
                     : 1);
             const entryFade = entryAnim.type === 'fade' ? easedEntryProgress : 1;
             const combinedAlpha = opacity * entryFade * exitProgress;
-            const exitIsScanHorizontal = exitAnim.type === 'scan-horizontal' && layer.type === 'image';
-            const exitIsScanVertical = exitAnim.type === 'scan-vertical' && layer.type === 'image';
+            const exitIsScanHorizontal = exitAnim.type === 'scan-horizontal';
+            const exitIsScanVertical = exitAnim.type === 'scan-vertical';
             const entryClipFactorH = isEntryScanHorizontal ? easedEntryProgress : 1;
             const entryClipFactorV = isEntryScanVertical ? easedEntryProgress : 1;
             const exitClipFactorH = exitIsScanHorizontal ? exitProgress : 1;
@@ -1919,6 +1925,15 @@
                     ctx.clip();
                     ctx.drawImage(img, -w / 2, -h / 2, w, h);
                     ctx.restore();
+                } else if (clipHorizontal || clipVertical) {
+                    const clipWidth = clipHorizontal ? Math.max(0, w * clipFactorH) : w;
+                    const clipHeight = clipVertical ? Math.max(0, h * clipFactorV) : h;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(-w / 2, -h / 2, clipWidth, clipHeight);
+                    ctx.clip();
+                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                    ctx.restore();
                 } else {
                     ctx.drawImage(img, -w / 2, -h / 2, w, h);
                 }
@@ -1935,6 +1950,17 @@
                     ctx.save();
                     ctx.beginPath();
                     ctx.rect(-clipWidth / 2, -clipHeight / 2, clipWidth, clipHeight);
+                    ctx.clip();
+                    ctx.fillText(textContent, 0, 0);
+                    ctx.restore();
+                } else if (clipHorizontal || clipVertical) {
+                    const cw = layer.width || 500;
+                    const ch = layer.height || 200;
+                    const clipW = clipHorizontal ? cw * clipFactorH : cw;
+                    const clipH = clipVertical ? ch * clipFactorV : ch;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(-cw/2, -ch/2, clipW, clipH);
                     ctx.clip();
                     ctx.fillText(textContent, 0, 0);
                     ctx.restore();
@@ -1986,7 +2012,20 @@
                 }
                 
                 shapeHelperCtx.restore();
-                ctx.drawImage(shapeHelperCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
+                
+                // Apply Scan/Clip Animation
+                if (clipHorizontal || clipVertical) {
+                    const clipWidth = clipHorizontal ? Math.max(0, w * clipFactorH) : w;
+                    const clipHeight = clipVertical ? Math.max(0, h * clipFactorV) : h;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(-w/2, -h/2, clipWidth, clipHeight);
+                    ctx.clip();
+                    ctx.drawImage(shapeHelperCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(shapeHelperCanvas, 0, 0, w, h, -w/2, -h/2, w, h);
+                }
 
             } else if (layer.type === 'highlight') {
                 const rect = layer.highlightRect || { width: layer.width || 100, height: layer.height || 100 };
@@ -2082,31 +2121,37 @@
             if (layer && layer.type === 'shape') {
                 // Draw in screen space (apply editor transform only)
                 ctx.save();
-                applyGlobalTransform(editorTransform);
+                ctx.translate(shapecutter.x, shapecutter.y);
+                ctx.rotate((shapecutter.rotation || 0) * Math.PI / 180);
                 
                 ctx.strokeStyle = '#e53935';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([5, 5]);
                 
+                const w = shapecutter.width;
+                const h = shapecutter.height;
+
                 if (shapecutter.type === 'circle') {
                     ctx.beginPath();
-                    ctx.arc(shapecutter.x, shapecutter.y, Math.min(shapecutter.width, shapecutter.height)/2, 0, Math.PI*2);
+                    ctx.arc(0, 0, Math.min(w, h)/2, 0, Math.PI*2);
                     ctx.stroke();
                 } else {
-                    ctx.strokeRect(shapecutter.x - shapecutter.width/2, shapecutter.y - shapecutter.height/2, shapecutter.width, shapecutter.height);
+                    ctx.strokeRect(-w/2, -h/2, w, h);
                 }
                 
                 // Draw handles
                 ctx.fillStyle = '#e53935';
-                const hw = shapecutter.width/2;
-                const hh = shapecutter.height/2;
+                const hw = w/2;
+                const hh = h/2;
                 const corners = [
-                    {x: shapecutter.x - hw, y: shapecutter.y - hh},
-                    {x: shapecutter.x + hw, y: shapecutter.y - hh},
-                    {x: shapecutter.x + hw, y: shapecutter.y + hh},
-                    {x: shapecutter.x - hw, y: shapecutter.y + hh}
+                    {x: -hw, y: -hh}, {x: hw, y: -hh},
+                    {x: hw, y: hh}, {x: -hw, y: hh}
                 ];
                 corners.forEach(c => ctx.fillRect(c.x - 4, c.y - 4, 8, 8));
+                
+                // Draw Rotation Handle
+                ctx.beginPath(); ctx.moveTo(0, -hh); ctx.lineTo(0, -hh - 30); ctx.stroke();
+                ctx.beginPath(); ctx.arc(0, -hh - 30, 6, 0, Math.PI*2); ctx.fill();
                 
                 ctx.restore();
             }
@@ -2518,6 +2563,10 @@
                 shapeProps.style.display = 'block';
                 document.getElementById('prop-shape-type').value = layer.shapeType || 'square';
                 document.getElementById('prop-shape-color').value = layer.color || '#ffffff';
+                
+                const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
+                thicknessRow.style.display = layer.shapeType === 'line' ? 'flex' : 'none';
+                document.getElementById('prop-shape-line-thickness').value = layer.height || 10;
             } else {
                 shapeProps.style.display = 'none';
             }
@@ -2738,6 +2787,10 @@
             saveHistory();
             layer.shapeType = val;
             layer.updateDimensions();
+            
+            const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
+            thicknessRow.style.display = val === 'line' ? 'flex' : 'none';
+            
             renderCanvas();
             triggerAutoSave();
         }
@@ -2745,6 +2798,16 @@
 
     function updateShapeColor(val) {
         updateColor(val);
+    }
+
+    function updateShapeThickness(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'shape' && layer.shapeType === 'line') {
+            saveHistory();
+            layer.height = parseFloat(val);
+            renderCanvas();
+            triggerAutoSave();
+        }
     }
 
     // --- Shapecutter Logic ---
@@ -2759,18 +2822,22 @@
         shapecutter.active = !shapecutter.active;
         const controls = document.getElementById('shapecutter-controls');
         const btn = document.getElementById('btn-shapecutter-toggle');
+        const cutBtn = document.getElementById('btn-shapecutter-cut');
         
         if (shapecutter.active) {
             controls.style.display = 'block';
             btn.innerText = "Close Shapecutter Tool";
+            if (cutBtn) cutBtn.style.display = 'inline-block';
             // Center cutter on screen
             shapecutter.x = CANVAS_WIDTH / 2;
             shapecutter.y = CANVAS_HEIGHT / 2;
             shapecutter.width = 200;
             shapecutter.height = 200;
+            shapecutter.rotation = 0;
         } else {
             controls.style.display = 'none';
             btn.innerText = "Open Shapecutter Tool";
+            if (cutBtn) cutBtn.style.display = 'none';
         }
         renderCanvas();
     }
@@ -2825,7 +2892,7 @@
             y: localY,
             width: localW,
             height: localH,
-            rotation: -lr // Cutter is axis aligned in world, so rotated by -lr in local
+            rotation: (shapecutter.rotation || 0) - lr // Relative rotation
         });
         
         renderCanvas();
@@ -3125,6 +3192,7 @@
         if (!entrySelect || !exitSelect) return false;
         const isText = layer.type === 'text';
         const isImage = layer.type === 'image';
+        const isShape = layer.type === 'shape';
 
         const typewriterOption = entrySelect.querySelector('option[value="typewriter"]');
         if (typewriterOption) {
@@ -3134,12 +3202,12 @@
         const entryScanHorizontal = entrySelect.querySelector('option[value="scan-horizontal"]');
         const entryScanVertical = entrySelect.querySelector('option[value="scan-vertical"]');
         if (entryScanHorizontal) {
-            entryScanHorizontal.disabled = !isImage;
+            entryScanHorizontal.disabled = !(isImage || isShape);
         }
         if (entryScanVertical) {
-            entryScanVertical.disabled = !isImage;
+            entryScanVertical.disabled = !(isImage || isShape);
         }
-        if (!isImage && (entrySelect.value === 'scan-horizontal' || entrySelect.value === 'scan-vertical')) {
+        if (!(isImage || isShape) && (entrySelect.value === 'scan-horizontal' || entrySelect.value === 'scan-vertical')) {
             entrySelect.value = 'none';
             updateEntryAnimation('none');
         }
@@ -3147,12 +3215,12 @@
         const exitScanHorizontal = exitSelect.querySelector('option[value="scan-horizontal"]');
         const exitScanVertical = exitSelect.querySelector('option[value="scan-vertical"]');
         if (exitScanHorizontal) {
-            exitScanHorizontal.disabled = !isImage;
+            exitScanHorizontal.disabled = !(isImage || isShape);
         }
         if (exitScanVertical) {
-            exitScanVertical.disabled = !isImage;
+            exitScanVertical.disabled = !(isImage || isShape);
         }
-        if (!isImage && (exitSelect.value === 'scan-horizontal' || exitSelect.value === 'scan-vertical')) {
+        if (!(isImage || isShape) && (exitSelect.value === 'scan-horizontal' || exitSelect.value === 'scan-vertical')) {
             exitSelect.value = 'none';
             updateExitAnimation('none');
         }
@@ -3167,7 +3235,7 @@
         if (type === 'typewriter' && layer.type !== 'text') {
             type = 'fade';
         }
-        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
+        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image' && layer.type !== 'shape') {
             type = 'fade';
         }
         saveHistory();
@@ -3194,7 +3262,7 @@
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer) return;
-        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
+        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image' && layer.type !== 'shape') {
             type = 'fade';
         }
         saveHistory();
@@ -4227,6 +4295,41 @@
     }
 
     function onDrag(e) {
+        if (shapecutterDrag) {
+            const rawPos = getPointerRaw(e);
+            const p = applyInverseTransform(rawPos, editorTransform);
+            const dx = p.x - shapecutterDrag.startX;
+            const dy = p.y - shapecutterDrag.startY;
+            const dxWorld = p.x - shapecutterDrag.startX;
+            const dyWorld = p.y - shapecutterDrag.startY;
+            
+            if (shapecutterDrag.type === 'move') {
+                shapecutter.x = shapecutterDrag.initialX + dx;
+                shapecutter.y = shapecutterDrag.initialY + dy;
+            } else if (shapecutterDrag.type === 'rotate') {
+                const currentAngle = Math.atan2(p.y - shapecutter.y, p.x - shapecutter.x);
+                const dAngle = currentAngle - shapecutterDrag.initialAngle;
+                shapecutter.rotation = shapecutterDrag.initialRotation + (dAngle * 180 / Math.PI);
+            } else if (shapecutterDrag.type === 'resize') {
+                // Rotate vector by -rotation to get local delta
+                const r = -(shapecutterDrag.rotation || 0) * Math.PI / 180;
+                const localDx = dxWorld * Math.cos(r) - dyWorld * Math.sin(r);
+                const localDy = dxWorld * Math.sin(r) + dyWorld * Math.cos(r);
+
+                let newW = shapecutterDrag.initialW;
+                let newH = shapecutterDrag.initialH;
+                
+                if (shapecutterDrag.corner.includes('r')) newW += localDx; else newW -= localDx;
+                if (shapecutterDrag.corner.includes('b')) newH += localDy; else newH -= localDy;
+                
+                // Allow flipping? For now just clamp min size
+                shapecutter.width = Math.max(20, newW);
+                shapecutter.height = Math.max(20, newH);
+            }
+            renderCanvas();
+            return;
+        }
+
         if (!dragState.active) return;
         e.preventDefault();
 
@@ -4531,18 +4634,37 @@
         const rawPos = getPointerRaw(e);
         const pos = applyInverseTransform(rawPos, editorTransform); // Screen space (editor transform only)
         
+        // Transform mouse to local cutter space
+        const dx = pos.x - shapecutter.x;
+        const dy = pos.y - shapecutter.y;
+        const r = -(shapecutter.rotation || 0) * Math.PI / 180;
+        const lx = dx * Math.cos(r) - dy * Math.sin(r);
+        const ly = dx * Math.sin(r) + dy * Math.cos(r);
+
         const hw = shapecutter.width / 2;
         const hh = shapecutter.height / 2;
+
+        // Check Rotation Handle (0, -hh - 30)
+        if (Math.hypot(lx - 0, ly - (-hh - 30)) < 15) {
+            shapecutterDrag = {
+                type: 'rotate',
+                startX: pos.x, startY: pos.y,
+                initialRotation: shapecutter.rotation || 0,
+                initialAngle: Math.atan2(pos.y - shapecutter.y, pos.x - shapecutter.x)
+            };
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+            return;
+        }
+
         const corners = [
-            {x: shapecutter.x - hw, y: shapecutter.y - hh, type: 'tl'},
-            {x: shapecutter.x + hw, y: shapecutter.y - hh, type: 'tr'},
-            {x: shapecutter.x + hw, y: shapecutter.y + hh, type: 'br'},
-            {x: shapecutter.x - hw, y: shapecutter.y + hh, type: 'bl'}
+            {x: -hw, y: -hh, type: 'tl'}, {x: hw, y: -hh, type: 'tr'},
+            {x: hw, y: hh, type: 'br'}, {x: -hw, y: hh, type: 'bl'}
         ];
         
         // Check corners
         for (const c of corners) {
-            if (Math.hypot(pos.x - c.x, pos.y - c.y) < 15) {
+            if (Math.hypot(lx - c.x, ly - c.y) < 15) {
                 shapecutterDrag = {
                     type: 'resize',
                     corner: c.type,
@@ -4551,7 +4673,8 @@
                     initialX: shapecutter.x,
                     initialY: shapecutter.y,
                     initialW: shapecutter.width,
-                    initialH: shapecutter.height
+                    initialH: shapecutter.height,
+                    rotation: shapecutter.rotation || 0
                 };
                 document.addEventListener('mousemove', onDrag);
                 document.addEventListener('mouseup', stopDrag);
@@ -4560,7 +4683,7 @@
         }
         
         // Check body
-        if (Math.abs(pos.x - shapecutter.x) < hw && Math.abs(pos.y - shapecutter.y) < hh) {
+        if (Math.abs(lx) < hw && Math.abs(ly) < hh) {
             shapecutterDrag = { type: 'move', startX: pos.x, startY: pos.y, initialX: shapecutter.x, initialY: shapecutter.y };
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
