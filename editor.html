@@ -634,6 +634,17 @@
                 </div>
                 <button id="btn-shapecutter-toggle" class="secondary" style="width:100%; margin-top:5px; background:#444;" onclick="toggleShapecutter()">Open Shapecutter Tool</button>
             </div>
+            
+            <div id="shapecutter-controls" class="control-group" style="display:none; border: 1px solid #e53935; background: rgba(229, 57, 53, 0.1); padding: 10px; margin-top: 10px;">
+                <label style="color:#e53935; font-weight:bold;">Shapecutter Active</label>
+                <label>Cutter Shape</label>
+                <select id="shapecutter-shape" onchange="updateShapecutterShape(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                    <option value="square">Square</option>
+                    <option value="circle">Circle</option>
+                </select>
+                <button class="secondary" style="width:100%; margin-top:10px; background:#e53935; color:white; font-weight:bold;" onclick="performCut()">✂ CUT NOW</button>
+                <button class="secondary" style="width:100%; margin-top:5px;" onclick="toggleShapecutter()">Cancel / Close</button>
+            </div>
 
             <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Entry Animation</label>
@@ -842,17 +853,6 @@
                 </select>
             </div>
         </div>
-        
-        <div id="shapecutter-controls" class="control-group" style="display:none; border: 1px solid #e53935; background: rgba(229, 57, 53, 0.1); padding: 10px;">
-            <label style="color:#e53935; font-weight:bold;">Shapecutter Active</label>
-            <label>Cutter Shape</label>
-            <select id="shapecutter-shape" onchange="updateShapecutterShape(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
-                <option value="square">Square</option>
-                <option value="circle">Circle</option>
-            </select>
-            <button class="secondary" style="width:100%; margin-top:10px; background:#e53935; color:white; font-weight:bold;" onclick="performCut()">✂ CUT NOW</button>
-            <button class="secondary" style="width:100%; margin-top:5px;" onclick="toggleShapecutter()">Cancel / Close</button>
-        </div>
     </div>
 
     <div class="viewport">
@@ -863,6 +863,7 @@
             <button id="btn-delete-motion-keyframe" class="secondary" disabled>Delete Motion</button>
             <button id="btn-whole-control" class="secondary toggle">Whole Control</button>
             <span id="blur-status" style="color:#bd00ff;">Blur unset</span>
+            <button id="btn-shapecutter-cut" style="display:none; background:#e53935; font-weight:bold; margin-left:10px;" onclick="performCut()">✂ Cut</button>
             <span id="zoom-status">Zoom start unset</span>
             <span id="motion-status">Motion start unset</span>
             <div id="zoom-toast" class="zoom-toast"></div>
@@ -2813,10 +2814,12 @@
         shapecutter.active = !shapecutter.active;
         const controls = document.getElementById('shapecutter-controls');
         const btn = document.getElementById('btn-shapecutter-toggle');
+        const cutBtn = document.getElementById('btn-shapecutter-cut');
         
         if (shapecutter.active) {
             controls.style.display = 'block';
             btn.innerText = "Close Shapecutter Tool";
+            if (cutBtn) cutBtn.style.display = 'inline-block';
             // Center cutter on screen
             shapecutter.x = CANVAS_WIDTH / 2;
             shapecutter.y = CANVAS_HEIGHT / 2;
@@ -2825,6 +2828,7 @@
         } else {
             controls.style.display = 'none';
             btn.innerText = "Open Shapecutter Tool";
+            if (cutBtn) cutBtn.style.display = 'none';
         }
         renderCanvas();
     }
@@ -4282,6 +4286,32 @@
     }
 
     function onDrag(e) {
+        if (shapecutterDrag) {
+            const rawPos = getPointerRaw(e);
+            const p = applyInverseTransform(rawPos, editorTransform);
+            const dx = p.x - shapecutterDrag.startX;
+            const dy = p.y - shapecutterDrag.startY;
+            
+            if (shapecutterDrag.type === 'move') {
+                shapecutter.x = shapecutterDrag.initialX + dx;
+                shapecutter.y = shapecutterDrag.initialY + dy;
+            } else if (shapecutterDrag.type === 'resize') {
+                let newW = shapecutterDrag.initialW;
+                let newH = shapecutterDrag.initialH;
+                
+                if (shapecutterDrag.corner.includes('r')) newW += dx;
+                else newW -= dx;
+                
+                if (shapecutterDrag.corner.includes('b')) newH += dy;
+                else newH -= dy;
+                
+                shapecutter.width = Math.max(20, Math.abs(newW));
+                shapecutter.height = Math.max(20, Math.abs(newH));
+            }
+            renderCanvas();
+            return;
+        }
+
         if (!dragState.active) return;
         e.preventDefault();
 
