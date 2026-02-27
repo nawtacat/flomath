@@ -628,6 +628,10 @@
                     <input type="color" id="prop-shape-color" onchange="updateShapeColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
                     <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('color')">◆</button>
                 </div>
+                <div class="property-row" id="prop-shape-line-thickness-row" style="display:none;">
+                    <span>Thickness</span>
+                    <input type="number" id="prop-shape-line-thickness" min="1" max="100" onchange="updateShapeThickness(this.value)">
+                </div>
                 <button id="btn-shapecutter-toggle" class="secondary" style="width:100%; margin-top:5px; background:#444;" onclick="toggleShapecutter()">Open Shapecutter Tool</button>
             </div>
 
@@ -2081,8 +2085,7 @@
             const layer = state.layers.find(l => l.id === state.selectedLayerId);
             if (layer && layer.type === 'shape') {
                 // Draw in screen space (apply editor transform only)
-                ctx.save();
-                applyGlobalTransform(editorTransform);
+                // NOTE: We are already in Editor Transform space because we restored Camera Transform but not Editor Transform
                 
                 ctx.strokeStyle = '#e53935';
                 ctx.lineWidth = 2;
@@ -2108,7 +2111,6 @@
                 ];
                 corners.forEach(c => ctx.fillRect(c.x - 4, c.y - 4, 8, 8));
                 
-                ctx.restore();
             }
         }
 
@@ -2518,6 +2520,10 @@
                 shapeProps.style.display = 'block';
                 document.getElementById('prop-shape-type').value = layer.shapeType || 'square';
                 document.getElementById('prop-shape-color').value = layer.color || '#ffffff';
+                
+                const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
+                thicknessRow.style.display = layer.shapeType === 'line' ? 'flex' : 'none';
+                document.getElementById('prop-shape-line-thickness').value = layer.height || 10;
             } else {
                 shapeProps.style.display = 'none';
             }
@@ -2738,6 +2744,10 @@
             saveHistory();
             layer.shapeType = val;
             layer.updateDimensions();
+            
+            const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
+            thicknessRow.style.display = val === 'line' ? 'flex' : 'none';
+            
             renderCanvas();
             triggerAutoSave();
         }
@@ -2745,6 +2755,16 @@
 
     function updateShapeColor(val) {
         updateColor(val);
+    }
+
+    function updateShapeThickness(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'shape' && layer.shapeType === 'line') {
+            saveHistory();
+            layer.height = parseFloat(val);
+            renderCanvas();
+            triggerAutoSave();
+        }
     }
 
     // --- Shapecutter Logic ---
@@ -3131,30 +3151,24 @@
             typewriterOption.disabled = !isText;
         }
 
+        // Enable Scan animations for all types (Text, Shape, Image)
         const entryScanHorizontal = entrySelect.querySelector('option[value="scan-horizontal"]');
         const entryScanVertical = entrySelect.querySelector('option[value="scan-vertical"]');
         if (entryScanHorizontal) {
-            entryScanHorizontal.disabled = !isImage;
+            entryScanHorizontal.disabled = false;
         }
         if (entryScanVertical) {
-            entryScanVertical.disabled = !isImage;
+            entryScanVertical.disabled = false;
         }
-        if (!isImage && (entrySelect.value === 'scan-horizontal' || entrySelect.value === 'scan-vertical')) {
-            entrySelect.value = 'none';
-            updateEntryAnimation('none');
-        }
+        // Removed auto-reset to 'none' for non-images
 
         const exitScanHorizontal = exitSelect.querySelector('option[value="scan-horizontal"]');
         const exitScanVertical = exitSelect.querySelector('option[value="scan-vertical"]');
         if (exitScanHorizontal) {
-            exitScanHorizontal.disabled = !isImage;
+            exitScanHorizontal.disabled = false;
         }
         if (exitScanVertical) {
-            exitScanVertical.disabled = !isImage;
-        }
-        if (!isImage && (exitSelect.value === 'scan-horizontal' || exitSelect.value === 'scan-vertical')) {
-            exitSelect.value = 'none';
-            updateExitAnimation('none');
+            exitScanVertical.disabled = false;
         }
 
         return true;
@@ -3165,9 +3179,6 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer) return;
         if (type === 'typewriter' && layer.type !== 'text') {
-            type = 'fade';
-        }
-        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
             type = 'fade';
         }
         saveHistory();
@@ -3194,9 +3205,6 @@
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer) return;
-        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
-            type = 'fade';
-        }
         saveHistory();
         layer.exitAnimation.type = type;
         const exitDurationInput = document.getElementById('prop-exit-duration');
@@ -4428,7 +4436,11 @@
             if (checkHandle()) {
                 type = 'canvas-rotate';
             } else if (hitCorner) {
-                type = 'canvas-scale';
+                if (layer.type === 'shape') {
+                    type = 'shape-resize'; // New type for independent W/H resizing
+                } else {
+                    type = 'canvas-scale';
+                }
             } else if (insideSafeZone ||
                 (localX >= -w / 2 - BODY_HIT_PAD && localX <= w / 2 + BODY_HIT_PAD &&
                     localY >= -h / 2 - BODY_HIT_PAD && localY <= h / 2 + BODY_HIT_PAD)) {
@@ -4485,6 +4497,8 @@
                 initialY: candidates[0].vy,
                 initialRotation: hitLayer.rotation,
                 initialScale: hitLayer.scale,
+                initialWidth: hitLayer.width,
+                initialHeight: hitLayer.height,
                 initialAngle: Math.atan2(pos.y - hitLayer.y, pos.x - hitLayer.x),
                 initialDist: Math.sqrt((pos.x - hitLayer.x) ** 2 + (pos.y - hitLayer.y) ** 2)
             };
@@ -4682,6 +4696,22 @@
             const dAngle = currentAngle - dragState.initialAngle;
             // Convert to degrees
             layer.rotation = dragState.initialRotation + (dAngle * 180 / Math.PI);
+        }
+        else if (dragState.type === 'shape-resize') {
+            // Independent Width/Height resizing (Stretching)
+            // 1. Transform mouse pos to local space of the shape
+            const dx = pos.x - layer.x;
+            const dy = pos.y - layer.y;
+            const r = -layer.rotation * Math.PI / 180;
+            const s = 1 / layer.scale;
+            
+            // Local position relative to center
+            const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
+            const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
+            
+            // Update width/height based on distance from center (symmetric resizing)
+            layer.width = Math.max(10, Math.abs(localX) * 2);
+            layer.height = Math.max(10, Math.abs(localY) * 2);
         }
         else if (dragState.type === 'canvas-scale') {
             // Calculate new distance
