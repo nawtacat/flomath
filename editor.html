@@ -2119,7 +2119,6 @@
             if (layer && layer.type === 'shape') {
                 // Draw in screen space (apply editor transform only)
                 ctx.save();
-                applyGlobalTransform(editorTransform);
                 
                 ctx.strokeStyle = '#e53935';
                 ctx.lineWidth = 2;
@@ -3180,6 +3179,7 @@
         if (!entrySelect || !exitSelect) return false;
         const isText = layer.type === 'text';
         const isImage = layer.type === 'image';
+        const isShape = layer.type === 'shape';
 
         const typewriterOption = entrySelect.querySelector('option[value="typewriter"]');
         if (typewriterOption) {
@@ -3189,12 +3189,12 @@
         const entryScanHorizontal = entrySelect.querySelector('option[value="scan-horizontal"]');
         const entryScanVertical = entrySelect.querySelector('option[value="scan-vertical"]');
         if (entryScanHorizontal) {
-            entryScanHorizontal.disabled = !isImage;
+            entryScanHorizontal.disabled = !(isImage || isShape);
         }
         if (entryScanVertical) {
-            entryScanVertical.disabled = !isImage;
+            entryScanVertical.disabled = !(isImage || isShape);
         }
-        if (!isImage && (entrySelect.value === 'scan-horizontal' || entrySelect.value === 'scan-vertical')) {
+        if (!(isImage || isShape) && (entrySelect.value === 'scan-horizontal' || entrySelect.value === 'scan-vertical')) {
             entrySelect.value = 'none';
             updateEntryAnimation('none');
         }
@@ -3202,12 +3202,12 @@
         const exitScanHorizontal = exitSelect.querySelector('option[value="scan-horizontal"]');
         const exitScanVertical = exitSelect.querySelector('option[value="scan-vertical"]');
         if (exitScanHorizontal) {
-            exitScanHorizontal.disabled = !isImage;
+            exitScanHorizontal.disabled = !(isImage || isShape);
         }
         if (exitScanVertical) {
-            exitScanVertical.disabled = !isImage;
+            exitScanVertical.disabled = !(isImage || isShape);
         }
-        if (!isImage && (exitSelect.value === 'scan-horizontal' || exitSelect.value === 'scan-vertical')) {
+        if (!(isImage || isShape) && (exitSelect.value === 'scan-horizontal' || exitSelect.value === 'scan-vertical')) {
             exitSelect.value = 'none';
             updateExitAnimation('none');
         }
@@ -3222,7 +3222,7 @@
         if (type === 'typewriter' && layer.type !== 'text') {
             type = 'fade';
         }
-        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
+        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image' && layer.type !== 'shape') {
             type = 'fade';
         }
         saveHistory();
@@ -3249,7 +3249,7 @@
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (!layer) return;
-        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image') {
+        if ((type === 'scan-horizontal' || type === 'scan-vertical') && layer.type !== 'image' && layer.type !== 'shape') {
             type = 'fade';
         }
         saveHistory();
