@@ -380,7 +380,7 @@
                     video: {
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
-                        frameRate: { ideal: 60 },
+                        frameRate: { min: 30, ideal: 60 },
                         facingMode: currentFacingMode
                     },
                     audio: true // Keep audio for the meter, but we will exclude it from recording
@@ -582,8 +582,8 @@
                 await ffmpeg.load();
                 
                 ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
-                // Use ultrafast preset for speed, libx264 for compatibility
-                await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', 'output.mp4');
+                // Force input to be interpreted as 60fps and ensure constant frame rate output
+                await ffmpeg.run('-r', '60', '-i', 'input.webm', '-vsync', 'cfr', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', 'output.mp4');
                 
                 const data = ffmpeg.FS('readFile', 'output.mp4');
                 const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
