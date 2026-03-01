@@ -72,7 +72,7 @@
             font-size: clamp(2.5rem, 6vw, 4.5rem);
             font-weight: bold;
             text-align: center;
-            padding: 50vh 2rem 100vh; /* Padding top/bottom to allow scrolling through */
+            padding: 100vh 2rem 100vh; /* Padding top/bottom to allow scrolling through */
             line-height: 1.4;
             text-shadow: 0 0 10px black, 0 0 20px black;
             max-width: 900px;
@@ -182,7 +182,15 @@
 
             <div class="control-group">
                 <label for="speed-slider">Scrolling Speed</label>
-                <input type="range" id="speed-slider" min="5" max="150" value="40">
+                <input type="range" id="speed-slider" min="10" max="500" value="100">
+            </div>
+
+            <div class="control-group">
+                <label for="direction-select">Scroll Direction</label>
+                <select id="direction-select" style="width:100%; padding:8px; background:#2c2c2c; color:white; border:1px solid #333; border-radius:8px;">
+                    <option value="up">Text moves Up (Standard)</option>
+                    <option value="down" selected>Text moves Down</option>
+                </select>
             </div>
 
             <button id="start-button">Start Teleprompter</button>
@@ -206,6 +214,7 @@
         const recordButton = document.getElementById('record-button');
         const stopButton = document.getElementById('stop-button');
         const speedSlider = document.getElementById('speed-slider');
+        const directionSelect = document.getElementById('direction-select');
         const teleprompterDisplay = document.getElementById('teleprompter-display');
         const teleprompterText = document.getElementById('teleprompter-text');
         const statusDisplay = document.getElementById('status-display');
@@ -246,7 +255,13 @@
 
             teleprompterText.innerText = scriptText;
             teleprompterDisplay.style.display = 'block';
-            teleprompterDisplay.scrollTop = 0;
+            
+            const direction = directionSelect.value;
+            if (direction === 'up') {
+                teleprompterDisplay.scrollTop = 0;
+            } else {
+                teleprompterDisplay.scrollTop = teleprompterDisplay.scrollHeight - teleprompterDisplay.clientHeight;
+            }
             isScrolling = true;
             
             let lastTime = 0;
@@ -261,13 +276,24 @@
                 const speed = parseInt(speedSlider.value, 10);
                 const scrollAmount = (speed / 100) * (deltaTime / 16.67); // Normalize speed
                 
-                teleprompterDisplay.scrollTop += scrollAmount;
-
-                if (teleprompterDisplay.scrollTop < teleprompterDisplay.scrollHeight - teleprompterDisplay.clientHeight) {
-                    scrollAnimationId = requestAnimationFrame(scrollStep);
+                if (direction === 'up') {
+                    teleprompterDisplay.scrollTop += scrollAmount;
+                    // Check if we reached the bottom
+                    if (teleprompterDisplay.scrollTop < teleprompterDisplay.scrollHeight - teleprompterDisplay.clientHeight - 1) {
+                        scrollAnimationId = requestAnimationFrame(scrollStep);
+                    } else {
+                        isScrolling = false;
+                        updateStatus('End of script.', 'success');
+                    }
                 } else {
-                    isScrolling = false;
-                    updateStatus('End of script.', 'success');
+                    teleprompterDisplay.scrollTop -= scrollAmount;
+                    // Check if we reached the top
+                    if (teleprompterDisplay.scrollTop > 0) {
+                        scrollAnimationId = requestAnimationFrame(scrollStep);
+                    } else {
+                        isScrolling = false;
+                        updateStatus('End of script.', 'success');
+                    }
                 }
             }
             scrollAnimationId = requestAnimationFrame(scrollStep);
