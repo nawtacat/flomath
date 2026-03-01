@@ -265,7 +265,7 @@
             input[type="range"] { width: 100%; }
             #teleprompter-text {
                 font-size: 2.5rem;
-                max-width: 90%;
+                max-width: 60%; /* Keep text strictly on the left side */
             }
             .bottom-bar { padding: 10px; gap: 10px; }
             .icon-button { width: 44px; height: 44px; font-size: 1.2rem; }
@@ -499,10 +499,27 @@
             startButton.innerHTML = '▶️';
         }
 
+        function getSupportedMimeType() {
+            const types = [
+                'video/mp4',
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm',
+                '' // Fallback to browser default
+            ];
+            for (const type of types) {
+                if (!type || MediaRecorder.isTypeSupported(type)) {
+                    return type;
+                }
+            }
+            return '';
+        }
+
         function startRecording() {
             if (!mediaStream) return;
             recordedChunks = [];
-            const options = { mimeType: 'video/webm; codecs=vp9,opus', videoBitsPerSecond: 8000000 };
+            const mimeType = getSupportedMimeType();
+            const options = mimeType ? { mimeType, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 };
             mediaRecorder = new MediaRecorder(mediaStream, options);
 
             mediaRecorder.ondataavailable = (event) => {
@@ -524,7 +541,8 @@
 
         function downloadVideo() {
             if (recordedChunks.length === 0) return;
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const mimeType = mediaRecorder.mimeType || 'video/webm';
+            const blob = new Blob(recordedChunks, { type: mimeType });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
