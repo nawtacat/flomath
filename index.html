@@ -513,7 +513,7 @@
 
       try {
         await addDoc(collection(db, 'SATapps'), payload);
-        messageEl.textContent = 'Application submitted successfully! We will reach out within one business day.';
+        messageEl.textContent = 'Application submitted successfully!';
         messageEl.className = 'message success';
         messageEl.style.display = 'block';
         form.reset();
