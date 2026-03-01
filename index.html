@@ -345,6 +345,7 @@
         const editScriptButton = document.getElementById('edit-script-button');
         const mirrorButton = document.getElementById('mirror-button');
         const toggleCameraButton = document.getElementById('toggle-camera-button');
+        const controlsPanel = document.querySelector('.controls-panel');
         
         const speedSlider = document.getElementById('speed-slider');
         const fontsizeSlider = document.getElementById('fontsize-slider');
@@ -520,6 +521,11 @@
         function startRecording() {
             if (!mediaStream) return;
             recordedChunks = [];
+
+            // Hide controls on mobile when recording starts
+            if (window.matchMedia("(max-width: 768px)").matches) {
+                controlsPanel.style.display = 'none';
+            }
             
             // Create a video-only stream for recording (No Audio)
             const recordingStream = new MediaStream(mediaStream.getVideoTracks());
@@ -543,6 +549,11 @@
                 mediaRecorder.stop();
             }
             recordButton.classList.remove('recording');
+
+            // Show controls on mobile when recording stops
+            if (window.matchMedia("(max-width: 768px)").matches) {
+                controlsPanel.style.display = 'flex';
+            }
         }
 
         async function downloadVideo() {
