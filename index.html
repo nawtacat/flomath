@@ -273,6 +273,7 @@
             .audio-meter-container span { display: none; }
         }
     </style>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
 </head>
 <body>
 
@@ -379,9 +380,10 @@
                     video: {
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
+                        frameRate: { ideal: 60 },
                         facingMode: currentFacingMode
                     },
-                    audio: true
+                    audio: true // Keep audio for the meter, but we will exclude it from recording
                 });
                 videoPreview.srcObject = mediaStream;
                 recordButton.disabled = false;
@@ -518,9 +520,13 @@
         function startRecording() {
             if (!mediaStream) return;
             recordedChunks = [];
+            
+            // Create a video-only stream for recording (No Audio)
+            const recordingStream = new MediaStream(mediaStream.getVideoTracks());
+            
             const mimeType = getSupportedMimeType();
             const options = mimeType ? { mimeType, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 };
-            mediaRecorder = new MediaRecorder(mediaStream, options);
+            mediaRecorder = new MediaRecorder(recordingStream, options);
 
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) recordedChunks.push(event.data);
@@ -539,17 +545,57 @@
             recordButton.classList.remove('recording');
         }
 
-        function downloadVideo() {
+        async function downloadVideo() {
             if (recordedChunks.length === 0) return;
             const mimeType = mediaRecorder.mimeType || 'video/webm';
             const blob = new Blob(recordedChunks, { type: mimeType });
+            
+            // If native MP4, download directly
+            if (mimeType.toLowerCase().includes('mp4')) {
+                triggerDownload(blob, 'mp4');
+            } else {
+                // Transcode to MP4 using FFmpeg
+                await transcodeAndDownload(blob);
+            }
+        }
+
+        function triggerDownload(blob, ext) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = `teleprompter-recording-${new Date().toISOString()}.webm`;
+            a.download = `teleprompter-recording-${new Date().toISOString()}.${ext}`;
+            document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        async function transcodeAndDownload(webmBlob) {
+            const statusLabel = document.getElementById('teleprompter-text');
+            const originalText = statusLabel.innerText;
+            statusLabel.innerText = "Processing Video (Converting to MP4)...";
+            
+            try {
+                const { createFFmpeg, fetchFile } = FFmpeg;
+                const ffmpeg = createFFmpeg({ log: true });
+                await ffmpeg.load();
+                
+                ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
+                // Use ultrafast preset for speed, libx264 for compatibility
+                await ffmpeg.run('-i', 'input.webm', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', 'output.mp4');
+                
+                const data = ffmpeg.FS('readFile', 'output.mp4');
+                const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+                
+                triggerDownload(mp4Blob, 'mp4');
+            } catch (e) {
+                console.error("FFmpeg error:", e);
+                alert("Conversion failed. Downloading original WebM instead.");
+                triggerDownload(webmBlob, 'webm');
+            } finally {
+                statusLabel.innerText = originalText;
+            }
         }
 
         // --- Start App ---
