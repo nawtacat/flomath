@@ -4,13 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Teleprompter Studio</title>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-<meta name="apple-mobile-web-app-title" content="MyApp">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <style>
         :root {
             --bg-dark: #121212;
@@ -57,6 +50,7 @@
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
             display: none; /* Hidden by default */
+            pointer-events: none; /* Allow clicks to pass through to controls below */
         }
         #teleprompter-display::-webkit-scrollbar {
             display: none; /* Chrome, Safari, Opera */
@@ -66,12 +60,12 @@
             color: white;
             font-size: 3.5rem; /* Default, will be adjustable */
             font-weight: bold;
-            text-align: center;
-            padding: 50vh 20% 100vh 5%; /* Padding to allow scrolling through */
+            text-align: left;
+            padding: 50vh 5vw 100vh 5vw; /* Padding to allow scrolling through */
             line-height: 1.4;
             text-shadow: 0 0 10px black, 0 0 20px black;
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 65%;
+            margin: 0;
             transition: transform 0.3s ease;
         }
         #teleprompter-text.mirrored {
@@ -269,7 +263,10 @@
             }
             .control-group { flex: 1; }
             input[type="range"] { width: 100%; }
-            #teleprompter-text { font-size: 2.5rem; padding-right: 5%; }
+            #teleprompter-text {
+                font-size: 2.5rem;
+                max-width: 90%;
+            }
             .bottom-bar { padding: 10px; gap: 10px; }
             .icon-button { width: 44px; height: 44px; font-size: 1.2rem; }
             #record-button { width: 56px; height: 56px; }
