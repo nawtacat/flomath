@@ -2,52 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Teleprompter Studio</title>
     <style>
         :root {
             --bg-dark: #121212;
-            --bg-panel: #1e1e1e;
-            --accent: #2979ff;
+            --bg-panel: rgba(30, 30, 30, 0.9);
+            --accent: #ff9800; /* Orange accent */
             --text: #e0e0e0;
             --border: #333;
+            --red: #e53935;
         }
 
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            background-color: var(--bg-dark);
+            background-color: #000;
             color: var(--text);
-            display: flex;
-            flex-direction: column;
             height: 100vh;
+            width: 100vw;
             overflow: hidden;
-        }
-
-        .container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .controls {
-            width: 350px;
-            background-color: var(--bg-panel);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            overflow-y: auto;
-            border-right: 1px solid var(--border);
+            position: relative;
         }
 
         .main-content {
-            flex: 1;
-            position: relative;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #000;
         }
 
         #video-preview {
@@ -62,210 +45,429 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            overflow: hidden;
+            background: linear-gradient(to right, rgba(0,0,0,0.7) 30%, rgba(0,0,0,0.4) 70%, transparent);
+            overflow-y: scroll;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
             display: none; /* Hidden by default */
+        }
+        #teleprompter-display::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
         }
 
         #teleprompter-text {
             color: white;
-            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-size: 3.5rem; /* Default, will be adjustable */
             font-weight: bold;
             text-align: center;
-            padding: 100vh 2rem 100vh; /* Padding top/bottom to allow scrolling through */
+            padding: 50vh 20% 100vh 5%; /* Padding to allow scrolling through */
             line-height: 1.4;
             text-shadow: 0 0 10px black, 0 0 20px black;
-            max-width: 900px;
+            max-width: 1200px;
             margin: 0 auto;
+            transition: transform 0.3s ease;
+        }
+        #teleprompter-text.mirrored {
+            transform: scaleX(-1);
         }
 
-        textarea {
+        /* --- Overlays and Panels --- */
+
+        .top-bar {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+        }
+        .top-bar button {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #444;
+            color: var(--accent);
+            font-size: 1.5rem;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            padding: 0;
+            line-height: 44px;
+            cursor: pointer;
+        }
+
+        .controls-panel {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .bottom-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            z-index: 10;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+        }
+
+        #script-editor {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-dark);
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            padding: 20px;
+        }
+        #script-input {
+            flex: 1;
             width: 100%;
-            height: 200px;
             background: #2c2c2c;
             border: 1px solid var(--border);
             color: var(--text);
-            padding: 10px;
+            padding: 15px;
             border-radius: 8px;
-            font-size: 1rem;
-            resize: vertical;
+            font-size: 1.1rem;
+            resize: none;
+            box-sizing: border-box;
         }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        label {
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: #aaa;
-        }
-
-        button {
-            background-color: var(--accent);
+        #close-editor-button {
+            margin-top: 15px;
+            padding: 12px;
+            background: var(--accent);
             color: white;
             border: none;
-            padding: 12px 20px;
             border-radius: 8px;
-            cursor: pointer;
             font-size: 1rem;
             font-weight: 600;
-            transition: background-color 0.2s;
         }
 
-        button:hover {
-            background-color: #448aff;
-        }
-        
-        button.secondary {
-            background-color: #444;
-        }
-        button.secondary:hover {
-            background-color: #555;
-        }
+        /* --- Control Elements --- */
+        .control-group { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+        .control-group label { font-weight: 600; font-size: 0.8rem; color: #aaa; text-transform: uppercase; }
+        .control-group .slider-labels { display: flex; justify-content: space-between; width: 100%; font-size: 1.2rem; }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .icon-button {
+            background: rgba(68, 68, 68, 0.8);
+            color: white;
+            border: 1px solid #555;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
         }
-        
+        .icon-button:hover { background: #555; }
+
+        #record-button {
+            width: 64px;
+            height: 64px;
+            background: var(--red);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(229, 57, 53, 0.5);
+        }
         #record-button.recording {
-            background-color: #e53935;
-        }
-        #record-button.recording:hover {
-            background-color: #f44336;
+            border-radius: 12px;
         }
 
-        input[type="range"] {
-            width: 100%;
-        }
-
-        .status {
-            text-align: center;
-            padding: 10px;
-            background: #2c2c2c;
+        .scroll-modes { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: 100%; }
+        .scroll-modes button {
+            background: #444;
+            border: 1px solid #555;
+            color: white;
+            padding: 8px;
             border-radius: 8px;
-            font-weight: 600;
-            color: #ffc107;
+            text-align: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .scroll-modes button.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            font-weight: bold;
         }
 
-        /* Mobile Styles */
+        .audio-meter-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 0.8rem;
+        }
+        #audio-meter {
+            width: 80px;
+            height: 24px;
+            background: #333;
+            border-radius: 4px;
+        }
+
+        /* --- Sliders --- */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 150px;
+            height: 8px;
+            background: #444;
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--accent);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid white;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 3px solid white;
+        }
+
+        /* Mobile Adjustments */
         @media (max-width: 768px) {
-            .container {
-                flex-direction: column-reverse;
+            .controls-panel {
+                top: auto;
+                bottom: 100px; /* Above bottom bar */
+                right: 10px;
+                left: 10px;
+                width: auto;
+                transform: none;
+                flex-direction: row;
+                justify-content: center;
+                padding: 10px;
+                gap: 15px;
             }
-            .controls {
-                width: 100%;
-                height: auto;
-                border-right: none;
-                border-top: 1px solid var(--border);
-                max-height: 40vh;
-            }
-            #teleprompter-text {
-                font-size: 2rem;
-                padding: 40vh 1rem 100vh;
-            }
+            .control-group { flex: 1; }
+            input[type="range"] { width: 100%; }
+            #teleprompter-text { font-size: 2.5rem; padding-right: 5%; }
+            .bottom-bar { padding: 10px; gap: 10px; }
+            .icon-button { width: 44px; height: 44px; font-size: 1.2rem; }
+            #record-button { width: 56px; height: 56px; }
+            .audio-meter-container span { display: none; }
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="controls">
-            <h2>Teleprompter Studio</h2>
-            <div class="control-group">
-                <label for="script-input">Paste Your Script Here</label>
-                <textarea id="script-input" placeholder="Start typing or paste your script..."></textarea>
-            </div>
+    <div class="top-bar">
+        <button id="back-button" title="Back">❮</button>
+    </div>
 
-            <div class="control-group">
-                <label for="speed-slider">Scrolling Speed</label>
-                <input type="range" id="speed-slider" min="10" max="500" value="100">
-            </div>
-
-            <div class="control-group">
-                <label for="direction-select">Scroll Direction</label>
-                <select id="direction-select" style="width:100%; padding:8px; background:#2c2c2c; color:white; border:1px solid #333; border-radius:8px;">
-                    <option value="up">Text moves Up (Standard)</option>
-                    <option value="down" selected>Text moves Down</option>
-                </select>
-            </div>
-
-            <button id="start-button">Start Teleprompter</button>
-            <button id="record-button" disabled>Record</button>
-            <button id="stop-button" disabled>Stop & Download</button>
-            
-            <div id="status-display" class="status" style="display: none;"></div>
+    <div class="main-content">
+        <video id="video-preview" autoplay muted playsinline></video>
+        <div id="teleprompter-display">
+            <div id="teleprompter-text">Your script will appear here.</div>
         </div>
-        <div class="main-content">
-            <video id="video-preview" autoplay muted playsinline></video>
-            <div id="teleprompter-display">
-                <div id="teleprompter-text"></div>
+    </div>
+
+    <div id="script-editor">
+        <textarea id="script-input" placeholder="Start typing or paste your script..."></textarea>
+        <button id="close-editor-button">Done</button>
+    </div>
+
+    <div class="controls-panel">
+        <div class="control-group">
+            <label>Speed</label>
+            <div class="slider-labels"><span>🚶</span><span>🏃</span></div>
+            <input type="range" id="speed-slider" min="10" max="500" value="100">
+        </div>
+        <div class="control-group">
+            <label>Font Size</label>
+             <div class="slider-labels" style="font-size:0.9rem;"><span>A</span><span style="font-size:1.3rem;">A</span></div>
+            <input type="range" id="fontsize-slider" min="2" max="8" step="0.1" value="3.5">
+        </div>
+        <div class="control-group">
+            <label>Scroll Mode</label>
+            <div class="scroll-modes">
+                <button class="active">FIXED SPEED</button>
+                <button disabled>AUTO SCROLL</button>
+                <button disabled>TIMED SCROLL</button>
             </div>
         </div>
     </div>
 
+    <div class="bottom-bar">
+        <button id="settings-button" class="icon-button" title="Settings">🪄</button>
+        <button id="edit-script-button" class="icon-button" title="Edit Script">📝</button>
+        <button id="toggle-camera-button" class="icon-button" title="Toggle Camera">📷</button>
+        
+        <button id="record-button" title="Record"></button>
+        
+        <button id="start-button" class="icon-button" title="Start/Stop Scrolling">▶️</button>
+        <button id="mirror-button" class="icon-button" title="Mirror Text">🔄</button>
+        
+        <div class="audio-meter-container">
+            <canvas id="audio-meter"></canvas>
+            <span id="audio-label">Mic</span>
+        </div>
+    </div>
+
     <script>
+        // --- DOM Elements ---
         const videoPreview = document.getElementById('video-preview');
-        const scriptInput = document.getElementById('script-input');
-        const startButton = document.getElementById('start-button');
-        const recordButton = document.getElementById('record-button');
-        const stopButton = document.getElementById('stop-button');
-        const speedSlider = document.getElementById('speed-slider');
-        const directionSelect = document.getElementById('direction-select');
         const teleprompterDisplay = document.getElementById('teleprompter-display');
         const teleprompterText = document.getElementById('teleprompter-text');
-        const statusDisplay = document.getElementById('status-display');
+        
+        const scriptEditor = document.getElementById('script-editor');
+        const scriptInput = document.getElementById('script-input');
+        const closeEditorButton = document.getElementById('close-editor-button');
+        
+        const startButton = document.getElementById('start-button');
+        const recordButton = document.getElementById('record-button');
+        const editScriptButton = document.getElementById('edit-script-button');
+        const mirrorButton = document.getElementById('mirror-button');
+        const toggleCameraButton = document.getElementById('toggle-camera-button');
+        
+        const speedSlider = document.getElementById('speed-slider');
+        const fontsizeSlider = document.getElementById('fontsize-slider');
+        
+        const audioMeterCanvas = document.getElementById('audio-meter');
+        const audioMeterCtx = audioMeterCanvas.getContext('2d');
 
+        // --- State ---
         let mediaStream;
         let mediaRecorder;
         let recordedChunks = [];
         let scrollAnimationId;
         let isScrolling = false;
+        let currentFacingMode = 'user';
+        let audioContext;
+        let analyser;
 
-        // 1. Get Camera Access
+        // --- Init ---
+        async function init() {
+            await initCamera();
+            if (mediaStream) {
+                initAudioMeter();
+            }
+            setupEventListeners();
+        }
+
         async function initCamera() {
             try {
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                }
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
-                        facingMode: 'user'
+                        facingMode: currentFacingMode
                     },
                     audio: true
                 });
                 videoPreview.srcObject = mediaStream;
                 recordButton.disabled = false;
-                updateStatus('Camera ready. Press Start to begin.', 'success');
             } catch (error) {
                 console.error("Error accessing media devices.", error);
-                updateStatus('Could not access camera. Please check permissions.', 'error');
+                alert('Could not access camera. Please check permissions and reload.');
+            }
+        }
+        
+        function initAudioMeter() {
+            if (!mediaStream.getAudioTracks().length) return;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            source.connect(analyser);
+            analyser.fftSize = 32;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+                
+                let sum = dataArray.reduce((a, b) => a + b, 0);
+                let avg = sum / bufferLength || 0;
+                
+                audioMeterCtx.clearRect(0, 0, audioMeterCanvas.width, audioMeterCanvas.height);
+                const barWidth = (audioMeterCanvas.width / bufferLength) * 2.5;
+                let x = 0;
+                
+                const level = avg / 255;
+                audioMeterCtx.fillStyle = '#4CAF50'; // Green
+                audioMeterCtx.fillRect(0, 0, audioMeterCanvas.width * level, audioMeterCanvas.height);
+            }
+            draw();
+        }
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            startButton.addEventListener('click', toggleScrolling);
+            recordButton.addEventListener('click', toggleRecording);
+            mirrorButton.addEventListener('click', () => teleprompterText.classList.toggle('mirrored'));
+            toggleCameraButton.addEventListener('click', toggleCamera);
+            editScriptButton.addEventListener('click', () => scriptEditor.style.display = 'flex');
+            closeEditorButton.addEventListener('click', () => scriptEditor.style.display = 'none');
+            
+            fontsizeSlider.addEventListener('input', (e) => {
+                teleprompterText.style.fontSize = `${e.target.value}rem`;
+            });
+            
+            scriptInput.addEventListener('input', () => {
+                 teleprompterText.innerText = scriptInput.value || 'Your script will appear here.';
+            });
+        }
+
+        // --- Core Functions ---
+        function toggleScrolling() {
+            if (isScrolling) {
+                stopTeleprompter();
+            } else {
+                startTeleprompter();
+            }
+        }
+        
+        function toggleRecording() {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                startRecording();
+            } else {
+                stopRecording();
             }
         }
 
-        // 2. Teleprompter Logic
+        async function toggleCamera() {
+            currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+            await initCamera();
+        }
+
         function startTeleprompter() {
             const scriptText = scriptInput.value;
             if (!scriptText.trim()) {
-                alert('Please enter some text into the script box.');
+                alert('Please enter some text into the script box first.');
                 return;
             }
-
-            teleprompterText.innerText = scriptText;
-            teleprompterDisplay.style.display = 'block';
             
-            const direction = directionSelect.value;
-            if (direction === 'up') {
-                teleprompterDisplay.scrollTop = 0;
-            } else {
-                teleprompterDisplay.scrollTop = teleprompterDisplay.scrollHeight - teleprompterDisplay.clientHeight;
-            }
+            teleprompterDisplay.style.display = 'block';
+            teleprompterDisplay.scrollTop = 0;
             isScrolling = true;
+            startButton.innerHTML = '⏸️';
             
             let lastTime = 0;
-            
             function scrollStep(timestamp) {
                 if (!isScrolling) return;
                 if (!lastTime) lastTime = timestamp;
@@ -274,26 +476,14 @@
                 lastTime = timestamp;
                 
                 const speed = parseInt(speedSlider.value, 10);
-                const scrollAmount = (speed / 100) * (deltaTime / 16.67); // Normalize speed
+                const scrollAmount = (speed / 100) * (deltaTime / 16.67);
                 
-                if (direction === 'up') {
-                    teleprompterDisplay.scrollTop += scrollAmount;
-                    // Check if we reached the bottom
-                    if (teleprompterDisplay.scrollTop < teleprompterDisplay.scrollHeight - teleprompterDisplay.clientHeight - 1) {
-                        scrollAnimationId = requestAnimationFrame(scrollStep);
-                    } else {
-                        isScrolling = false;
-                        updateStatus('End of script.', 'success');
-                    }
+                teleprompterDisplay.scrollTop += scrollAmount;
+
+                if (teleprompterDisplay.scrollTop < teleprompterDisplay.scrollHeight - teleprompterDisplay.clientHeight) {
+                    scrollAnimationId = requestAnimationFrame(scrollStep);
                 } else {
-                    teleprompterDisplay.scrollTop -= scrollAmount;
-                    // Check if we reached the top
-                    if (teleprompterDisplay.scrollTop > 0) {
-                        scrollAnimationId = requestAnimationFrame(scrollStep);
-                    } else {
-                        isScrolling = false;
-                        updateStatus('End of script.', 'success');
-                    }
+                    stopTeleprompter();
                 }
             }
             scrollAnimationId = requestAnimationFrame(scrollStep);
@@ -302,60 +492,22 @@
         function stopTeleprompter() {
             isScrolling = false;
             cancelAnimationFrame(scrollAnimationId);
-            teleprompterDisplay.style.display = 'none';
+            startButton.innerHTML = '▶️';
         }
 
-        // 3. Recording Logic
         function startRecording() {
-            if (!mediaStream) {
-                alert('Camera not available.');
-                return;
-            }
+            if (!mediaStream) return;
             recordedChunks = [];
-            
-            // Try to get the best mimeType
-            const options = {
-                mimeType: 'video/webm; codecs=vp9,opus',
-                videoBitsPerSecond: 8000000 // 8 Mbps for high quality
-            };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                options.mimeType = 'video/webm; codecs=vp8,opus';
-                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options.mimeType = 'video/webm';
-                 }
-            }
-
-            try {
-                mediaRecorder = new MediaRecorder(mediaStream, options);
-            } catch (e) {
-                console.error('Exception while creating MediaRecorder:', e);
-                updateStatus('Recording failed to start.', 'error');
-                return;
-            }
+            const options = { mimeType: 'video/webm; codecs=vp9,opus', videoBitsPerSecond: 8000000 };
+            mediaRecorder = new MediaRecorder(mediaStream, options);
 
             mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    recordedChunks.push(event.data);
-                }
+                if (event.data.size > 0) recordedChunks.push(event.data);
             };
-
             mediaRecorder.onstart = () => {
-                recordButton.textContent = 'Recording...';
                 recordButton.classList.add('recording');
-                stopButton.disabled = false;
-                startButton.disabled = true;
-                updateStatus('Recording in progress...', 'recording');
             };
-
-            mediaRecorder.onstop = () => {
-                recordButton.textContent = 'Record';
-                recordButton.classList.remove('recording');
-                startButton.disabled = false;
-                stopButton.disabled = true;
-                updateStatus('Recording stopped. Preparing download...', 'success');
-                downloadVideo();
-            };
-            
+            mediaRecorder.onstop = downloadVideo;
             mediaRecorder.start();
         }
 
@@ -363,58 +515,23 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
             }
-            stopTeleprompter();
+            recordButton.classList.remove('recording');
         }
 
-        // 4. Download Logic
         function downloadVideo() {
-            if (recordedChunks.length === 0) {
-                updateStatus('No video data recorded.', 'error');
-                return;
-            }
-            const blob = new Blob(recordedChunks, {
-                type: 'video/webm'
-            });
+            if (recordedChunks.length === 0) return;
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            document.body.appendChild(a);
-            a.style = 'display: none';
+            a.style.display = 'none';
             a.href = url;
             a.download = `teleprompter-recording-${new Date().toISOString()}.webm`;
             a.click();
             window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            updateStatus('Download started!', 'success');
-        }
-        
-        // 5. UI Helpers
-        function updateStatus(message, type) {
-            statusDisplay.textContent = message;
-            statusDisplay.style.display = 'block';
-            statusDisplay.style.color = type === 'error' ? '#f44336' : (type === 'recording' ? '#ffc107' : '#4caf50');
         }
 
-        // Event Listeners
-        startButton.addEventListener('click', () => {
-            if (isScrolling) {
-                stopTeleprompter();
-                startButton.textContent = 'Start Teleprompter';
-            } else {
-                startTeleprompter();
-                startButton.textContent = 'Stop Teleprompter';
-            }
-        });
-
-        recordButton.addEventListener('click', () => {
-            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
-                startRecording();
-            }
-        });
-
-        stopButton.addEventListener('click', stopRecording);
-
-        // Initialize
-        initCamera();
+        // --- Start App ---
+        init();
     </script>
 
 </body>
