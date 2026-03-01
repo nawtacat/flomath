@@ -4,13 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Teleprompter Studio</title>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-<meta name="apple-mobile-web-app-title" content="MyApp">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <style>
         :root {
             --bg-dark: #121212;
@@ -57,6 +50,7 @@
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
             display: none; /* Hidden by default */
+            pointer-events: none; /* Allow clicks to pass through to controls below */
         }
         #teleprompter-display::-webkit-scrollbar {
             display: none; /* Chrome, Safari, Opera */
@@ -66,12 +60,12 @@
             color: white;
             font-size: 3.5rem; /* Default, will be adjustable */
             font-weight: bold;
-            text-align: center;
-            padding: 50vh 20% 100vh 5%; /* Padding to allow scrolling through */
+            text-align: left;
+            padding: 50vh 5vw 100vh 5vw; /* Padding to allow scrolling through */
             line-height: 1.4;
             text-shadow: 0 0 10px black, 0 0 20px black;
-            max-width: 1200px;
-            margin: 0 auto;
+            max-width: 65%;
+            margin: 0;
             transition: transform 0.3s ease;
         }
         #teleprompter-text.mirrored {
@@ -269,13 +263,17 @@
             }
             .control-group { flex: 1; }
             input[type="range"] { width: 100%; }
-            #teleprompter-text { font-size: 2.5rem; padding-right: 5%; }
+            #teleprompter-text {
+                font-size: 2.5rem;
+                max-width: 60%; /* Keep text strictly on the left side */
+            }
             .bottom-bar { padding: 10px; gap: 10px; }
             .icon-button { width: 44px; height: 44px; font-size: 1.2rem; }
             #record-button { width: 56px; height: 56px; }
             .audio-meter-container span { display: none; }
         }
     </style>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
 </head>
 <body>
 
@@ -347,6 +345,7 @@
         const editScriptButton = document.getElementById('edit-script-button');
         const mirrorButton = document.getElementById('mirror-button');
         const toggleCameraButton = document.getElementById('toggle-camera-button');
+        const controlsPanel = document.querySelector('.controls-panel');
         
         const speedSlider = document.getElementById('speed-slider');
         const fontsizeSlider = document.getElementById('fontsize-slider');
@@ -382,9 +381,10 @@
                     video: {
                         width: { ideal: 1920 },
                         height: { ideal: 1080 },
+                        frameRate: { min: 30, ideal: 60 },
                         facingMode: currentFacingMode
                     },
-                    audio: true
+                    audio: true // Keep audio for the meter, but we will exclude it from recording
                 });
                 videoPreview.srcObject = mediaStream;
                 recordButton.disabled = false;
@@ -502,11 +502,37 @@
             startButton.innerHTML = '▶️';
         }
 
+        function getSupportedMimeType() {
+            const types = [
+                'video/mp4',
+                'video/webm;codecs=vp9,opus',
+                'video/webm;codecs=vp8,opus',
+                'video/webm',
+                '' // Fallback to browser default
+            ];
+            for (const type of types) {
+                if (!type || MediaRecorder.isTypeSupported(type)) {
+                    return type;
+                }
+            }
+            return '';
+        }
+
         function startRecording() {
             if (!mediaStream) return;
             recordedChunks = [];
-            const options = { mimeType: 'video/webm; codecs=vp9,opus', videoBitsPerSecond: 8000000 };
-            mediaRecorder = new MediaRecorder(mediaStream, options);
+
+            // Hide controls on mobile when recording starts
+            if (window.matchMedia("(max-width: 768px)").matches) {
+                controlsPanel.style.display = 'none';
+            }
+            
+            // Create a video-only stream for recording (No Audio)
+            const recordingStream = new MediaStream(mediaStream.getVideoTracks());
+            
+            const mimeType = getSupportedMimeType();
+            const options = mimeType ? { mimeType, videoBitsPerSecond: 8000000 } : { videoBitsPerSecond: 8000000 };
+            mediaRecorder = new MediaRecorder(recordingStream, options);
 
             mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) recordedChunks.push(event.data);
@@ -523,18 +549,64 @@
                 mediaRecorder.stop();
             }
             recordButton.classList.remove('recording');
+
+            // Show controls on mobile when recording stops
+            if (window.matchMedia("(max-width: 768px)").matches) {
+                controlsPanel.style.display = 'flex';
+            }
         }
 
-        function downloadVideo() {
+        async function downloadVideo() {
             if (recordedChunks.length === 0) return;
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const mimeType = mediaRecorder.mimeType || 'video/webm';
+            const blob = new Blob(recordedChunks, { type: mimeType });
+            
+            // If native MP4, download directly
+            if (mimeType.toLowerCase().includes('mp4')) {
+                triggerDownload(blob, 'mp4');
+            } else {
+                // Transcode to MP4 using FFmpeg
+                await transcodeAndDownload(blob);
+            }
+        }
+
+        function triggerDownload(blob, ext) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = `teleprompter-recording-${new Date().toISOString()}.webm`;
+            a.download = `teleprompter-recording-${new Date().toISOString()}.${ext}`;
+            document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        async function transcodeAndDownload(webmBlob) {
+            const statusLabel = document.getElementById('teleprompter-text');
+            const originalText = statusLabel.innerText;
+            statusLabel.innerText = "Processing Video (Converting to MP4)...";
+            
+            try {
+                const { createFFmpeg, fetchFile } = FFmpeg;
+                const ffmpeg = createFFmpeg({ log: true });
+                await ffmpeg.load();
+                
+                ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
+                // Force input to be interpreted as 60fps and ensure constant frame rate output
+                await ffmpeg.run('-r', '60', '-i', 'input.webm', '-vsync', 'cfr', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', 'output.mp4');
+                
+                const data = ffmpeg.FS('readFile', 'output.mp4');
+                const mp4Blob = new Blob([data.buffer], { type: 'video/mp4' });
+                
+                triggerDownload(mp4Blob, 'mp4');
+            } catch (e) {
+                console.error("FFmpeg error:", e);
+                alert("Conversion failed. Downloading original WebM instead.");
+                triggerDownload(webmBlob, 'webm');
+            } finally {
+                statusLabel.innerText = originalText;
+            }
         }
 
         // --- Start App ---
