@@ -2331,14 +2331,18 @@
                         const area = eq.area !== undefined ? eq.area : 100;
                         const areaFactor = area / 100;
                         
-                        const xRange = xMax - xMin;
-                        const centerX = (xMin + xMax) / 2;
-                        const effectiveRange = xRange * areaFactor;
-                        const startX = centerX - effectiveRange / 2;
-                        const endX = centerX + effectiveRange / 2;
+                        const startX = xMin * areaFactor;
+                        const endX = xMax * areaFactor;
+                        const startY = yMin * areaFactor;
+                        const endY = yMax * areaFactor;
+
                         const currentEndX = startX + (endX - startX) * drawProgress;
 
                         ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(mapX(startX), mapY(endY), mapX(endX) - mapX(startX), mapY(startY) - mapY(endY));
+                        ctx.clip();
+
                         ctx.globalAlpha *= eqAlpha;
                         ctx.strokeStyle = eq.color || '#ffeb3b';
                         ctx.lineWidth = 3 / scale;
