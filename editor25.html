@@ -682,10 +682,18 @@
                         <label>Y Max</label>
                         <input type="number" id="prop-graph-ymax" onchange="updateGraphProperty('yMax', this.value)" style="width:100%; margin:0;">
                     </div>
+                    <div>
+                        <label>Grid Scale</label>
+                        <input type="number" id="prop-graph-scale" onchange="updateGraphProperty('gridScale', this.value)" placeholder="1" style="width:100%; margin:0;">
+                    </div>
                 </div>
                 <label>Equations</label>
                 <div id="graph-equations-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
                 <button class="secondary" style="width:100%;" onclick="addGraphEquation()">+ Add Equation</button>
+
+                <label style="margin-top:10px;">Points</label>
+                <div id="graph-points-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+                <button class="secondary" style="width:100%;" onclick="addGraphPoint()">+ Add Point</button>
             </div>
 
             <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -1582,8 +1590,11 @@
             this.xMax = 10;
             this.yMin = -10;
             this.yMax = 10;
-            this.equations = []; // {id, text, color, drawProgress}
+            this.gridScale = 1;
+            this.equations = []; // {id, text, color, entryTime, exitTime}
+            this.points = []; // {id, x, y, label, color, entryTime, exitTime}
             this.nextEqId = 1;
+            this.nextPointId = 1;
 
             this.textMaxWidth = 0;
             this.loopingAnimation = 'none';
@@ -2191,44 +2202,76 @@
             } else if (layer.type === 'graph') {
                 const w = layer.width || 800;
                 const h = layer.height || 800;
+                const scaleStep = layer.gridScale || 1;
+                const relTime = state.currentTime - layer.startTime;
 
                 // Helper functions to map graph coords to local canvas coords
                 const mapX = (x) => ((x - layer.xMin) / (layer.xMax - layer.xMin)) * w - w / 2;
                 const mapY = (y) => (1 - (y - layer.yMin) / (layer.yMax - layer.yMin)) * h - h / 2;
 
                 // Draw background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.fillRect(-w/2, -h/2, w, h);
 
-                // Draw grid lines
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.lineWidth = 1 / scale; // Keep lines thin
+                // Draw Axes
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2 / scale;
+                ctx.font = `bold ${14/scale}px Arial`;
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+
                 ctx.beginPath();
-                for (let i = Math.ceil(layer.xMin); i <= Math.floor(layer.xMax); i++) {
-                    if (i === 0) continue;
-                    ctx.moveTo(mapX(i), -h/2); ctx.lineTo(mapX(i), h/2);
+                // X Axis
+                const y0 = mapY(0);
+                if (y0 >= -h/2 && y0 <= h/2) {
+                    ctx.moveTo(-w/2, y0); ctx.lineTo(w/2, y0);
                 }
-                for (let i = Math.ceil(layer.yMin); i <= Math.floor(layer.yMax); i++) {
-                    if (i === 0) continue;
-                    ctx.moveTo(-w/2, mapY(i)); ctx.lineTo(w/2, mapY(i));
+                // Y Axis
+                const x0 = mapX(0);
+                if (x0 >= -w/2 && x0 <= w/2) {
+                    ctx.moveTo(x0, -h/2); ctx.lineTo(x0, h/2);
                 }
                 ctx.stroke();
 
-                // Draw axes
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.lineWidth = 2 / scale;
+                // Ticks & Labels
                 ctx.beginPath();
-                ctx.moveTo(-w/2, mapY(0)); ctx.lineTo(w/2, mapY(0)); // X-axis
-                ctx.moveTo(mapX(0), -h/2); ctx.lineTo(mapX(0), h/2); // Y-axis
+                // X Ticks
+                const startX = Math.ceil(layer.xMin / scaleStep) * scaleStep;
+                for (let i = startX; i <= layer.xMax; i += scaleStep) {
+                    if (Math.abs(i) < 0.0001) continue; // Skip 0
+                    const mx = mapX(i);
+                    ctx.moveTo(mx, y0 - 5/scale); ctx.lineTo(mx, y0 + 5/scale);
+                    ctx.fillText(i.toString(), mx, y0 + 8/scale);
+                }
+                // Y Ticks
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'right';
+                const startY = Math.ceil(layer.yMin / scaleStep) * scaleStep;
+                for (let i = startY; i <= layer.yMax; i += scaleStep) {
+                    if (Math.abs(i) < 0.0001) continue;
+                    const my = mapY(i);
+                    ctx.moveTo(x0 - 5/scale, my); ctx.lineTo(x0 + 5/scale, my);
+                    ctx.fillText(i.toString(), x0 - 8/scale, my);
+                }
                 ctx.stroke();
 
                 // Draw equations
                 if (layer.equations) layer.equations.forEach(eq => {
                     if (!eq.text) return;
+                    
+                    // Check timing
+                    const entry = eq.entryTime || 0;
+                    const exit = eq.exitTime !== undefined ? eq.exitTime : layer.duration;
+                    if (relTime < entry || relTime > exit) return;
+
+                    // Animation progress (1 second draw on)
+                    const animDur = 1.0;
+                    const drawProgress = Math.min(1, Math.max(0, (relTime - entry) / animDur));
+
                     const eqString = eq.text.includes('=') ? eq.text.split('=')[1] : eq.text;
                     try {
                         const func = new Function('x', `with(Math){return ${eqString}}`);
-                        const drawProgress = layer.getValue(`eq-${eq.id}-drawProgress`, state.currentTime);
                         const xRange = layer.xMax - layer.xMin;
                         const currentXMax = layer.xMin + xRange * drawProgress;
                         ctx.strokeStyle = eq.color || '#ffeb3b';
@@ -2243,6 +2286,33 @@
                         ctx.stroke();
                     } catch (e) { /* Invalid function, ignore */ }
                 });
+
+                // Draw Points
+                if (layer.points) layer.points.forEach(pt => {
+                    const entry = pt.entryTime || 0;
+                    const exit = pt.exitTime !== undefined ? pt.exitTime : layer.duration;
+                    
+                    if (relTime >= entry && relTime <= exit) {
+                        const px = mapX(pt.x);
+                        const py = mapY(pt.y);
+                        
+                        // Point
+                        ctx.fillStyle = pt.color || '#0abf7a';
+                        ctx.beginPath();
+                        ctx.arc(px, py, 6/scale, 0, Math.PI*2);
+                        ctx.fill();
+                        
+                        // Label
+                        if (pt.label) {
+                            ctx.fillStyle = 'white';
+                            ctx.font = `bold ${20/scale}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(pt.label, px, py - 10/scale);
+                        }
+                    }
+                });
+
             } else if (layer.type === 'image') {
                 const img = layer.content;
                 if (img && img.complete && img.naturalWidth !== 0) {
@@ -2777,7 +2847,9 @@
                 document.getElementById('prop-graph-xmax').value = layer.xMax;
                 document.getElementById('prop-graph-ymin').value = layer.yMin;
                 document.getElementById('prop-graph-ymax').value = layer.yMax;
+                document.getElementById('prop-graph-scale').value = layer.gridScale || 1;
                 renderGraphEquationsList(layer);
+                renderGraphPointsList(layer);
             } else {
                 graphProps.style.display = 'none';
             }
@@ -3094,11 +3166,47 @@
             const item = document.createElement('div');
             item.className = 'property-row'; // Reuse style
             item.style.gap = '5px';
+            item.style.flexWrap = 'wrap';
+            item.style.borderBottom = '1px solid #444';
+            item.style.paddingBottom = '5px';
             item.innerHTML = `
-                <input type="text" value="${eq.text}" oninput="updateGraphEquation(${eq.id}, 'text', this.value)" placeholder="y = x^2" style="width:100%; margin:0;">
+                <input type="text" value="${eq.text}" oninput="updateGraphEquation(${eq.id}, 'text', this.value)" placeholder="y = x^2" style="width:100%; margin:0; flex: 1 1 100%;">
+                <span style="font-size:10px; color:#888;">Entry:</span>
+                <input type="number" value="${eq.entryTime}" onchange="updateGraphEquation(${eq.id}, 'entryTime', this.value)" style="width:40px; margin:0;" step="0.1">
+                <span style="font-size:10px; color:#888;">Exit:</span>
+                <input type="number" value="${eq.exitTime}" onchange="updateGraphEquation(${eq.id}, 'exitTime', this.value)" style="width:40px; margin:0;" step="0.1">
                 <input type="color" value="${eq.color}" oninput="updateGraphEquation(${eq.id}, 'color', this.value)" style="padding:0; height:24px; width:30px; border:none; background:none;">
-                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('eq-${eq.id}-drawProgress')">◆</button>
                 <button class="secondary" style="padding:2px 6px; background:#a33;" onclick="removeGraphEquation(${eq.id})">X</button>
+            `;
+            listEl.appendChild(item);
+        });
+    }
+
+    function renderGraphPointsList(layer) {
+        const listEl = document.getElementById('graph-points-list');
+        if (!listEl || !layer) return;
+        listEl.innerHTML = '';
+        (layer.points || []).forEach(pt => {
+            const item = document.createElement('div');
+            item.className = 'property-row';
+            item.style.gap = '5px';
+            item.style.flexWrap = 'wrap';
+            item.style.borderBottom = '1px solid #444';
+            item.style.paddingBottom = '5px';
+            item.innerHTML = `
+                <div style="display:flex; gap:5px; width:100%;">
+                    <input type="text" value="${pt.label}" oninput="updateGraphPoint(${pt.id}, 'label', this.value)" placeholder="Lbl" style="width:40px; margin:0;">
+                    <input type="number" value="${pt.x}" onchange="updateGraphPoint(${pt.id}, 'x', this.value)" placeholder="X" style="width:50px; margin:0;">
+                    <input type="number" value="${pt.y}" onchange="updateGraphPoint(${pt.id}, 'y', this.value)" placeholder="Y" style="width:50px; margin:0;">
+                    <input type="color" value="${pt.color}" oninput="updateGraphPoint(${pt.id}, 'color', this.value)" style="padding:0; height:24px; width:30px; border:none; background:none;">
+                    <button class="secondary" style="padding:2px 6px; background:#a33; margin-left:auto;" onclick="removeGraphPoint(${pt.id})">X</button>
+                </div>
+                <div style="display:flex; gap:5px; align-items:center; width:100%;">
+                    <span style="font-size:10px; color:#888;">Entry:</span>
+                    <input type="number" value="${pt.entryTime}" onchange="updateGraphPoint(${pt.id}, 'entryTime', this.value)" style="width:50px; margin:0;" step="0.1">
+                    <span style="font-size:10px; color:#888;">Exit:</span>
+                    <input type="number" value="${pt.exitTime}" onchange="updateGraphPoint(${pt.id}, 'exitTime', this.value)" style="width:50px; margin:0;" step="0.1">
+                </div>
             `;
             listEl.appendChild(item);
         });
@@ -3109,14 +3217,37 @@
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && layer.type === 'graph') {
             saveHistory();
-            const newEq = { id: layer.nextEqId++, text: 'y = x', color: '#ffeb3b', drawProgress: 1 };
+            const newEq = { 
+                id: layer.nextEqId++, 
+                text: 'y = x', 
+                color: '#ffeb3b', 
+                entryTime: 0, 
+                exitTime: layer.duration 
+            };
             layer.equations.push(newEq);
-            const propName = `eq-${newEq.id}-drawProgress`;
-            const startTime = state.currentTime;
-            const endTime = Math.min(layer.startTime + layer.duration, startTime + 1);
-            layer.addKeyframe(propName, startTime, 0);
-            layer.addKeyframe(propName, endTime, 1);
             renderGraphEquationsList(layer);
+            triggerAutoSave();
+        }
+    }
+
+    function addGraphPoint() {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph') {
+            saveHistory();
+            if (!layer.points) layer.points = [];
+            if (!layer.nextPointId) layer.nextPointId = 1;
+            const newPt = {
+                id: layer.nextPointId++,
+                x: 0,
+                y: 0,
+                label: 'A',
+                color: '#0abf7a',
+                entryTime: 0,
+                exitTime: layer.duration
+            };
+            layer.points.push(newPt);
+            renderGraphPointsList(layer);
             triggerAutoSave();
         }
     }
@@ -3136,13 +3267,44 @@
         }
     }
 
+    function removeGraphPoint(ptId) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph' && layer.points) {
+            saveHistory();
+            layer.points = layer.points.filter(pt => pt.id !== ptId);
+            renderGraphPointsList(layer);
+            triggerAutoSave();
+        }
+    }
+
     function updateGraphEquation(eqId, prop, value) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && layer.type === 'graph') {
             const eq = layer.equations.find(e => e.id === eqId);
             if (eq) {
-                eq[prop] = value;
+                if (prop === 'entryTime' || prop === 'exitTime') {
+                    eq[prop] = parseFloat(value);
+                } else {
+                    eq[prop] = value;
+                }
+                triggerAutoSave();
+            }
+        }
+    }
+
+    function updateGraphPoint(ptId, prop, value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph' && layer.points) {
+            const pt = layer.points.find(p => p.id === ptId);
+            if (pt) {
+                if (prop === 'x' || prop === 'y' || prop === 'entryTime' || prop === 'exitTime') {
+                    pt[prop] = parseFloat(value);
+                } else {
+                    pt[prop] = value;
+                }
                 triggerAutoSave();
             }
         }
