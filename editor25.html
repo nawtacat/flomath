@@ -2276,13 +2276,21 @@
                                        .replace(/\^/g, '**');
                     try {
                         const func = new Function('x', `with(Math){return ${eqString}}`);
+                        
+                        const area = eq.area !== undefined ? eq.area : 100;
+                        const areaFactor = area / 100;
                         const xRange = layer.xMax - layer.xMin;
-                        const currentXMax = layer.xMin + xRange * drawProgress;
+                        const centerX = (layer.xMin + layer.xMax) / 2;
+                        const effectiveRange = xRange * areaFactor;
+                        const startX = centerX - effectiveRange / 2;
+                        const endX = centerX + effectiveRange / 2;
+                        const currentEndX = startX + (endX - startX) * drawProgress;
+
                         ctx.strokeStyle = eq.color || '#ffeb3b';
                         ctx.lineWidth = 3 / scale;
                         ctx.beginPath();
                         const step = xRange / (w * 0.5);
-                        for (let x = layer.xMin; x <= currentXMax; x += step) {
+                        for (let x = startX; x <= currentEndX; x += step) {
                             const y = func(x);
                             if (isNaN(y) || !isFinite(y)) { ctx.moveTo(mapX(x + step), mapY(func(x + step))); continue; }
                             ctx.lineTo(mapX(x), mapY(y));
@@ -3179,6 +3187,8 @@
                 <input type="number" value="${eq.entryTime}" onchange="updateGraphEquation(${eq.id}, 'entryTime', this.value)" style="width:40px; margin:0;" step="0.1">
                 <span style="font-size:10px; color:#888;">Exit:</span>
                 <input type="number" value="${eq.exitTime}" onchange="updateGraphEquation(${eq.id}, 'exitTime', this.value)" style="width:40px; margin:0;" step="0.1">
+                <span style="font-size:10px; color:#888;">Area%:</span>
+                <input type="number" value="${eq.area !== undefined ? eq.area : 100}" onchange="updateGraphEquation(${eq.id}, 'area', this.value)" style="width:40px; margin:0;" step="10">
                 <input type="color" value="${eq.color}" oninput="updateGraphEquation(${eq.id}, 'color', this.value)" style="padding:0; height:24px; width:30px; border:none; background:none;">
                 <button class="secondary" style="padding:2px 6px; background:#a33;" onclick="removeGraphEquation(${eq.id})">X</button>
             `;
@@ -3226,7 +3236,8 @@
                 text: 'y = x', 
                 color: '#ffeb3b', 
                 entryTime: 0, 
-                exitTime: layer.duration 
+                exitTime: layer.duration,
+                area: 100
             };
             layer.equations.push(newEq);
             renderGraphEquationsList(layer);
@@ -3288,7 +3299,7 @@
         if (layer && layer.type === 'graph') {
             const eq = layer.equations.find(e => e.id === eqId);
             if (eq) {
-                if (prop === 'entryTime' || prop === 'exitTime') {
+                if (prop === 'entryTime' || prop === 'exitTime' || prop === 'area') {
                     eq[prop] = parseFloat(value);
                 } else {
                     eq[prop] = value;
