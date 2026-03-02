@@ -494,6 +494,9 @@
 
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" crossorigin="anonymous"></script>
@@ -614,6 +617,26 @@
                     <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
                     <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('color')">◆</button>
                 </div>
+                <label>Font</label>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 5px; margin-bottom:5px;">
+                    <select id="prop-font-family" onchange="updateFontFamily(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                        <option value="Arial">Arial</option>
+                        <option value="Raleway">Raleway</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                    </select>
+                    <select id="prop-font-weight" onchange="updateFontWeight(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                        <option value="normal">Normal</option>
+                        <option value="bold">Bold</option>
+                        <option value="300">Light</option>
+                        <option value="500">Medium</option>
+                        <option value="700">Bold</option>
+                        <option value="900">Black</option>
+                    </select>
+                </div>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:10px;">
+                    <input type="checkbox" id="prop-font-style" onchange="updateFontStyle(this.checked)">
+                    Italic
+                </label>
                 <label>Text Alignment</label>
                 <div id="text-align-controls" style="display:flex; gap:5px; margin-bottom:10px;">
                     <button class="secondary" data-align="left">Left</button>
@@ -1584,6 +1607,9 @@
             this.rotation = 0;
             this.opacity = 1;
             this.color = '#ffffff'; // for text
+            this.fontFamily = 'Arial';
+            this.fontWeight = 'bold';
+            this.fontStyle = 'normal';
             this.textAlign = 'center';
             // Graph properties
             this.xMin = -10;
@@ -1631,7 +1657,11 @@
                 return;
             }
             if (this.type === 'text') {
-                ctx.font = 'bold 100px Arial';
+                const fontFamily = this.fontFamily || 'Arial';
+                const fontWeight = this.fontWeight || 'bold';
+                const fontStyle = this.fontStyle || 'normal';
+                ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
+
                 const maxWidth = this.textMaxWidth || 0;
                 if (maxWidth > 0 || this.content.includes('\n')) {
                     const lineHeight = 120;
@@ -2087,7 +2117,10 @@
                 }
             } else if (layer.type === 'text') {
                 const textColor = layer.getValue('color', state.currentTime);
-                ctx.font = 'bold 100px Arial';
+                const fontFamily = layer.fontFamily || 'Arial';
+                const fontWeight = layer.fontWeight || 'bold';
+                const fontStyle = layer.fontStyle || 'normal';
+                ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
                 ctx.fillStyle = textColor;
                 ctx.textAlign = layer.textAlign || 'center';
                 ctx.textBaseline = 'middle';
@@ -2850,6 +2883,9 @@
                 textProps.style.display = 'block';
                 document.getElementById('prop-text').value = layer.content;
                 document.getElementById('prop-color').value = layer.color;
+                document.getElementById('prop-font-family').value = layer.fontFamily || 'Arial';
+                document.getElementById('prop-font-weight').value = layer.fontWeight || 'bold';
+                document.getElementById('prop-font-style').checked = (layer.fontStyle === 'italic');
                 document.getElementById('prop-text-max-width').value = layer.textMaxWidth || '';
                 document.querySelectorAll('#text-align-controls button').forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.align === (layer.textAlign || 'center'));
@@ -3114,6 +3150,36 @@
 
             if (layer.katex) markKatexLayerDirty(layer);
             renderTimeline(); // To show updated keyframe if any
+            triggerAutoSave();
+        }
+    }
+
+    function updateFontFamily(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.fontFamily = val;
+            layer.updateDimensions();
+            triggerAutoSave();
+        }
+    }
+
+    function updateFontWeight(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.fontWeight = val;
+            layer.updateDimensions();
+            triggerAutoSave();
+        }
+    }
+
+    function updateFontStyle(checked) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.fontStyle = checked ? 'italic' : 'normal';
+            layer.updateDimensions();
             triggerAutoSave();
         }
     }
@@ -3614,6 +3680,9 @@
             textToRender = textToRender.substring(1, textToRender.length - 1);
         }
         
+        // Replace spaces with KaTeX space command `\ ` to ensure they render in math mode.
+        textToRender = textToRender.replace(/ /g, '\\ ');
+
         let katexHtml = textToRender;
         try {
             katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true });
