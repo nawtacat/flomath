@@ -623,7 +623,7 @@
                 <label>Max Width (for wrapping)</label>
                 <input type="number" 
                        id="prop-text-max-width" 
-                       onchange="updateTextMaxWidth(this.value)" 
+                       oninput="updateTextMaxWidth(this.value)" 
                        placeholder="0 for none" 
                        style="margin-bottom: 10px;">
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;">
@@ -1621,9 +1621,38 @@
             }
             if (this.type === 'text') {
                 ctx.font = 'bold 100px Arial';
-                const metrics = ctx.measureText(this.content);
-                this.width = metrics.width;
-                this.height = 100; // Approx height
+                const maxWidth = this.textMaxWidth || 0;
+                if (maxWidth > 0 || this.content.includes('\n')) {
+                    const lineHeight = 120;
+                    const paragraphs = this.content.split('\n');
+                    let lineCount = 0;
+                    let maxW = 0;
+                    
+                    paragraphs.forEach(p => {
+                        const words = p.split(' ');
+                        let line = '';
+                        for (let i = 0; i < words.length; i++) {
+                            const testLine = line + words[i] + ' ';
+                            const metrics = ctx.measureText(testLine);
+                            if (maxWidth > 0 && metrics.width > maxWidth && i > 0) {
+                                lineCount++;
+                                maxW = Math.max(maxW, ctx.measureText(line.trim()).width);
+                                line = words[i] + ' ';
+                            } else {
+                                line = testLine;
+                            }
+                        }
+                        lineCount++;
+                        maxW = Math.max(maxW, ctx.measureText(line.trim()).width);
+                    });
+                    
+                    this.width = maxWidth > 0 ? maxWidth : maxW;
+                    this.height = lineCount * lineHeight;
+                } else {
+                    const metrics = ctx.measureText(this.content);
+                    this.width = metrics.width;
+                    this.height = 100; // Approx height
+                }
             } else if (this.type === 'image' || this.type === 'video') {
                 if (this.content && (this.content.width || this.content.videoWidth)) {
                     this.width = this.content.width || this.content.videoWidth;
@@ -1759,21 +1788,24 @@
     }
 
     function renderWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
-        const words = text.split(' ');
-        let line = '';
-        const lines = [];
+        const paragraphs = text.split('\n');
+        let lines = [];
 
-        for (let i = 0; i < words.length; i++) {
-            const testLine = line + words[i] + ' ';
-            const metrics = ctx.measureText(testLine);
-            if (metrics.width > maxWidth && i > 0) {
-                lines.push(line.trim());
-                line = words[i] + ' ';
-            } else {
-                line = testLine;
+        paragraphs.forEach(paragraph => {
+            const words = paragraph.split(' ');
+            let line = '';
+            for (let i = 0; i < words.length; i++) {
+                const testLine = line + words[i] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (maxWidth > 0 && metrics.width > maxWidth && i > 0) {
+                    lines.push(line.trim());
+                    line = words[i] + ' ';
+                } else {
+                    line = testLine;
+                }
             }
-        }
-        lines.push(line.trim());
+            lines.push(line.trim());
+        });
 
         const startY = y - ((lines.length - 1) * lineHeight) / 2;
         for (let i = 0; i < lines.length; i++) {
@@ -2082,7 +2114,7 @@
                     ctx.clip();
                     ctx.fillText(textContent, 0, 0);
                     ctx.restore();
-                } else if (maxWidth > 0) {
+                } else if (maxWidth > 0 || textContent.includes('\n')) {
                     renderWrappedText(ctx, textContent, textDrawX, 0, maxWidth, lineHeight);
                 } else {
                     ctx.fillText(textContent, 0, 0);
@@ -2958,6 +2990,7 @@
         if (layer && layer.type === 'text') {
             saveHistory();
             layer.textMaxWidth = parseInt(val, 10) || 0;
+            layer.updateDimensions();
             triggerAutoSave();
         }
     }
