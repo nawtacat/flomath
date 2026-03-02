@@ -2209,15 +2209,11 @@
                 const mapX = (x) => ((x - layer.xMin) / (layer.xMax - layer.xMin)) * w - w / 2;
                 const mapY = (y) => (1 - (y - layer.yMin) / (layer.yMax - layer.yMin)) * h - h / 2;
 
-                // Draw background
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.fillRect(-w/2, -h/2, w, h);
-
                 // Draw Axes
-                ctx.strokeStyle = 'white';
+                ctx.strokeStyle = 'black';
                 ctx.lineWidth = 2 / scale;
-                ctx.font = `bold ${14/scale}px Arial`;
-                ctx.fillStyle = 'white';
+                ctx.font = `bold ${14/scale}px "Computer Modern", Arial`;
+                ctx.fillStyle = 'black';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
 
@@ -2304,7 +2300,7 @@
                         
                         // Label
                         if (pt.label) {
-                            ctx.fillStyle = 'white';
+                            ctx.fillStyle = 'black';
                             ctx.font = `bold ${20/scale}px Arial`;
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'bottom';
