@@ -1065,7 +1065,7 @@
         const segments = [];
         if (!textWithMarkup) return segments;
         
-        const tagRegex = /<\/?font(?:="([^"]+)")?>/g;
+        const tagRegex = /<\/?font(?:\s*=\s*"([^"]*)")?>/g;
         let match;
         let currentIndex = 0;
         const fontStack = [baseFont];
@@ -1080,8 +1080,8 @@
             
             if (match[0].startsWith('</font>')) {
                 if (fontStack.length > 1) fontStack.pop();
-            } else if (match[1]) {
-                fontStack.push(match[1]);
+            } else {
+                fontStack.push(match[1] || baseFont);
             }
             currentIndex = tagRegex.lastIndex;
         }
@@ -1773,7 +1773,7 @@
             if (start === end) return;
 
             const selectedText = textarea.value.substring(start, end);
-            const fontName = fontSelect.value;
+            const fontName = fontSelect.value || 'Arial';
             
             const newText = `${textarea.value.substring(0, start)}<font="${fontName}">${selectedText}</font>${textarea.value.substring(end)}`;
             
@@ -1809,6 +1809,7 @@
             option.style.fontFamily = font;
             fontSelect.appendChild(option);
         });
+        if (FONT_LIST.length > 0 && !fontSelect.value) fontSelect.value = FONT_LIST[0];
     }
 
     function resizeCanvas() {
