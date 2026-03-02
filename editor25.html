@@ -608,7 +608,7 @@
                 <textarea id="prop-text" oninput="updateText(this.value)" rows="4"></textarea>
                 <div class="property-row" style="margin-top: 5px;">
                     <span>Font</span>
-                    <select id="prop-font" onchange="updateBaseFont(this.value)" style="width: 120px; background:#333; color:white; border:1px solid var(--border); padding:5px;"></select>
+                    <select id="prop-font" style="width: 120px; background:#333; color:white; border:1px solid var(--border); padding:5px;"></select>
                     <button class="secondary" id="btn-apply-font" style="padding: 2px 6px;">Apply</button>
                 </div>
                 <div class="property-row">
@@ -1064,35 +1064,35 @@
     function parseTextMarkup(textWithMarkup, baseFont) {
         const segments = [];
         if (!textWithMarkup) return segments;
-        const regex = /<font="([^"]+)">([^<]+)<\/font>/g;
-        let lastIndex = 0;
+        
+        const tagRegex = /<\/?font(?:="([^"]+)")?>/g;
         let match;
+        let currentIndex = 0;
+        const fontStack = [baseFont];
 
-        while ((match = regex.exec(textWithMarkup)) !== null) {
-            if (match.index > lastIndex) {
+        while ((match = tagRegex.exec(textWithMarkup)) !== null) {
+            if (match.index > currentIndex) {
                 segments.push({
-                    text: textWithMarkup.substring(lastIndex, match.index),
-                    font: baseFont
+                    text: textWithMarkup.substring(currentIndex, match.index),
+                    font: fontStack[fontStack.length - 1]
                 });
             }
-            segments.push({
-                text: match[2],
-                font: match[1]
-            });
-            lastIndex = regex.lastIndex;
+            
+            if (match[0].startsWith('</font>')) {
+                if (fontStack.length > 1) fontStack.pop();
+            } else if (match[1]) {
+                fontStack.push(match[1]);
+            }
+            currentIndex = tagRegex.lastIndex;
         }
 
-        if (lastIndex < textWithMarkup.length) {
+        if (currentIndex < textWithMarkup.length) {
             segments.push({
-                text: textWithMarkup.substring(lastIndex),
-                font: baseFont
+                text: textWithMarkup.substring(currentIndex),
+                font: fontStack[fontStack.length - 1]
             });
         }
         
-        if (segments.length === 0 && textWithMarkup.length > 0) {
-            segments.push({ text: textWithMarkup, font: baseFont });
-        }
-
         return segments;
     }
 
@@ -1779,6 +1779,15 @@
             
             textarea.value = newText;
             updateText(newText);
+        });
+
+        document.getElementById('prop-font').addEventListener('change', (e) => {
+            const textarea = document.getElementById('prop-text');
+            // Only update base font if no text is selected
+            if (textarea.selectionStart === textarea.selectionEnd) {
+                updateBaseFont(e.target.value);
+            }
+            // If text is selected, the user likely wants to click 'Apply', so we do nothing here
         });
 
         // Initialize Firebase
