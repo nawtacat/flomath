@@ -2290,6 +2290,12 @@
                 }
                 ctx.stroke();
 
+                // Clip the drawing area to the graph bounds for functions and points
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(-w/2, -h/2, w, h);
+                ctx.clip();
+
                 // Draw equations
                 if (layer.equations) layer.equations.forEach(eq => {
                     if (!eq.text) return;
@@ -2383,6 +2389,8 @@
                         ctx.restore();
                     }
                 });
+
+                ctx.restore(); // End clipping
 
             } else if (layer.type === 'image') {
                 const img = layer.content;
