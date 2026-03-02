@@ -2317,17 +2317,15 @@
                         
                         const area = eq.area !== undefined ? eq.area : 100;
                         const areaFactor = area / 100;
-                        const xRange = xMax - xMin;
-                        const centerX = (xMin + xMax) / 2;
-                        const effectiveRange = xRange * areaFactor;
-                        const startX = centerX - effectiveRange / 2;
-                        const endX = centerX + effectiveRange / 2;
+                        
+                        const startX = xMin * areaFactor;
+                        const endX = xMax * areaFactor;
                         const currentEndX = startX + (endX - startX) * drawProgress;
 
                         ctx.strokeStyle = eq.color || '#ffeb3b';
                         ctx.lineWidth = 3 / scale;
                         ctx.beginPath();
-                        const step = xRange / (w * 0.5);
+                        const step = (xMax - xMin) / (w * 0.5);
                         for (let x = startX; x <= currentEndX; x += step) {
                             const y = func(x);
                             if (isNaN(y) || !isFinite(y)) { ctx.moveTo(mapX(x + step), mapY(func(x + step))); continue; }
