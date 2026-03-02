@@ -2202,12 +2202,17 @@
             } else if (layer.type === 'graph') {
                 const w = layer.width || 800;
                 const h = layer.height || 800;
-                const scaleStep = layer.gridScale || 1;
+                const scaleStep = parseFloat(layer.gridScale) || 1;
                 const relTime = state.currentTime - layer.startTime;
 
+                const xMin = parseFloat(layer.xMin);
+                const xMax = parseFloat(layer.xMax);
+                const yMin = parseFloat(layer.yMin);
+                const yMax = parseFloat(layer.yMax);
+
                 // Helper functions to map graph coords to local canvas coords
-                const mapX = (x) => ((x - layer.xMin) / (layer.xMax - layer.xMin)) * w - w / 2;
-                const mapY = (y) => (1 - (y - layer.yMin) / (layer.yMax - layer.yMin)) * h - h / 2;
+                const mapX = (x) => ((x - xMin) / (xMax - xMin)) * w - w / 2;
+                const mapY = (y) => (1 - (y - yMin) / (yMax - yMin)) * h - h / 2;
 
                 // Draw Axes
                 ctx.strokeStyle = 'black';
@@ -2233,8 +2238,8 @@
                 // Ticks & Labels
                 ctx.beginPath();
                 // X Ticks
-                const startX = Math.ceil(layer.xMin / scaleStep) * scaleStep;
-                for (let i = startX; i <= layer.xMax; i += scaleStep) {
+                const startTickX = Math.ceil(xMin / scaleStep) * scaleStep;
+                for (let i = startTickX; i <= xMax; i += scaleStep) {
                     if (Math.abs(i) < 0.0001) continue; // Skip 0
                     const mx = mapX(i);
                     ctx.moveTo(mx, y0 - 5/scale); ctx.lineTo(mx, y0 + 5/scale);
@@ -2243,8 +2248,8 @@
                 // Y Ticks
                 ctx.textBaseline = 'middle';
                 ctx.textAlign = 'right';
-                const startY = Math.ceil(layer.yMin / scaleStep) * scaleStep;
-                for (let i = startY; i <= layer.yMax; i += scaleStep) {
+                const startTickY = Math.ceil(yMin / scaleStep) * scaleStep;
+                for (let i = startTickY; i <= yMax; i += scaleStep) {
                     if (Math.abs(i) < 0.0001) continue;
                     const my = mapY(i);
                     ctx.moveTo(x0 - 5/scale, my); ctx.lineTo(x0 + 5/scale, my);
@@ -2279,8 +2284,8 @@
                         
                         const area = eq.area !== undefined ? eq.area : 100;
                         const areaFactor = area / 100;
-                        const xRange = layer.xMax - layer.xMin;
-                        const centerX = (layer.xMin + layer.xMax) / 2;
+                        const xRange = xMax - xMin;
+                        const centerX = (xMin + xMax) / 2;
                         const effectiveRange = xRange * areaFactor;
                         const startX = centerX - effectiveRange / 2;
                         const endX = centerX + effectiveRange / 2;
