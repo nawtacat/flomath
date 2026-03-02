@@ -2953,8 +2953,18 @@
     function addKeyframe(prop) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        
         saveHistory();
-        const val = document.getElementById(`prop-${prop}`).value;
+        let val;
+        if (prop.startsWith('eq-')) {
+            // For graph equations, we keyframe the current animated value.
+            val = layer.getValue(prop, state.currentTime);
+        } else {
+            const inputEl = document.getElementById(`prop-${prop}`);
+            if (!inputEl) return; // Should not happen for standard props
+            val = inputEl.value;
+        }
         layer.addKeyframe(prop, state.currentTime, val);
         triggerAutoSave();
     }
