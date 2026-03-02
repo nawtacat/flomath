@@ -245,6 +245,10 @@
 
         button:hover { opacity: 0.9; }
         button.secondary { background-color: #444; }
+        button.secondary.active {
+            background: var(--accent);
+            color: white;
+        }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .control-group {
@@ -489,8 +493,6 @@
         }
 
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Merriweather:wght@400;700&family=Montserrat:wght@400;700&family=Open+Sans:wght@400;700&family=Oswald:wght@400;700&family=PT+Sans:wght@400;700&family=Playfair+Display:wght@400;700&family=Raleway:wght@400;700&family=Roboto:wght@400;700&family=Source+Code+Pro:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
@@ -605,17 +607,24 @@
             
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Text Content</label>
-                <textarea id="prop-text" oninput="updateText(this.value)" rows="4"></textarea>
-                <div class="property-row" style="margin-top: 5px;">
-                    <span>Font</span>
-                    <select id="prop-font" style="width: 120px; background:#333; color:white; border:1px solid var(--border); padding:5px;"></select>
-                    <button class="secondary" id="btn-apply-font" style="padding: 2px 6px;">Apply</button>
-                </div>
+                <input type="text" id="prop-text" oninput="updateText(this.value)">
                 <div class="property-row">
                     <span>Color</span>
                     <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
                     <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('color')">◆</button>
                 </div>
+                <label>Text Alignment</label>
+                <div id="text-align-controls" style="display:flex; gap:5px; margin-bottom:10px;">
+                    <button class="secondary" data-align="left">Left</button>
+                    <button class="secondary" data-align="center">Center</button>
+                    <button class="secondary" data-align="right">Right</button>
+                </div>
+                <label>Max Width (for wrapping)</label>
+                <input type="number" 
+                       id="prop-text-max-width" 
+                       onchange="updateTextMaxWidth(this.value)" 
+                       placeholder="0 for none" 
+                       style="margin-bottom: 10px;">
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;">
                     <input type="checkbox" id="prop-katex" onchange="updateKatexMode(this.checked)">
                     Render as KaTeX
@@ -919,11 +928,6 @@
     const FPS = 60;
     const PIXELS_PER_SECOND = 50; // Timeline zoom
     const KEYFRAME_TIME_EPS = 0.02;
-    const FONT_LIST = [
-        'Arial', 'Verdana', 'Georgia', 'Times New Roman', 'Courier New',
-        'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald',
-        'Source Code Pro', 'Raleway', 'PT Sans', 'Merriweather', 'Playfair Display'
-    ];
     
     const canvas = document.getElementById('editor-canvas');
     const ctx = canvas.getContext('2d');
@@ -1060,54 +1064,6 @@
         zoom: 'zoom.mp3'
     };
     let soundVolume = 0.7;
-
-    function parseTextMarkup(textWithMarkup, baseFont) {
-        const segments = [];
-        if (!textWithMarkup) return segments;
-        
-        const tagRegex = /<\/?font(?:\s*=\s*"([^"]*)")?>/g;
-        let match;
-        let currentIndex = 0;
-        const fontStack = [baseFont];
-
-        while ((match = tagRegex.exec(textWithMarkup)) !== null) {
-            if (match.index > currentIndex) {
-                segments.push({
-                    text: textWithMarkup.substring(currentIndex, match.index),
-                    font: fontStack[fontStack.length - 1]
-                });
-            }
-            
-            if (match[0].startsWith('</font>')) {
-                if (fontStack.length > 1) fontStack.pop();
-            } else {
-                fontStack.push(match[1] || baseFont);
-            }
-            currentIndex = tagRegex.lastIndex;
-        }
-
-        if (currentIndex < textWithMarkup.length) {
-            segments.push({
-                text: textWithMarkup.substring(currentIndex),
-                font: fontStack[fontStack.length - 1]
-            });
-        }
-        
-        return segments;
-    }
-
-    function calculateTextDimensions(textWithMarkup, baseFont) {
-        const segments = parseTextMarkup(textWithMarkup, baseFont);
-        let totalWidth = 0;
-        const fontSize = 100;
-        
-        segments.forEach(segment => {
-            ctx.font = `bold ${fontSize}px ${segment.font}`;
-            totalWidth += ctx.measureText(segment.text).width;
-        });
-
-        return { width: totalWidth, height: fontSize };
-    }
 
     function updateViewportControls() {
         if (viewportZoomSlider) viewportZoomSlider.value = manualGlobalTransform.scale;
@@ -1594,7 +1550,8 @@
             this.rotation = 0;
             this.opacity = 1;
             this.color = '#ffffff'; // for text
-            this.font = 'Arial'; // for text
+            this.textAlign = 'center';
+            this.textMaxWidth = 0;
             this.loopingAnimation = 'none';
             this.slotId = null;
             this.floatSeed = Math.random() * Math.PI * 2;
@@ -1629,9 +1586,10 @@
                 return;
             }
             if (this.type === 'text') {
-                const { width, height } = calculateTextDimensions(this.content || '', this.font || 'Arial');
-                this.width = width;
-                this.height = height;
+                ctx.font = 'bold 100px Arial';
+                const metrics = ctx.measureText(this.content);
+                this.width = metrics.width;
+                this.height = 100; // Approx height
             } else if (this.type === 'image' || this.type === 'video') {
                 if (this.content && (this.content.width || this.content.videoWidth)) {
                     this.width = this.content.width || this.content.videoWidth;
@@ -1752,44 +1710,57 @@
         }
     }
 
+    function renderWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+        const lines = [];
+
+        for (let i = 0; i < words.length; i++) {
+            const testLine = line + words[i] + ' ';
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && i > 0) {
+                lines.push(line.trim());
+                line = words[i] + ' ';
+            } else {
+                line = testLine;
+            }
+        }
+        lines.push(line.trim());
+
+        const startY = y - ((lines.length - 1) * lineHeight) / 2;
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], x, startY + i * lineHeight);
+        }
+    }
+
     // --- Core Engine ---
 
     function init() {
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         window.addEventListener('resize', updatePlayheadHeight);
-        populateFontDropdown();
         renderTimeline();
         canvas.addEventListener('mousedown', handleCanvasMouseDown);
         canvas.addEventListener('mousemove', handleCanvasMouseMove);
         canvas.addEventListener('mouseup', handleCanvasMouseUp);
         animationFrameId = requestAnimationFrame(gameLoop);
 
-        document.getElementById('btn-apply-font').addEventListener('click', () => {
-            const textarea = document.getElementById('prop-text');
-            const fontSelect = document.getElementById('prop-font');
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            if (start === end) return;
-
-            const selectedText = textarea.value.substring(start, end);
-            const fontName = fontSelect.value || 'Arial';
-            
-            const newText = `${textarea.value.substring(0, start)}<font="${fontName}">${selectedText}</font>${textarea.value.substring(end)}`;
-            
-            textarea.value = newText;
-            updateText(newText);
-        });
-
-        document.getElementById('prop-font').addEventListener('change', (e) => {
-            const textarea = document.getElementById('prop-text');
-            // Only update base font if no text is selected
-            if (textarea.selectionStart === textarea.selectionEnd) {
-                updateBaseFont(e.target.value);
+        document.getElementById('text-align-controls').addEventListener('click', (e) => {
+            if (e.target.matches('button[data-align]')) {
+                const align = e.target.dataset.align;
+                if (!state.selectedLayerId) return;
+                const layer = state.layers.find(l => l.id === state.selectedLayerId);
+                if (layer && layer.type === 'text') {
+                    saveHistory();
+                    layer.textAlign = align;
+                    document.querySelectorAll('#text-align-controls button').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    e.target.classList.add('active');
+                    triggerAutoSave();
+                }
             }
-            // If text is selected, the user likely wants to click 'Apply', so we do nothing here
         });
-
         // Initialize Firebase
         initFirebase();
         // Start Autosave
@@ -1797,19 +1768,6 @@
         updateWatermarkUI();
         
         updateUndoRedoButtons();
-    }
-
-    function populateFontDropdown() {
-        const fontSelect = document.getElementById('prop-font');
-        if (!fontSelect) return;
-        FONT_LIST.forEach(font => {
-            const option = document.createElement('option');
-            option.value = font;
-            option.innerText = font;
-            option.style.fontFamily = font;
-            fontSelect.appendChild(option);
-        });
-        if (FONT_LIST.length > 0 && !fontSelect.value) fontSelect.value = FONT_LIST[0];
     }
 
     function resizeCanvas() {
@@ -2036,72 +1994,50 @@
                 } else {
                     ctx.drawImage(img, -w / 2, -h / 2, w, h);
                 }
-            } else if (layer.type === 'text') { // Non-KaTeX text rendering
+            } else if (layer.type === 'text') {
                 const textColor = layer.getValue('color', state.currentTime);
+                ctx.font = 'bold 100px Arial';
                 ctx.fillStyle = textColor;
-                ctx.textAlign = 'left';
+                ctx.textAlign = layer.textAlign || 'center';
                 ctx.textBaseline = 'middle';
-
-                const segments = parseTextMarkup(layer.content || '', layer.font || 'Arial');
                 
-                let totalWidth = 0;
-                const segmentWidths = segments.map(segment => {
-                    ctx.font = `bold 100px ${segment.font}`;
-                    const width = ctx.measureText(segment.text).width;
-                    totalWidth += width;
-                    return width;
-                });
+                const maxWidth = layer.textMaxWidth > 0 ? layer.textMaxWidth : 0;
+                const lineHeight = 120;
 
-                let currentX = -totalWidth / 2;
+                let textDrawX = 0;
+                if (maxWidth > 0) {
+                    if (ctx.textAlign === 'left') {
+                        textDrawX = -maxWidth / 2;
+                    } else if (ctx.textAlign === 'right') {
+                        textDrawX = maxWidth / 2;
+                    }
+                }
 
                 if (isTypewriterActive) {
-                    const animatedWidth = totalWidth * easedEntryProgress;
-                    let widthSoFar = 0;
-                    
+                    const measuredWidth = ctx.measureText(textContent).width;
+                    const clipWidth = Math.max(0, measuredWidth * easedEntryProgress);
+                    const clipHeight = 140;
                     ctx.save();
-                    for (let i = 0; i < segments.length; i++) {
-                        const segment = segments[i];
-                        const segmentWidth = segmentWidths[i];
-                        
-                        if (widthSoFar + segmentWidth <= animatedWidth) {
-                            ctx.font = `bold 100px ${segment.font}`;
-                            ctx.fillText(segment.text, currentX, 0);
-                        } else {
-                            const visibleRatio = segmentWidth > 0 ? (animatedWidth - widthSoFar) / segmentWidth : 0;
-                            const visibleChars = Math.floor(segment.text.length * visibleRatio);
-                            const partialText = segment.text.substring(0, visibleChars);
-                            
-                            ctx.font = `bold 100px ${segment.font}`;
-                            ctx.fillText(partialText, currentX, 0);
-                            break;
-                        }
-                        
-                        widthSoFar += segmentWidth;
-                        currentX += segmentWidth;
-                    }
+                    ctx.beginPath();
+                    ctx.rect(-clipWidth / 2, -clipHeight / 2, clipWidth, clipHeight);
+                    ctx.clip();
+                    ctx.fillText(textContent, 0, 0);
                     ctx.restore();
-
                 } else if (clipHorizontal || clipVertical) {
-                    const cw = totalWidth;
-                    const ch = 100;
+                    const cw = layer.width || 500;
+                    const ch = layer.height || 200;
                     const clipW = clipHorizontal ? cw * clipFactorH : cw;
                     const clipH = clipVertical ? ch * clipFactorV : ch;
                     ctx.save();
                     ctx.beginPath();
                     ctx.rect(-cw/2, -ch/2, clipW, clipH);
                     ctx.clip();
-                    segments.forEach((segment, i) => {
-                        ctx.font = `bold 100px ${segment.font}`;
-                        ctx.fillText(segment.text, currentX, 0);
-                        currentX += segmentWidths[i];
-                    });
+                    ctx.fillText(textContent, 0, 0);
                     ctx.restore();
+                } else if (maxWidth > 0) {
+                    renderWrappedText(ctx, textContent, textDrawX, 0, maxWidth, lineHeight);
                 } else {
-                    segments.forEach((segment, i) => {
-                        ctx.font = `bold 100px ${segment.font}`;
-                        ctx.fillText(segment.text, currentX, 0);
-                        currentX += segmentWidths[i];
-                    });
+                    ctx.fillText(textContent, 0, 0);
                 }
             } else if (layer.type === 'shape') {
                 const color = layer.getValue('color', state.currentTime);
@@ -2691,7 +2627,10 @@
                 textProps.style.display = 'block';
                 document.getElementById('prop-text').value = layer.content;
                 document.getElementById('prop-color').value = layer.color;
-                document.getElementById('prop-font').value = layer.font || 'Arial';
+                document.getElementById('prop-text-max-width').value = layer.textMaxWidth || '';
+                document.querySelectorAll('#text-align-controls button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.align === (layer.textAlign || 'center'));
+                });
             } else {
                 textProps.style.display = 'none';
             }
@@ -2872,15 +2811,6 @@
         triggerAutoSave();
     }
 
-    function updateBaseFont(fontName) {
-        const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (layer && layer.type === 'text') {
-            saveHistory();
-            layer.font = fontName;
-            triggerAutoSave();
-        }
-    }
-
     function updateLayerName(val) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
@@ -2900,6 +2830,16 @@
             layer.content = val;
             if (layer.katex) markKatexLayerDirty(layer);
             layer.updateDimensions();
+            triggerAutoSave();
+        }
+    }
+
+    function updateTextMaxWidth(val) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.textMaxWidth = parseInt(val, 10) || 0;
             triggerAutoSave();
         }
     }
