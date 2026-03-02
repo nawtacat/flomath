@@ -2343,9 +2343,18 @@
                     const exit = pt.exitTime !== undefined ? pt.exitTime : layer.duration;
                     
                     if (relTime >= entry && relTime <= exit) {
+                        const fadeDur = 0.5;
+                        let alpha = 1;
+                        if (relTime < entry + fadeDur) alpha = (relTime - entry) / fadeDur;
+                        if (relTime > exit - fadeDur) alpha = Math.min(alpha, (exit - relTime) / fadeDur);
+                        alpha = Math.max(0, Math.min(1, alpha));
+
                         const px = mapX(pt.x);
                         const py = mapY(pt.y);
                         
+                        ctx.save();
+                        ctx.globalAlpha = ctx.globalAlpha * alpha;
+
                         // Point
                         ctx.fillStyle = pt.color || '#0abf7a';
                         ctx.beginPath();
@@ -2355,11 +2364,12 @@
                         // Label
                         if (pt.label) {
                             ctx.fillStyle = 'black';
-                            ctx.font = `bold ${20/scale}px Arial`;
+                            ctx.font = `bold ${20/scale}px "Times New Roman", serif`;
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'bottom';
                             ctx.fillText(pt.label, px, py - 10/scale);
                         }
+                        ctx.restore();
                     }
                 });
 
@@ -5973,6 +5983,15 @@
                 data.layers.forEach(lData => {
                     const layer = new Layer(lData.type, lData.name, null);
                     Object.assign(layer, lData);
+                    
+                    // Fix arrays coming back as objects from Firebase
+                    if (layer.equations && typeof layer.equations === 'object' && !Array.isArray(layer.equations)) {
+                        layer.equations = Object.values(layer.equations);
+                    }
+                    if (layer.points && typeof layer.points === 'object' && !Array.isArray(layer.points)) {
+                        layer.points = Object.values(layer.points);
+                    }
+
                     if (!layer.keyframes.color) layer.keyframes.color = [];
                     
                     // Restore Content
