@@ -2318,8 +2318,11 @@
                         const area = eq.area !== undefined ? eq.area : 100;
                         const areaFactor = area / 100;
                         
-                        const startX = xMin * areaFactor;
-                        const endX = xMax * areaFactor;
+                        const xRange = xMax - xMin;
+                        const centerX = (xMin + xMax) / 2;
+                        const effectiveRange = xRange * areaFactor;
+                        const startX = centerX - effectiveRange / 2;
+                        const endX = centerX + effectiveRange / 2;
                         const currentEndX = startX + (endX - startX) * drawProgress;
 
                         ctx.strokeStyle = eq.color || '#ffeb3b';
@@ -3266,8 +3269,8 @@
                 <input type="number" value="${eq.entryTime}" onchange="updateGraphEquation(${eq.id}, 'entryTime', this.value)" style="width:40px; margin:0;" step="0.1">
                 <span style="font-size:10px; color:#888;">Exit:</span>
                 <input type="number" value="${eq.exitTime}" onchange="updateGraphEquation(${eq.id}, 'exitTime', this.value)" style="width:40px; margin:0;" step="0.1">
-                <span style="font-size:10px; color:#888;">Area%:</span>
-                <input type="number" value="${eq.area !== undefined ? eq.area : 100}" onchange="updateGraphEquation(${eq.id}, 'area', this.value)" style="width:40px; margin:0;" step="10">
+                <span style="font-size:10px; color:#888;">Area %:</span>
+                <input type="number" value="${eq.area !== undefined ? eq.area : 100}" oninput="updateGraphEquation(${eq.id}, 'area', this.value)" style="width:40px; margin:0;" step="10">
                 <input type="color" value="${eq.color}" oninput="updateGraphEquation(${eq.id}, 'color', this.value)" style="padding:0; height:24px; width:30px; border:none; background:none;">
                 <button class="secondary" style="padding:2px 6px; background:#a33;" onclick="removeGraphEquation(${eq.id})">X</button>
             `;
