@@ -526,6 +526,7 @@
             <button class="secondary" onclick="addTextLayer()">+ Text</button>
             <button class="secondary" onclick="document.getElementById('img-upload').click()">+ Image</button>
             <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
+            <button class="secondary" onclick="addGraphLayer()">+ Graph</button>
             <button class="secondary" onclick="addShape()">+ Shape</button>
             <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
@@ -660,6 +661,31 @@
                 </select>
                 <button class="secondary" style="width:100%; margin-top:10px; background:#e53935; color:white; font-weight:bold;" onclick="performCut()">✂ CUT NOW</button>
                 <button class="secondary" style="width:100%; margin-top:5px;" onclick="toggleShapecutter()">Cancel / Close</button>
+            </div>
+
+            <div id="graph-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Graph Properties</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom:10px;">
+                    <div>
+                        <label>X Min</label>
+                        <input type="number" id="prop-graph-xmin" onchange="updateGraphProperty('xMin', this.value)" style="width:100%; margin:0;">
+                    </div>
+                    <div>
+                        <label>X Max</label>
+                        <input type="number" id="prop-graph-xmax" onchange="updateGraphProperty('xMax', this.value)" style="width:100%; margin:0;">
+                    </div>
+                    <div>
+                        <label>Y Min</label>
+                        <input type="number" id="prop-graph-ymin" onchange="updateGraphProperty('yMin', this.value)" style="width:100%; margin:0;">
+                    </div>
+                    <div>
+                        <label>Y Max</label>
+                        <input type="number" id="prop-graph-ymax" onchange="updateGraphProperty('yMax', this.value)" style="width:100%; margin:0;">
+                    </div>
+                </div>
+                <label>Equations</label>
+                <div id="graph-equations-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+                <button class="secondary" style="width:100%;" onclick="addGraphEquation()">+ Add Equation</button>
             </div>
 
             <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -1551,6 +1577,14 @@
             this.opacity = 1;
             this.color = '#ffffff'; // for text
             this.textAlign = 'center';
+            // Graph properties
+            this.xMin = -10;
+            this.xMax = 10;
+            this.yMin = -10;
+            this.yMax = 10;
+            this.equations = []; // {id, text, color, drawProgress}
+            this.nextEqId = 1;
+
             this.textMaxWidth = 0;
             this.loopingAnimation = 'none';
             this.slotId = null;
@@ -1564,7 +1598,7 @@
         this.katexImageLoading = false;
         this.entryAnimation = { type: 'none', duration: 1 };
         this.exitAnimation = { type: 'none', duration: 1 };
-        this.volume = 1;
+        this.volume = 1; 
         this.muted = false;
         this.excludeFromBlur = false;
         this.storageUrl = null; // URL from Firebase Storage
@@ -1601,12 +1635,26 @@
                 } else {
                     this.width = 200; this.height = 200;
                 }
+            } else if (this.type === 'graph') {
+                this.width = 800;
+                this.height = 800;
             }
         }
 
         getValue(prop, time) {
+            let baseValue;
+            if (prop.startsWith('eq-')) {
+                const parts = prop.split('-');
+                const eqId = parseInt(parts[1], 10);
+                const eqProp = parts[2];
+                const eq = this.equations.find(e => e.id === eqId);
+                baseValue = eq ? (eq[eqProp] ?? 1) : 1; // Default drawProgress is 1
+            } else {
+                baseValue = this[prop];
+            }
+
             const kfs = this.keyframes[prop];
-            if (!kfs || kfs.length === 0) return this[prop];
+            if (!kfs || kfs.length === 0) return baseValue;
 
             // Sort keyframes by time just in case
             kfs.sort((a, b) => a.time - b.time);
@@ -1625,14 +1673,14 @@
                     const v2 = kfs[i+1].value;
                     const progress = (time - t1) / (t2 - t1);
 
-                    if (prop === 'color') {
+                    if (prop.endsWith('color')) {
                         return interpolateColor(v1, v2, progress);
                     }
                     
                     return v1 + (v2 - v1) * progress; // Linear interpolation for numbers
                 }
             }
-            return this[prop];
+            return baseValue;
         }
 
         addKeyframe(prop, time, value) {
@@ -2108,6 +2156,63 @@
                 ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${layer.highlightOpacity ?? 0.6})`;
                 const fillWidth = rect.width * progress;
                 ctx.fillRect(-rect.width / 2, -rect.height / 2, fillWidth, rect.height);
+            } else if (layer.type === 'image') {
+                const img = layer.content;
+            } else if (layer.type === 'graph') {
+                const w = layer.width || 800;
+                const h = layer.height || 800;
+
+                // Helper functions to map graph coords to local canvas coords
+                const mapX = (x) => ((x - layer.xMin) / (layer.xMax - layer.xMin)) * w - w / 2;
+                const mapY = (y) => (1 - (y - layer.yMin) / (layer.yMax - layer.yMin)) * h - h / 2;
+
+                // Draw background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.fillRect(-w/2, -h/2, w, h);
+
+                // Draw grid lines
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 1 / scale; // Keep lines thin
+                ctx.beginPath();
+                for (let i = Math.ceil(layer.xMin); i <= Math.floor(layer.xMax); i++) {
+                    if (i === 0) continue;
+                    ctx.moveTo(mapX(i), -h/2); ctx.lineTo(mapX(i), h/2);
+                }
+                for (let i = Math.ceil(layer.yMin); i <= Math.floor(layer.yMax); i++) {
+                    if (i === 0) continue;
+                    ctx.moveTo(-w/2, mapY(i)); ctx.lineTo(w/2, mapY(i));
+                }
+                ctx.stroke();
+
+                // Draw axes
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 2 / scale;
+                ctx.beginPath();
+                ctx.moveTo(-w/2, mapY(0)); ctx.lineTo(w/2, mapY(0)); // X-axis
+                ctx.moveTo(mapX(0), -h/2); ctx.lineTo(mapX(0), h/2); // Y-axis
+                ctx.stroke();
+
+                // Draw equations
+                layer.equations.forEach(eq => {
+                    if (!eq.text) return;
+                    const eqString = eq.text.includes('=') ? eq.text.split('=')[1] : eq.text;
+                    try {
+                        const func = new Function('x', `with(Math){return ${eqString}}`);
+                        const drawProgress = layer.getValue(`eq-${eq.id}-drawProgress`, state.currentTime);
+                        const xRange = layer.xMax - layer.xMin;
+                        const currentXMax = layer.xMin + xRange * drawProgress;
+                        ctx.strokeStyle = eq.color || '#ffeb3b';
+                        ctx.lineWidth = 3 / scale;
+                        ctx.beginPath();
+                        const step = xRange / (w * 0.5);
+                        for (let x = layer.xMin; x <= currentXMax; x += step) {
+                            const y = func(x);
+                            if (isNaN(y) || !isFinite(y)) { ctx.moveTo(mapX(x + step), mapY(func(x + step))); continue; }
+                            ctx.lineTo(mapX(x), mapY(y));
+                        }
+                        ctx.stroke();
+                    } catch (e) { /* Invalid function, ignore */ }
+                });
             } else if (layer.type === 'image') {
                 const img = layer.content;
                 if (img && img.complete && img.naturalWidth !== 0) {
@@ -2617,6 +2722,7 @@
         const panel = document.getElementById('properties-panel');
         const textProps = document.getElementById('text-props');
         const shapeProps = document.getElementById('shape-props');
+        const graphProps = document.getElementById('graph-props');
         
         if (layer) {
             panel.style.display = 'block';
@@ -2633,6 +2739,17 @@
                 });
             } else {
                 textProps.style.display = 'none';
+            }
+
+            if (layer.type === 'graph') {
+                graphProps.style.display = 'block';
+                document.getElementById('prop-graph-xmin').value = layer.xMin;
+                document.getElementById('prop-graph-xmax').value = layer.xMax;
+                document.getElementById('prop-graph-ymin').value = layer.yMin;
+                document.getElementById('prop-graph-ymax').value = layer.yMax;
+                renderGraphEquationsList(layer);
+            } else {
+                graphProps.style.display = 'none';
             }
             
             if (layer.type === 'shape') {
@@ -2668,6 +2785,7 @@
             if (highlightControls) highlightControls.style.display = 'none';
             if (audioControls) audioControls.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'none';
+            if (graphProps) graphProps.style.display = 'none';
         }
         motionEditingOverride = null;
         updateMotionStatus();
