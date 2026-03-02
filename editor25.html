@@ -2212,7 +2212,7 @@
                 // Draw Axes
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 2 / scale;
-                ctx.font = `bold ${14/scale}px "Computer Modern", Arial`;
+                ctx.font = `bold ${14/scale}px "Times New Roman", serif`;
                 ctx.fillStyle = 'black';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
@@ -2265,7 +2265,15 @@
                     const animDur = 1.0;
                     const drawProgress = Math.min(1, Math.max(0, (relTime - entry) / animDur));
 
-                    const eqString = eq.text.includes('=') ? eq.text.split('=')[1] : eq.text;
+                    let eqString = eq.text.includes('=') ? eq.text.split('=')[1] : eq.text;
+                    // Transform some KaTeX/LaTeX syntax to JS-compatible math expressions
+                    eqString = eqString.trim()
+                                       .replace(/\\sin/g, 'sin')
+                                       .replace(/\\cos/g, 'cos')
+                                       .replace(/\\tan/g, 'tan')
+                                       .replace(/\\sqrt/g, 'sqrt')
+                                       .replace(/\\pi/g, 'PI')
+                                       .replace(/\^/g, '**');
                     try {
                         const func = new Function('x', `with(Math){return ${eqString}}`);
                         const xRange = layer.xMax - layer.xMin;
