@@ -1795,11 +1795,7 @@
             const serialized = JSON.parse(JSON.stringify(this));
             Object.assign(newLayer, serialized);
             
-            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
-                newLayer.content = this.content.cloneNode(true);
-            } else {
-                newLayer.content = this.content;
-            }
+            newLayer.content = this.content;
             newLayer.assetBlob = this.assetBlob;
             newLayer.storageUrl = this.storageUrl;
             newLayer.id = this.id; // Keep ID for history
