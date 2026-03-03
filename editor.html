@@ -3051,9 +3051,28 @@
             originalLayer.keyframes[prop] = originalLayer.keyframes[prop].filter(kf => kf.time < cutTime);
         });
 
+        // Also split motion tracks if they exist
+        const originalMotionTrack = peekMotionTrack(originalLayer.id);
+        if (originalMotionTrack && originalMotionTrack.keyframes.length > 0) {
+            const newMotionTrack = ensureMotionTrack(newLayer.id);
+
+            // Move motion keyframes that are after the cut to the new layer's track
+            newMotionTrack.keyframes = originalMotionTrack.keyframes.filter(kf => kf.time >= cutTime);
+            originalMotionTrack.keyframes = originalMotionTrack.keyframes.filter(kf => kf.time < cutTime);
+
+            // If the new track inherited any keyframes, copy over the track settings
+            if (newMotionTrack.keyframes.length > 0) {
+                newMotionTrack.easing = originalMotionTrack.easing;
+                newMotionTrack.durationScale = originalMotionTrack.durationScale;
+                newMotionTrack.motionFPS = originalMotionTrack.motionFPS;
+            }
+        }
+
         state.layers.push(newLayer);
         assignLayerToSlot(newLayer, originalLayer.slotId);
-        state.layers.sort((a, b) => a.startTime - b.startTime); // Keep timeline sorted
+        // The state.layers array does not need to be sorted. Render order is determined
+        // by layer slots, and this sort can cause instability if startTime is not a number.
+        // state.layers.sort((a, b) => a.startTime - b.startTime);
         renderTimeline();
         selectLayer(newLayer.id);
         triggerAutoSave();
