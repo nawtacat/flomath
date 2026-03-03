@@ -1668,7 +1668,7 @@
                 ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
 
                 const maxWidth = this.textMaxWidth || 0;
-                const textContent = this.content || '';
+                const textContent = String(this.content ?? '');
                 if (maxWidth > 0 || textContent.includes('\n')) {
                     const lineHeight = 120;
                     const paragraphs = textContent.split('\n');
@@ -2051,7 +2051,7 @@
             const clipHorizontal = isEntryScanHorizontal || exitIsScanHorizontal;
             const clipVertical = isEntryScanVertical || exitIsScanVertical;
             const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
-            const textContent = layer.content || '';
+            const textContent = String(layer.content ?? '');
 
             // Apply looping animations on top of keyframed values
             if (layer.loopingAnimation && layer.loopingAnimation !== 'none') {
@@ -2323,7 +2323,8 @@
                          eqAlpha = Math.max(0, (exit - relTime) / fadeOutDur);
                     }
 
-                    let eqString = eq.text.includes('=') ? eq.text.split('=')[1] : eq.text;
+                const eqText = String(eq.text ?? '');
+                let eqString = eqText.includes('=') ? eqText.split('=')[1] : eqText;
                     // Transform some KaTeX/LaTeX syntax to JS-compatible math expressions
                     eqString = eqString.trim()
                                        .replace(/\\sin/g, 'sin')
