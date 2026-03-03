@@ -1765,21 +1765,20 @@
         }
 
         clone() {
-            const newLayer = new Layer(this.type, this.name, this.content);
-            // Deep copy serializable properties
-            const serialized = JSON.parse(JSON.stringify(this));
+            const newLayer = new Layer(this.type, this.name, null);
+            const serialized = this.toJSON();
             Object.assign(newLayer, serialized);
             
-            // Manually copy non-serializable content
+            // Manually copy non-serializable content that was deleted by toJSON()
             if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
                 newLayer.content = this.content.cloneNode(true);
             } else {
-                newLayer.content = this.content;
+                newLayer.content = this.content; // For text, image
             }
             newLayer.assetBlob = this.assetBlob;
-            newLayer.storageUrl = this.storageUrl;
+            
             newLayer.id = state.nextId++; // Ensure a new unique ID
-            newLayer.slotId = this.slotId;
+            
             if (newLayer.katex) {
                 newLayer.katexNeedsRender = true;
                 newLayer.katexImage = null;
@@ -1787,14 +1786,13 @@
                 newLayer.katexImageHeight = 0;
                 newLayer.katexImageLoading = false;
             }
-            newLayer.excludeFromBlur = this.excludeFromBlur;
-            newLayer.cuts = JSON.parse(JSON.stringify(this.cuts || []));
+            
             return newLayer;
         }
 
         copyForHistory() {
-            const newLayer = new Layer(this.type, this.name, this.content);
-            const serialized = JSON.parse(JSON.stringify(this));
+            const newLayer = new Layer(this.type, this.name, null);
+            const serialized = this.toJSON();
             Object.assign(newLayer, serialized);
             
             if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
@@ -1802,14 +1800,11 @@
             } else {
                 newLayer.content = this.content;
             }
-            newLayer.content = this.content;
             newLayer.assetBlob = this.assetBlob;
-            newLayer.storageUrl = this.storageUrl;
             newLayer.id = this.id; // Keep ID for history
             newLayer.katexImage = this.katexImage;
             newLayer.katexImageWidth = this.katexImageWidth;
             newLayer.katexImageHeight = this.katexImageHeight;
-            newLayer.cuts = JSON.parse(JSON.stringify(this.cuts || []));
             return newLayer;
         }
 
