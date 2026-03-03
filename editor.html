@@ -1772,9 +1772,17 @@
             const serialized = this.toJSON();
             Object.assign(newLayer, serialized);
             
-            // Manually copy non-serializable content that was deleted by toJSON()
-            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
-                newLayer.content = this.content.cloneNode(true);
+            // Manually copy/recreate content.
+            if (this.type === 'audio' || this.type === 'video') {
+                // Create a NEW media element from its source to get a new WebMediaPlayer instance.
+                // Do NOT use cloneNode(true), as that is the source of the player limit error.
+                const newMediaEl = document.createElement(this.type);
+                if (this.content && this.content.src) {
+                    newMediaEl.src = this.content.src;
+                }
+                newMediaEl.crossOrigin = "anonymous";
+                newMediaEl.muted = true;
+                newLayer.content = newMediaEl;
             } else {
                 newLayer.content = this.content; // For text, image
             }
@@ -1798,11 +1806,10 @@
             const serialized = this.toJSON();
             Object.assign(newLayer, serialized);
             
-            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
-                newLayer.content = this.content.cloneNode(true);
-            } else {
-                newLayer.content = this.content;
-            }
+            // For history, we only copy the REFERENCE to the media element.
+            // We do not clone it, as that creates excess WebMediaPlayer instances and causes crashes.
+            // The live DOM element is not part of the history state itself.
+            newLayer.content = this.content;
             newLayer.assetBlob = this.assetBlob;
             newLayer.id = this.id; // Keep ID for history
             newLayer.katexImage = this.katexImage;
@@ -2994,9 +3001,18 @@
     function deleteSelectedLayer() {
         if (!state.selectedLayerId) return;
         saveHistory();
-        const removedId = state.selectedLayerId;
-        state.layers = state.layers.filter(l => l.id !== removedId);
-        delete motionTracks[removedId];
+        const layerIndex = state.layers.findIndex(l => l.id === state.selectedLayerId);
+        if (layerIndex === -1) return;
+
+        const layerToRemove = state.layers[layerIndex];
+        if ((layerToRemove.type === 'video' || layerToRemove.type === 'audio') && layerToRemove.content) {
+            const media = layerToRemove.content;
+            media.pause();
+            media.removeAttribute("src");
+            media.load();
+        }
+        state.layers.splice(layerIndex, 1);
+        delete motionTracks[state.selectedLayerId];
         state.selectedLayerId = null;
         selectLayer(null);
         renderTimeline();
