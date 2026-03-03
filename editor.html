@@ -1537,17 +1537,20 @@
             }
             return;
         }
+
+        // Sync play/pause state. Pause BEFORE seeking if editor is paused.
+        if (state.isPlaying && audio.paused) {
+            audio.play().catch(() => {});
+        } else if (!state.isPlaying && !audio.paused) {
+            audio.pause();
+        }
+
         const sourceTime = localTime + (layer.trimStart || 0);
         if (Math.abs(audio.currentTime - sourceTime) > 0.3) {
             audio.currentTime = Math.max(0, sourceTime);
         }
         audio.volume = layer.volume ?? 1;
         audio.muted = layer.muted || false;
-        if (state.isPlaying) {
-            audio.play().catch(() => {});
-        } else {
-            audio.pause();
-        }
     }
 
     function hexToRgb(hex) {
