@@ -245,6 +245,10 @@
 
         button:hover { opacity: 0.9; }
         button.secondary { background-color: #444; }
+        button.secondary.active {
+            background: var(--accent);
+            color: white;
+        }
         button:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .control-group {
@@ -490,6 +494,9 @@
 
     </style>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.9.8/dist/ffmpeg.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" crossorigin="anonymous"></script>
@@ -522,6 +529,7 @@
             <button class="secondary" onclick="addTextLayer()">+ Text</button>
             <button class="secondary" onclick="document.getElementById('img-upload').click()">+ Image</button>
             <button class="secondary" onclick="document.getElementById('vid-upload').click()">+ Video</button>
+            <button class="secondary" onclick="addGraphLayer()">+ Graph</button>
             <button class="secondary" onclick="addShape()">+ Shape</button>
             <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
@@ -609,6 +617,38 @@
                     <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
                     <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('color')">◆</button>
                 </div>
+                <label>Font</label>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 5px; margin-bottom:5px;">
+                    <select id="prop-font-family" onchange="updateFontFamily(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                        <option value="Arial">Arial</option>
+                        <option value="Raleway">Raleway</option>
+                        <option value="Times New Roman">Times New Roman</option>
+                    </select>
+                    <select id="prop-font-weight" onchange="updateFontWeight(this.value)" style="width:100%; background:#333; color:white; border:1px solid var(--border); padding:5px;">
+                        <option value="normal">Normal</option>
+                        <option value="bold">Bold</option>
+                        <option value="300">Light</option>
+                        <option value="500">Medium</option>
+                        <option value="700">Bold</option>
+                        <option value="900">Black</option>
+                    </select>
+                </div>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:10px;">
+                    <input type="checkbox" id="prop-font-style" onchange="updateFontStyle(this.checked)">
+                    Italic
+                </label>
+                <label>Text Alignment</label>
+                <div id="text-align-controls" style="display:flex; gap:5px; margin-bottom:10px;">
+                    <button class="secondary" data-align="left">Left</button>
+                    <button class="secondary" data-align="center">Center</button>
+                    <button class="secondary" data-align="right">Right</button>
+                </div>
+                <label>Max Width (for wrapping)</label>
+                <input type="number" 
+                       id="prop-text-max-width" 
+                       oninput="updateTextMaxWidth(this.value)" 
+                       placeholder="0 for none" 
+                       style="margin-bottom: 10px;">
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;">
                     <input type="checkbox" id="prop-katex" onchange="updateKatexMode(this.checked)">
                     Render as KaTeX
@@ -644,6 +684,39 @@
                 </select>
                 <button class="secondary" style="width:100%; margin-top:10px; background:#e53935; color:white; font-weight:bold;" onclick="performCut()">✂ CUT NOW</button>
                 <button class="secondary" style="width:100%; margin-top:5px;" onclick="toggleShapecutter()">Cancel / Close</button>
+            </div>
+
+            <div id="graph-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Graph Properties</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom:10px;">
+                    <div>
+                        <label>X Min</label>
+                        <input type="number" id="prop-graph-xmin" onchange="updateGraphProperty('xMin', this.value)" style="width:100%; margin:0;">
+                    </div>
+                    <div>
+                        <label>X Max</label>
+                        <input type="number" id="prop-graph-xmax" onchange="updateGraphProperty('xMax', this.value)" style="width:100%; margin:0;">
+                    </div>
+                    <div>
+                        <label>Y Min</label>
+                        <input type="number" id="prop-graph-ymin" onchange="updateGraphProperty('yMin', this.value)" style="width:100%; margin:0;">
+                    </div>
+                    <div>
+                        <label>Y Max</label>
+                        <input type="number" id="prop-graph-ymax" onchange="updateGraphProperty('yMax', this.value)" style="width:100%; margin:0;">
+                    </div>
+                    <div>
+                        <label>Grid Scale</label>
+                        <input type="number" id="prop-graph-scale" onchange="updateGraphProperty('gridScale', this.value)" placeholder="1" style="width:100%; margin:0;">
+                    </div>
+                </div>
+                <label>Equations</label>
+                <div id="graph-equations-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+                <button class="secondary" style="width:100%;" onclick="addGraphEquation()">+ Add Equation</button>
+
+                <label style="margin-top:10px;">Points</label>
+                <div id="graph-points-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+                <button class="secondary" style="width:100%;" onclick="addGraphPoint()">+ Add Point</button>
             </div>
 
             <div id="animation-controls" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -1534,6 +1607,22 @@
             this.rotation = 0;
             this.opacity = 1;
             this.color = '#ffffff'; // for text
+            this.fontFamily = 'Arial';
+            this.fontWeight = 'bold';
+            this.fontStyle = 'normal';
+            this.textAlign = 'center';
+            // Graph properties
+            this.xMin = -10;
+            this.xMax = 10;
+            this.yMin = -10;
+            this.yMax = 10;
+            this.gridScale = 1;
+            this.equations = []; // {id, text, color, entryTime, exitTime}
+            this.points = []; // {id, x, y, label, color, entryTime, exitTime}
+            this.nextEqId = 1;
+            this.nextPointId = 1;
+
+            this.textMaxWidth = 0;
             this.loopingAnimation = 'none';
             this.slotId = null;
             this.floatSeed = Math.random() * Math.PI * 2;
@@ -1546,7 +1635,7 @@
         this.katexImageLoading = false;
         this.entryAnimation = { type: 'none', duration: 1 };
         this.exitAnimation = { type: 'none', duration: 1 };
-        this.volume = 1;
+        this.volume = 1; 
         this.muted = false;
         this.excludeFromBlur = false;
         this.storageUrl = null; // URL from Firebase Storage
@@ -1568,10 +1657,43 @@
                 return;
             }
             if (this.type === 'text') {
-                ctx.font = 'bold 100px Arial';
-                const metrics = ctx.measureText(this.content);
-                this.width = metrics.width;
-                this.height = 100; // Approx height
+                const fontFamily = this.fontFamily || 'Arial';
+                const fontWeight = this.fontWeight || 'bold';
+                const fontStyle = this.fontStyle || 'normal';
+                ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
+
+                const maxWidth = this.textMaxWidth || 0;
+                if (maxWidth > 0 || this.content.includes('\n')) {
+                    const lineHeight = 120;
+                    const paragraphs = this.content.split('\n');
+                    let lineCount = 0;
+                    let maxW = 0;
+                    
+                    paragraphs.forEach(p => {
+                        const words = p.split(' ');
+                        let line = '';
+                        for (let i = 0; i < words.length; i++) {
+                            const testLine = line + words[i] + ' ';
+                            const metrics = ctx.measureText(testLine);
+                            if (maxWidth > 0 && metrics.width > maxWidth && i > 0) {
+                                lineCount++;
+                                maxW = Math.max(maxW, ctx.measureText(line.trim()).width);
+                                line = words[i] + ' ';
+                            } else {
+                                line = testLine;
+                            }
+                        }
+                        lineCount++;
+                        maxW = Math.max(maxW, ctx.measureText(line.trim()).width);
+                    });
+                    
+                    this.width = maxWidth > 0 ? maxWidth : maxW;
+                    this.height = lineCount * lineHeight;
+                } else {
+                    const metrics = ctx.measureText(this.content);
+                    this.width = metrics.width;
+                    this.height = 100; // Approx height
+                }
             } else if (this.type === 'image' || this.type === 'video') {
                 if (this.content && (this.content.width || this.content.videoWidth)) {
                     this.width = this.content.width || this.content.videoWidth;
@@ -1583,12 +1705,26 @@
                 } else {
                     this.width = 200; this.height = 200;
                 }
+            } else if (this.type === 'graph') {
+                this.width = 800;
+                this.height = 800;
             }
         }
 
         getValue(prop, time) {
+            let baseValue;
+            if (prop.startsWith('eq-')) {
+                const parts = prop.split('-');
+                const eqId = parseInt(parts[1], 10);
+                const eqProp = parts[2];
+                const eq = this.equations.find(e => e.id === eqId);
+                baseValue = eq ? (eq[eqProp] ?? 1) : 1; // Default drawProgress is 1
+            } else {
+                baseValue = this[prop];
+            }
+
             const kfs = this.keyframes[prop];
-            if (!kfs || kfs.length === 0) return this[prop];
+            if (!kfs || kfs.length === 0) return baseValue;
 
             // Sort keyframes by time just in case
             kfs.sort((a, b) => a.time - b.time);
@@ -1607,14 +1743,14 @@
                     const v2 = kfs[i+1].value;
                     const progress = (time - t1) / (t2 - t1);
 
-                    if (prop === 'color') {
+                    if (prop.endsWith('color')) {
                         return interpolateColor(v1, v2, progress);
                     }
                     
                     return v1 + (v2 - v1) * progress; // Linear interpolation for numbers
                 }
             }
-            return this[prop];
+            return baseValue;
         }
 
         addKeyframe(prop, time, value) {
@@ -1692,6 +1828,32 @@
         }
     }
 
+    function renderWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+        const paragraphs = text.split('\n');
+        let lines = [];
+
+        paragraphs.forEach(paragraph => {
+            const words = paragraph.split(' ');
+            let line = '';
+            for (let i = 0; i < words.length; i++) {
+                const testLine = line + words[i] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (maxWidth > 0 && metrics.width > maxWidth && i > 0) {
+                    lines.push(line.trim());
+                    line = words[i] + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            lines.push(line.trim());
+        });
+
+        const startY = y - ((lines.length - 1) * lineHeight) / 2;
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], x, startY + i * lineHeight);
+        }
+    }
+
     // --- Core Engine ---
 
     function init() {
@@ -1704,6 +1866,22 @@
         canvas.addEventListener('mouseup', handleCanvasMouseUp);
         animationFrameId = requestAnimationFrame(gameLoop);
 
+        document.getElementById('text-align-controls').addEventListener('click', (e) => {
+            if (e.target.matches('button[data-align]')) {
+                const align = e.target.dataset.align;
+                if (!state.selectedLayerId) return;
+                const layer = state.layers.find(l => l.id === state.selectedLayerId);
+                if (layer && layer.type === 'text') {
+                    saveHistory();
+                    layer.textAlign = align;
+                    document.querySelectorAll('#text-align-controls button').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                    e.target.classList.add('active');
+                    triggerAutoSave();
+                }
+            }
+        });
         // Initialize Firebase
         initFirebase();
         // Start Autosave
@@ -1939,10 +2117,26 @@
                 }
             } else if (layer.type === 'text') {
                 const textColor = layer.getValue('color', state.currentTime);
-                ctx.font = 'bold 100px Arial';
+                const fontFamily = layer.fontFamily || 'Arial';
+                const fontWeight = layer.fontWeight || 'bold';
+                const fontStyle = layer.fontStyle || 'normal';
+                ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
                 ctx.fillStyle = textColor;
-                ctx.textAlign = 'center';
+                ctx.textAlign = layer.textAlign || 'center';
                 ctx.textBaseline = 'middle';
+                
+                const maxWidth = layer.textMaxWidth > 0 ? layer.textMaxWidth : 0;
+                const lineHeight = 120;
+
+                let textDrawX = 0;
+                if (maxWidth > 0) {
+                    if (ctx.textAlign === 'left') {
+                        textDrawX = -maxWidth / 2;
+                    } else if (ctx.textAlign === 'right') {
+                        textDrawX = maxWidth / 2;
+                    }
+                }
+
                 if (isTypewriterActive) {
                     const measuredWidth = ctx.measureText(textContent).width;
                     const clipWidth = Math.max(0, measuredWidth * easedEntryProgress);
@@ -1964,6 +2158,8 @@
                     ctx.clip();
                     ctx.fillText(textContent, 0, 0);
                     ctx.restore();
+                } else if (maxWidth > 0 || textContent.includes('\n')) {
+                    renderWrappedText(ctx, textContent, textDrawX, 0, maxWidth, lineHeight);
                 } else {
                     ctx.fillText(textContent, 0, 0);
                 }
@@ -2036,6 +2232,170 @@
                 ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${layer.highlightOpacity ?? 0.6})`;
                 const fillWidth = rect.width * progress;
                 ctx.fillRect(-rect.width / 2, -rect.height / 2, fillWidth, rect.height);
+            } else if (layer.type === 'graph') {
+                const w = layer.width || 800;
+                const h = layer.height || 800;
+                const scaleStep = parseFloat(layer.gridScale) || 1;
+                const relTime = state.currentTime - layer.startTime;
+
+                const xMin = parseFloat(layer.xMin);
+                const xMax = parseFloat(layer.xMax);
+                const yMin = parseFloat(layer.yMin);
+                const yMax = parseFloat(layer.yMax);
+
+                // Helper functions to map graph coords to local canvas coords
+                const mapX = (x) => ((x - xMin) / (xMax - xMin)) * w - w / 2;
+                const mapY = (y) => (1 - (y - yMin) / (yMax - yMin)) * h - h / 2;
+
+                // Draw Axes
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2 / scale;
+                ctx.font = `bold ${14/scale}px "Times New Roman", serif`;
+                ctx.fillStyle = 'black';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+
+                ctx.beginPath();
+                // X Axis
+                const y0 = mapY(0);
+                if (y0 >= -h/2 && y0 <= h/2) {
+                    ctx.moveTo(-w/2, y0); ctx.lineTo(w/2, y0);
+                }
+                // Y Axis
+                const x0 = mapX(0);
+                if (x0 >= -w/2 && x0 <= w/2) {
+                    ctx.moveTo(x0, -h/2); ctx.lineTo(x0, h/2);
+                }
+                ctx.stroke();
+
+                // Ticks & Labels
+                ctx.beginPath();
+                // X Ticks
+                const startTickX = Math.ceil(xMin / scaleStep) * scaleStep;
+                for (let i = startTickX; i <= xMax; i += scaleStep) {
+                    if (Math.abs(i) < 0.0001) continue; // Skip 0
+                    const mx = mapX(i);
+                    ctx.moveTo(mx, y0 - 5/scale); ctx.lineTo(mx, y0 + 5/scale);
+                    ctx.fillText(i.toString(), mx, y0 + 8/scale);
+                }
+                // Y Ticks
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'right';
+                const startTickY = Math.ceil(yMin / scaleStep) * scaleStep;
+                for (let i = startTickY; i <= yMax; i += scaleStep) {
+                    if (Math.abs(i) < 0.0001) continue;
+                    const my = mapY(i);
+                    ctx.moveTo(x0 - 5/scale, my); ctx.lineTo(x0 + 5/scale, my);
+                    ctx.fillText(i.toString(), x0 - 8/scale, my);
+                }
+                ctx.stroke();
+
+                // Clip the drawing area to the graph bounds for functions and points
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(-w/2, -h/2, w, h);
+                ctx.clip();
+
+                // Draw equations
+                if (layer.equations) layer.equations.forEach(eq => {
+                    if (!eq.text) return;
+                    
+                    // Check timing
+                    const entry = eq.entryTime || 0;
+                    const exit = eq.exitTime !== undefined ? eq.exitTime : layer.duration;
+                    if (relTime < entry || relTime > exit) return;
+
+                    // Animation progress (1 second draw on)
+                    const animDur = 1.0;
+                    const drawProgress = Math.min(1, Math.max(0, (relTime - entry) / animDur));
+                    
+                    // Fade out logic for equations
+                    const fadeOutDur = 0.5;
+                    let eqAlpha = 1;
+                    if (relTime > exit - fadeOutDur) {
+                         eqAlpha = Math.max(0, (exit - relTime) / fadeOutDur);
+                    }
+
+                    let eqString = eq.text.includes('=') ? eq.text.split('=')[1] : eq.text;
+                    // Transform some KaTeX/LaTeX syntax to JS-compatible math expressions
+                    eqString = eqString.trim()
+                                       .replace(/\\sin/g, 'sin')
+                                       .replace(/\\cos/g, 'cos')
+                                       .replace(/\\tan/g, 'tan')
+                                       .replace(/\\sqrt/g, 'sqrt')
+                                       .replace(/\\pi/g, 'PI')
+                                       .replace(/\^/g, '**');
+                    try {
+                        const func = new Function('x', `with(Math){return ${eqString}}`);
+                        
+                        const area = eq.area !== undefined ? eq.area : 100;
+                        const areaFactor = area / 100;
+                        
+                        const startX = xMin * areaFactor;
+                        const endX = xMax * areaFactor;
+                        const startY = yMin * areaFactor;
+                        const endY = yMax * areaFactor;
+
+                        const currentEndX = startX + (endX - startX) * drawProgress;
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(mapX(startX), mapY(endY), mapX(endX) - mapX(startX), mapY(startY) - mapY(endY));
+                        ctx.clip();
+
+                        ctx.globalAlpha *= eqAlpha;
+                        ctx.strokeStyle = eq.color || '#ffeb3b';
+                        ctx.lineWidth = 3 / scale;
+                        ctx.beginPath();
+                        const step = (xMax - xMin) / (w * 0.5);
+                        for (let x = startX; x <= currentEndX; x += step) {
+                            const y = func(x);
+                            if (isNaN(y) || !isFinite(y)) { ctx.moveTo(mapX(x + step), mapY(func(x + step))); continue; }
+                            ctx.lineTo(mapX(x), mapY(y));
+                        }
+                        ctx.stroke();
+                        ctx.restore();
+                    } catch (e) { /* Invalid function, ignore */ }
+                });
+
+                // Draw Points
+                if (layer.points) layer.points.forEach(pt => {
+                    const entry = pt.entryTime || 0;
+                    const exit = pt.exitTime !== undefined ? pt.exitTime : layer.duration;
+                    
+                    if (relTime >= entry && relTime <= exit) {
+                        const fadeDur = 0.5;
+                        let alpha = 1;
+                        if (relTime < entry + fadeDur) alpha = (relTime - entry) / fadeDur;
+                        if (relTime > exit - fadeDur) alpha = Math.min(alpha, (exit - relTime) / fadeDur);
+                        alpha = Math.max(0, Math.min(1, alpha));
+
+                        const px = mapX(pt.x);
+                        const py = mapY(pt.y);
+                        
+                        ctx.save();
+                        ctx.globalAlpha = ctx.globalAlpha * alpha;
+
+                        // Point
+                        ctx.fillStyle = pt.color || '#0abf7a';
+                        ctx.beginPath();
+                        ctx.arc(px, py, 6/scale, 0, Math.PI*2);
+                        ctx.fill();
+                        
+                        // Label
+                        if (pt.label) {
+                            ctx.fillStyle = 'black';
+                            ctx.font = `bold ${20/scale}px "Times New Roman", serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(pt.label, px, py - 10/scale);
+                        }
+                        ctx.restore();
+                    }
+                });
+
+                ctx.restore(); // End clipping
+
             } else if (layer.type === 'image') {
                 const img = layer.content;
                 if (img && img.complete && img.naturalWidth !== 0) {
@@ -2326,6 +2686,8 @@
         const center = getViewportCenterWorld();
         l.x = center.x;
         l.y = center.y;
+        l.entryAnimation = { type: 'fade', duration: 1 };
+        l.exitAnimation = { type: 'fade', duration: 1 };
         ensureLayerStartsAtPlayhead(l);
         state.layers.push(l);
         placeLayerOnNewSlot(l);
@@ -2545,6 +2907,7 @@
         const panel = document.getElementById('properties-panel');
         const textProps = document.getElementById('text-props');
         const shapeProps = document.getElementById('shape-props');
+        const graphProps = document.getElementById('graph-props');
         
         if (layer) {
             panel.style.display = 'block';
@@ -2555,8 +2918,28 @@
                 textProps.style.display = 'block';
                 document.getElementById('prop-text').value = layer.content;
                 document.getElementById('prop-color').value = layer.color;
+                document.getElementById('prop-font-family').value = layer.fontFamily || 'Arial';
+                document.getElementById('prop-font-weight').value = layer.fontWeight || 'bold';
+                document.getElementById('prop-font-style').checked = (layer.fontStyle === 'italic');
+                document.getElementById('prop-text-max-width').value = layer.textMaxWidth || '';
+                document.querySelectorAll('#text-align-controls button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.align === (layer.textAlign || 'center'));
+                });
             } else {
                 textProps.style.display = 'none';
+            }
+
+            if (layer.type === 'graph') {
+                graphProps.style.display = 'block';
+                document.getElementById('prop-graph-xmin').value = layer.xMin;
+                document.getElementById('prop-graph-xmax').value = layer.xMax;
+                document.getElementById('prop-graph-ymin').value = layer.yMin;
+                document.getElementById('prop-graph-ymax').value = layer.yMax;
+                document.getElementById('prop-graph-scale').value = layer.gridScale || 1;
+                renderGraphEquationsList(layer);
+                renderGraphPointsList(layer);
+            } else {
+                graphProps.style.display = 'none';
             }
             
             if (layer.type === 'shape') {
@@ -2592,6 +2975,7 @@
             if (highlightControls) highlightControls.style.display = 'none';
             if (audioControls) audioControls.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'none';
+            if (graphProps) graphProps.style.display = 'none';
         }
         motionEditingOverride = null;
         updateMotionStatus();
@@ -2729,8 +3113,18 @@
     function addKeyframe(prop) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+        
         saveHistory();
-        const val = document.getElementById(`prop-${prop}`).value;
+        let val;
+        if (prop.startsWith('eq-')) {
+            // For graph equations, we keyframe the current animated value.
+            val = layer.getValue(prop, state.currentTime);
+        } else {
+            const inputEl = document.getElementById(`prop-${prop}`);
+            if (!inputEl) return; // Should not happen for standard props
+            val = inputEl.value;
+        }
         layer.addKeyframe(prop, state.currentTime, val);
         triggerAutoSave();
     }
@@ -2758,6 +3152,20 @@
         }
     }
 
+    function updateTextMaxWidth(val) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.textMaxWidth = parseInt(val, 10) || 0;
+            if (layer.katex) {
+                layer.katexNeedsRender = true;
+            }
+            layer.updateDimensions();
+            triggerAutoSave();
+        }
+    }
+
     function updateColor(val) {
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
         if (layer && (layer.type === 'text' || layer.type === 'shape')) {
@@ -2777,6 +3185,36 @@
 
             if (layer.katex) markKatexLayerDirty(layer);
             renderTimeline(); // To show updated keyframe if any
+            triggerAutoSave();
+        }
+    }
+
+    function updateFontFamily(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.fontFamily = val;
+            layer.updateDimensions();
+            triggerAutoSave();
+        }
+    }
+
+    function updateFontWeight(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.fontWeight = val;
+            layer.updateDimensions();
+            triggerAutoSave();
+        }
+    }
+
+    function updateFontStyle(checked) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'text') {
+            saveHistory();
+            layer.fontStyle = checked ? 'italic' : 'normal';
+            layer.updateDimensions();
             triggerAutoSave();
         }
     }
@@ -2807,6 +3245,189 @@
             layer.height = parseFloat(val);
             renderCanvas();
             triggerAutoSave();
+        }
+    }
+
+    function addGraphLayer() {
+        saveHistory();
+        const l = new Layer('graph', 'Graph', null);
+        const center = getViewportCenterWorld();
+        l.x = center.x;
+        l.y = center.y;
+        ensureLayerStartsAtPlayhead(l);
+        state.layers.push(l);
+        placeLayerOnNewSlot(l);
+        selectLayer(l.id);
+        focusPlayheadOnLayer(l);
+        renderTimeline();
+        triggerAutoSave();
+    }
+
+    function updateGraphProperty(prop, value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph') {
+            const parsed = parseFloat(value);
+            if (!isNaN(parsed)) {
+                saveHistory();
+                layer[prop] = parsed;
+                triggerAutoSave();
+            }
+        }
+    }
+
+    function renderGraphEquationsList(layer) {
+        const listEl = document.getElementById('graph-equations-list');
+        if (!listEl || !layer) return;
+        listEl.innerHTML = '';
+        (layer.equations || []).forEach(eq => {
+            const item = document.createElement('div');
+            item.className = 'property-row'; // Reuse style
+            item.style.gap = '5px';
+            item.style.flexWrap = 'wrap';
+            item.style.borderBottom = '1px solid #444';
+            item.style.paddingBottom = '5px';
+            item.innerHTML = `
+                <input type="text" value="${eq.text}" oninput="updateGraphEquation(${eq.id}, 'text', this.value)" placeholder="y = x^2" style="width:100%; margin:0; flex: 1 1 100%;">
+                <span style="font-size:10px; color:#888;">Entry:</span>
+                <input type="number" value="${eq.entryTime}" onchange="updateGraphEquation(${eq.id}, 'entryTime', this.value)" style="width:40px; margin:0;" step="0.1">
+                <span style="font-size:10px; color:#888;">Exit:</span>
+                <input type="number" value="${eq.exitTime}" onchange="updateGraphEquation(${eq.id}, 'exitTime', this.value)" style="width:40px; margin:0;" step="0.1">
+                <span style="font-size:10px; color:#888;">Area %:</span>
+                <input type="number" value="${eq.area !== undefined ? eq.area : 100}" oninput="updateGraphEquation(${eq.id}, 'area', this.value)" style="width:40px; margin:0;" step="10">
+                <input type="color" value="${eq.color}" oninput="updateGraphEquation(${eq.id}, 'color', this.value)" style="padding:0; height:24px; width:30px; border:none; background:none;">
+                <button class="secondary" style="padding:2px 6px; background:#a33;" onclick="removeGraphEquation(${eq.id})">X</button>
+            `;
+            listEl.appendChild(item);
+        });
+    }
+
+    function renderGraphPointsList(layer) {
+        const listEl = document.getElementById('graph-points-list');
+        if (!listEl || !layer) return;
+        listEl.innerHTML = '';
+        (layer.points || []).forEach(pt => {
+            const item = document.createElement('div');
+            item.className = 'property-row';
+            item.style.gap = '5px';
+            item.style.flexWrap = 'wrap';
+            item.style.borderBottom = '1px solid #444';
+            item.style.paddingBottom = '5px';
+            item.innerHTML = `
+                <div style="display:flex; gap:5px; width:100%;">
+                    <input type="text" value="${pt.label}" oninput="updateGraphPoint(${pt.id}, 'label', this.value)" placeholder="Lbl" style="width:40px; margin:0;">
+                    <input type="number" value="${pt.x}" onchange="updateGraphPoint(${pt.id}, 'x', this.value)" placeholder="X" style="width:50px; margin:0;">
+                    <input type="number" value="${pt.y}" onchange="updateGraphPoint(${pt.id}, 'y', this.value)" placeholder="Y" style="width:50px; margin:0;">
+                    <input type="color" value="${pt.color}" oninput="updateGraphPoint(${pt.id}, 'color', this.value)" style="padding:0; height:24px; width:30px; border:none; background:none;">
+                    <button class="secondary" style="padding:2px 6px; background:#a33; margin-left:auto;" onclick="removeGraphPoint(${pt.id})">X</button>
+                </div>
+                <div style="display:flex; gap:5px; align-items:center; width:100%;">
+                    <span style="font-size:10px; color:#888;">Entry:</span>
+                    <input type="number" value="${pt.entryTime}" onchange="updateGraphPoint(${pt.id}, 'entryTime', this.value)" style="width:50px; margin:0;" step="0.1">
+                    <span style="font-size:10px; color:#888;">Exit:</span>
+                    <input type="number" value="${pt.exitTime}" onchange="updateGraphPoint(${pt.id}, 'exitTime', this.value)" style="width:50px; margin:0;" step="0.1">
+                </div>
+            `;
+            listEl.appendChild(item);
+        });
+    }
+
+    function addGraphEquation() {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph') {
+            saveHistory();
+            const newEq = { 
+                id: layer.nextEqId++, 
+                text: 'y = x', 
+                color: '#ffeb3b', 
+                entryTime: 0, 
+                exitTime: layer.duration,
+                area: 100
+            };
+            layer.equations.push(newEq);
+            renderGraphEquationsList(layer);
+            triggerAutoSave();
+        }
+    }
+
+    function addGraphPoint() {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph') {
+            saveHistory();
+            if (!layer.points) layer.points = [];
+            if (!layer.nextPointId) layer.nextPointId = 1;
+            const newPt = {
+                id: layer.nextPointId++,
+                x: 0,
+                y: 0,
+                label: 'A',
+                color: '#0abf7a',
+                entryTime: 0,
+                exitTime: layer.duration
+            };
+            layer.points.push(newPt);
+            renderGraphPointsList(layer);
+            triggerAutoSave();
+        }
+    }
+
+    function removeGraphEquation(eqId) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph') {
+            saveHistory();
+            layer.equations = layer.equations.filter(eq => eq.id !== eqId);
+            Object.keys(layer.keyframes).forEach(key => {
+                if (key.startsWith(`eq-${eqId}-`)) delete layer.keyframes[key];
+            });
+            renderGraphEquationsList(layer);
+            renderTimeline();
+            triggerAutoSave();
+        }
+    }
+
+    function removeGraphPoint(ptId) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph' && layer.points) {
+            saveHistory();
+            layer.points = layer.points.filter(pt => pt.id !== ptId);
+            renderGraphPointsList(layer);
+            triggerAutoSave();
+        }
+    }
+
+    function updateGraphEquation(eqId, prop, value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph') {
+            const eq = layer.equations.find(e => e.id === eqId);
+            if (eq) {
+                if (prop === 'entryTime' || prop === 'exitTime' || prop === 'area') {
+                    eq[prop] = parseFloat(value);
+                } else {
+                    eq[prop] = value;
+                }
+                triggerAutoSave();
+            }
+        }
+    }
+
+    function updateGraphPoint(ptId, prop, value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'graph' && layer.points) {
+            const pt = layer.points.find(p => p.id === ptId);
+            if (pt) {
+                if (prop === 'x' || prop === 'y' || prop === 'entryTime' || prop === 'exitTime') {
+                    pt[prop] = parseFloat(value);
+                } else {
+                    pt[prop] = value;
+                }
+                triggerAutoSave();
+            }
         }
     }
 
@@ -3079,7 +3700,8 @@
         if (!layer || !layer.katex || typeof katex === 'undefined') return;
         const rawContent = layer.content || '';
         const color = layer.getValue('color', time);
-        const contentHash = `${rawContent}|${color}`;
+        const maxWidth = layer.textMaxWidth || 0;
+        const contentHash = `${rawContent}|${color}|${maxWidth}`;
 
         if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === contentHash) {
             return;
@@ -3093,6 +3715,9 @@
             textToRender = textToRender.substring(1, textToRender.length - 1);
         }
         
+        // Replace spaces with KaTeX space command `\ ` to ensure they render in math mode.
+        textToRender = textToRender.replace(/ /g, '\\ ');
+
         let katexHtml = textToRender;
         try {
             katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true });
@@ -3123,12 +3748,24 @@
             .katex-custom .katex, .katex-custom .katex-math, .katex-custom .katex-main {
                 font-family: 'Computer Modern', 'KaTeX_Main', serif !important;
             }
+            .katex-custom .katex, .katex-custom .katex-html {
+                white-space: normal !important;
+            }
         `;
         const styleBlock = katexCssText ? `<style>${katexCssText}${fontOverrideStyle}</style>` : `<style>${fontOverrideStyle}</style>`;
         const contentHtml = `<span style="${colorStyle}" class="katex-custom">${katexHtml}</span>`;
         if (katexMeasureEl) {
             katexMeasureEl.innerHTML = `${styleBlock}${contentHtml}`;
         }
+        
+        if (maxWidth > 0) {
+            katexMeasureEl.style.width = `${maxWidth}px`;
+            katexMeasureEl.style.whiteSpace = 'normal';
+        } else {
+            katexMeasureEl.style.width = 'auto';
+            katexMeasureEl.style.whiteSpace = 'nowrap';
+        }
+
         const rect = katexMeasureEl ? katexMeasureEl.getBoundingClientRect() : { width: 0, height: 0 };
         const width = Math.max(1, Math.ceil(rect.width));
         const height = Math.max(1, Math.ceil(rect.height));
@@ -4528,15 +5165,17 @@
             const dx = pos.x - lx;
             const dy = pos.y - ly;
             const r = -layer.getValue('rotation', state.currentTime) * Math.PI / 180;
-            const s = 1 / layer.getValue('scale', state.currentTime);
+            let scaleVal = layer.getValue('scale', state.currentTime);
+            if (Math.abs(scaleVal) < 0.001) scaleVal = 0.001;
+            const s = 1 / scaleVal;
             const localX = (dx * Math.cos(r) - dy * Math.sin(r)) * s;
             const localY = (dx * Math.sin(r) + dy * Math.cos(r)) * s;
             const w = layer.width || 100;
             const h = layer.height || 100;
             const allowHandles = Math.max(w, h) > HANDLE_HIT_RADIUS;
             const rotX = 0;
-            const rotY = -h / 2 - 50 / s;
-            const handleThreshold = Math.min(HANDLE_HIT_RADIUS, HANDLE_HIT_RADIUS / Math.max(s, 0.4));
+            const rotY = -h / 2 - 50 * s;
+            const handleThreshold = HANDLE_HIT_RADIUS * Math.abs(s);
             const innerMargin = Math.min(12, w / 4, h / 4);
             const insideSafeZone = innerMargin > 0 &&
                 Math.abs(localX) <= w / 2 - innerMargin &&
@@ -5012,7 +5651,7 @@
         
         const recorder = new MediaRecorder(stream, {
             mimeType,
-            videoBitsPerSecond: 50000000 // 50 Mbps for high quality
+            videoBitsPerSecond: 80000000 // 80 Mbps for high quality
         });
         const chunks = [];
         let frame = 0;
@@ -5177,7 +5816,7 @@
                     ffmpegArgs.push('-i', 'audio.wav');
                     ffmpegArgs.push('-c:a', 'aac', '-b:a', '256k', '-map', '0:v', '-map', '1:a');
                 }
-                ffmpegArgs.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryslow', '-crf', '10', '-shortest', 'output.mp4');
+                ffmpegArgs.push('-c:v', 'libx264', '-profile:v', 'high444', '-pix_fmt', 'yuv444p', '-preset', 'slow', '-crf', '10', '-shortest', 'output.mp4');
 
                 await ffmpeg.run(...ffmpegArgs);
 
@@ -5369,6 +6008,15 @@
                 data.layers.forEach(lData => {
                     const layer = new Layer(lData.type, lData.name, null);
                     Object.assign(layer, lData);
+                    
+                    // Fix arrays coming back as objects from Firebase
+                    if (layer.equations && typeof layer.equations === 'object' && !Array.isArray(layer.equations)) {
+                        layer.equations = Object.values(layer.equations);
+                    }
+                    if (layer.points && typeof layer.points === 'object' && !Array.isArray(layer.points)) {
+                        layer.points = Object.values(layer.points);
+                    }
+
                     if (!layer.keyframes.color) layer.keyframes.color = [];
                     
                     // Restore Content
