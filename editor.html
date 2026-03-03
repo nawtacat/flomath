@@ -783,12 +783,12 @@
             <div id="float-settings" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Float Distance</label>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="range" id="float-distance" min="0" max="200" step="5" value="40" oninput="updateFloatDistance(this.value)">
+                    <input type="range" id="float-distance" min="0" max="200" step="5" value="40" oninput="updateFloatDistance(this.value)" onchange="saveHistory(); triggerAutoSave();">
                     <span id="float-distance-value" style="min-width:40px; text-align:right; font-size:12px;">40px</span>
                 </div>
                 <label>Float Pace</label>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="range" id="float-pace" min="0.3" max="3" step="0.1" value="1" oninput="updateFloatPace(this.value)">
+                    <input type="range" id="float-pace" min="0.3" max="3" step="0.1" value="1" oninput="updateFloatPace(this.value)" onchange="saveHistory(); triggerAutoSave();">
                     <span id="float-pace-value" style="min-width:40px; text-align:right; font-size:12px;">1.0x</span>
                 </div>
             </div>
@@ -1625,6 +1625,8 @@
             this.textMaxWidth = 0;
             this.loopingAnimation = 'none';
             this.slotId = null;
+            this.floatDistance = 40;
+            this.floatPace = 1.0;
             this.floatSeed = Math.random() * Math.PI * 2;
             this.katex = false;
             this.katexNeedsRender = false;
@@ -1885,8 +1887,6 @@
         });
         // Initialize Firebase
         initFirebase();
-        // Start Autosave
-        setInterval(autoSaveProject, 5000);
         updateWatermarkUI();
         
         updateUndoRedoButtons();
@@ -2061,8 +2061,8 @@
                         break;
                     }
                     case 'float': {
-                        const distance = Math.max(0, floatSettings.distance);
-                        const pace = Math.max(0.1, floatSettings.pace);
+                        const distance = Math.max(0, layer.floatDistance || 40);
+                        const pace = Math.max(0.1, layer.floatPace || 1.0);
                         const phase = state.currentTime * pace + layer.floatSeed;
                         const driftX = Math.cos(phase * 0.84 + 0.7) * distance * 0.12;
                         const driftY = Math.sin(phase * 0.66 + 1.2) * distance * 0.1;
@@ -2956,6 +2956,15 @@
             }
 
             document.getElementById('prop-loop').value = layer.loopingAnimation || 'none';
+            const floatSettingsPanel = document.getElementById('float-settings');
+            if (floatSettingsPanel) {
+                floatSettingsPanel.style.display = (layer.loopingAnimation === 'float') ? 'block' : 'none';
+                document.getElementById('float-distance').value = layer.floatDistance || 40;
+                document.getElementById('float-distance-value').innerText = `${Math.round(layer.floatDistance || 40)}px`;
+                document.getElementById('float-pace').value = layer.floatPace || 1.0;
+                document.getElementById('float-pace-value').innerText = `${(layer.floatPace || 1.0).toFixed(1)}x`;
+            }
+
             if (katexToggle) katexToggle.checked = !!layer.katex;
             ensureAnimationInputs(layer);
             updateAnimationUI(layer);
@@ -3798,32 +3807,42 @@
             saveHistory();
             layer.loopingAnimation = val;
             triggerAutoSave();
+        } else {
+            return;
         }
+        const floatSettingsPanel = document.getElementById('float-settings');
         if (floatSettingsPanel) {
             floatSettingsPanel.style.display = val === 'float' ? 'block' : 'none';
+            if (val === 'float') {
+                document.getElementById('float-distance').value = layer.floatDistance || 40;
+                document.getElementById('float-distance-value').innerText = `${Math.round(layer.floatDistance || 40)}px`;
+                document.getElementById('float-pace').value = layer.floatPace || 1.0;
+                document.getElementById('float-pace-value').innerText = `${(layer.floatPace || 1.0).toFixed(1)}x`;
+            }
         }
     }
 
     function updateFloatDistance(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed)) return;
-        floatSettings.distance = parsed;
+        layer.floatDistance = parsed;
         if (floatDistanceValueEl) {
             floatDistanceValueEl.innerText = `${Math.round(parsed)}px`;
         }
     }
 
     function updateFloatPace(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed)) return;
-        floatSettings.pace = parsed;
+        layer.floatPace = parsed;
         if (floatPaceValueEl) {
             floatPaceValueEl.innerText = `${parsed.toFixed(1)}x`;
         }
     }
-
-    updateFloatDistance(floatSettings.distance);
-    updateFloatPace(floatSettings.pace);
 
     function updateAnimationUI(layer) {
         const entrySelect = document.getElementById('prop-entry');
