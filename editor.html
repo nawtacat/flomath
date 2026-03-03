@@ -1098,7 +1098,7 @@
     let shapecutterDrag = null;
     let historyStack = [];
     let redoStack = [];
-    const MAX_HISTORY = 50;
+    const MAX_HISTORY = 1;
 
     // Firebase & Project State
     let currentProjectId = null;
@@ -1668,9 +1668,10 @@
                 ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
 
                 const maxWidth = this.textMaxWidth || 0;
-                if (maxWidth > 0 || this.content.includes('\n')) {
+                const textContent = this.content || '';
+                if (maxWidth > 0 || textContent.includes('\n')) {
                     const lineHeight = 120;
-                    const paragraphs = this.content.split('\n');
+                    const paragraphs = textContent.split('\n');
                     let lineCount = 0;
                     let maxW = 0;
                     
@@ -1695,7 +1696,7 @@
                     this.width = maxWidth > 0 ? maxWidth : maxW;
                     this.height = lineCount * lineHeight;
                 } else {
-                    const metrics = ctx.measureText(this.content);
+                    const metrics = ctx.measureText(textContent);
                     this.width = metrics.width;
                     this.height = 100; // Approx height
                 }
