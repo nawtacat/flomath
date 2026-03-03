@@ -1242,9 +1242,9 @@
     paperSeeds.forEach(seed => {
         const svg = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <filter id='detailedBoil' x='0' y='0' width='100%' height='100%'>
-    <feTurbulence type='fractalNoise' baseFrequency='0.35' numOctaves='4' result='noise' seed='${seed}'>
+    <feTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='5' result='noise' seed='${seed}'>
     </feTurbulence>
-    <feDiffuseLighting in='noise' lighting-color='#ffffff' surfaceScale='0.6'>
+    <feDiffuseLighting in='noise' lighting-color='#ffffff' surfaceScale='0.4'>
       <feDistantLight azimuth='45' elevation='80' />
     </feDiffuseLighting>
     <feComposite operator='arithmetic' k1='1' k2='0' k3='0' k4='0' in2='SourceGraphic' />
@@ -5651,7 +5651,7 @@
         
         const recorder = new MediaRecorder(stream, {
             mimeType,
-            videoBitsPerSecond: 50000000 // 50 Mbps for high quality
+            videoBitsPerSecond: 80000000 // 80 Mbps for high quality
         });
         const chunks = [];
         let frame = 0;
@@ -5816,7 +5816,7 @@
                     ffmpegArgs.push('-i', 'audio.wav');
                     ffmpegArgs.push('-c:a', 'aac', '-b:a', '256k', '-map', '0:v', '-map', '1:a');
                 }
-                ffmpegArgs.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'veryslow', '-crf', '10', '-shortest', 'output.mp4');
+                ffmpegArgs.push('-c:v', 'libx264', '-profile:v', 'high444', '-pix_fmt', 'yuv444p', '-preset', 'slow', '-crf', '10', '-shortest', 'output.mp4');
 
                 await ffmpeg.run(...ffmpegArgs);
 
