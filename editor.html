@@ -3765,8 +3765,9 @@
         // For multiline input from a textarea, wrap in an 'aligned' environment
         // and replace JS newlines with LaTeX newlines.
         if (textToRender.includes('\n')) {
-            const alignedContent = textToRender.replace(/\n/g, ' \\\\ ');
-            textToRender = `\\begin{aligned}${alignedContent}\\end{aligned}`;
+            const arrayContent = textToRender.replace(/\n/g, ' \\\\ ');
+            const alignChar = { left: 'l', center: 'c', right: 'r' }[textAlign] || 'c';
+            textToRender = `\\begin{array}{${alignChar}} ${arrayContent} \\end{array}`;
         }
 
         let katexHtml = textToRender;
