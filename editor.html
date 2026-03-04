@@ -611,7 +611,7 @@
             
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Text Content</label>
-                <input type="text" id="prop-text" oninput="updateText(this.value)">
+                <textarea id="prop-text" oninput="updateText(this.value)" rows="3" style="width: 100%; background: #333; border: 1px solid var(--border); color: white; padding: 5px; margin-bottom: 10px; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
                 <div class="property-row">
                     <span>Color</span>
                     <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
@@ -3762,12 +3762,16 @@
             textToRender = textToRender.substring(1, textToRender.length - 1);
         }
         
-        // Replace spaces with KaTeX space command `\ ` to ensure they render in math mode.
-        textToRender = textToRender.replace(/ /g, '\\ ');
+        // For multiline input from a textarea, wrap in an 'aligned' environment
+        // and replace JS newlines with LaTeX newlines.
+        if (textToRender.includes('\n')) {
+            const alignedContent = textToRender.replace(/\n/g, ' \\\\ ');
+            textToRender = `\\begin{aligned}${alignedContent}\\end{aligned}`;
+        }
 
         let katexHtml = textToRender;
         try {
-            katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true });
+            katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true, strict: 'warn' });
         } catch (error) {
             katexHtml = `<span>${textToRender}</span>`;
         }
@@ -3804,7 +3808,8 @@
             }
         `;
         const styleBlock = katexCssText ? `<style>${katexCssText}${fontOverrideStyle}</style>` : `<style>${fontOverrideStyle}</style>`;
-        const contentHtml = `<div style="${colorStyle}" class="katex-custom">${katexHtml}</div>`;
+        // Add display:inline-block so the container shrinks to the content, allowing justify-content to work.
+        const contentHtml = `<div style="${colorStyle}; display: inline-block;" class="katex-custom">${katexHtml}</div>`;
         if (katexMeasureEl) {
             // The container for measurement needs text-align to correctly position the katex block for measurement.
             katexMeasureEl.style.textAlign = textAlign;
