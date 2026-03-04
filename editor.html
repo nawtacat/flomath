@@ -3847,16 +3847,15 @@
         const rawContent = layer.content || '';
         const color = layer.getValue('color', time);
         const maxWidth = layer.textMaxWidth || 0;
-        const textAlign = layer.textAlign || 'center';
-        const contentHash = `${rawContent}|${color}|${maxWidth}|${textAlign}`;
+        const textAlign = layer.textAlign || 'center'; 
+        const contentHash = `${rawContent}|${color}|${maxWidth}|${textAlign}`; 
 
         if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === contentHash) {
             return;
         }
         layer.katexNeedsRender = false;
-        layer.katexContentHash = contentHash;
 
-        let textToRender = rawContent.trim();
+        let textToRender = rawContent;
         // Strip surrounding $ or $$ for user convenience
         while (textToRender.startsWith('$') && textToRender.endsWith('$') && textToRender.length > 1) {
             textToRender = textToRender.substring(1, textToRender.length - 1);
@@ -3869,7 +3868,13 @@
         else if (textAlign === 'right') alignCmd = '\\raggedleft ';
         else alignCmd = '\\centering ';
         if (textToRender.includes('\n')) {
-            const arrayContent = textToRender.replace(/\n/g, ' \\\\ ');
+            const lines = textToRender.split('\n');
+            // A trailing newline from a textarea shouldn't create an extra blank line at the end.
+            if (lines.length > 1 && lines[lines.length - 1].trim() === '') {
+                lines.pop();
+            }
+            const arrayContent = lines.join(' \\\\ ');
+
             const alignChar = { left: 'l', center: 'c', right: 'r' }[textAlign] || 'c';
             if (maxWidth > 0) {
               textToRender = `\\makebox[${maxWidth}px][${alignChar}]{$\\begin{array}{${alignChar}} ${alignCmd}${arrayContent} \\end{array}$}`
@@ -3937,7 +3942,10 @@
         }
 
         const rect = katexMeasureEl ? katexMeasureEl.getBoundingClientRect() : { width: 0, height: 0 };
-        const width = Math.max(1, Math.ceil(rect.width));
+        // Add a small padding to the width. This helps prevent the last character from wrapping
+        // in the final SVG render, which can happen due to font-loading race conditions or
+        // sub-pixel measurement differences between the browser's DOM and SVG rendering.
+        const width = Math.max(1, Math.ceil(rect.width) + 2);
         const height = Math.max(1, Math.ceil(rect.height));
         const justifyContent = {
             left: 'flex-start',
@@ -3950,6 +3958,7 @@
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:100%; height:100%; display:flex; align-items:center; justify-content:${justifyContent};">${styleBlock}${contentHtml}</div></foreignObject></svg>`;
         const dataUrl = `data:image/svg+xml;base64,${encodeSvgToBase64(svg)}`;
         const img = new Image();
+        layer.katexContentHash = contentHash; // Set hash only when we are about to render a new image
         layer.katexImageLoading = true;
         img.onload = () => {
             layer.katexImage = img;
