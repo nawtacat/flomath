@@ -3801,9 +3801,6 @@
             .katex-custom .katex-display {
                 text-align: ${textAlign} !important;
             }
-            .katex-custom .katex-display > .katex {
-                display: inline-block !important;
-            }
         `;
         const styleBlock = katexCssText ? `<style>${katexCssText}${fontOverrideStyle}</style>` : `<style>${fontOverrideStyle}</style>`;
         const contentHtml = `<span style="${colorStyle}" class="katex-custom">${katexHtml}</span>`;
