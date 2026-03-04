@@ -4532,7 +4532,7 @@
 
     function computeMotionTransformForLayer(layer, time) {
         const track = peekMotionTrack(layer.id);
-        if (!track || track.keyframes.length === 0) return null;
+        if (!track || !Array.isArray(track.keyframes) || track.keyframes.length === 0) return null;
         const sorted = track.keyframes.slice().sort((a, b) => a.time - b.time);
         if (sorted.length === 1) {
             return { ...sorted[0].transform };
@@ -6058,7 +6058,17 @@
             state.layerSlots = data.layerSlots || [];
             
             if (data.globalZoom) Object.assign(globalZoom, data.globalZoom);
-            if (data.motionTracks) Object.assign(motionTracks, data.motionTracks);
+            if (data.motionTracks) {
+                Object.assign(motionTracks, data.motionTracks);
+                Object.keys(motionTracks).forEach(key => {
+                    const track = motionTracks[key];
+                    if (track && track.keyframes && !Array.isArray(track.keyframes)) {
+                        track.keyframes = Object.values(track.keyframes);
+                    } else if (track && !track.keyframes) {
+                        track.keyframes = [];
+                    }
+                });
+            }
             if (data.globalFloat) Object.assign(globalFloat, data.globalFloat);
             if (data.globalBlur) Object.assign(globalBlur, data.globalBlur);
             if (data.watermark) Object.assign(watermark, data.watermark);
