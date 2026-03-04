@@ -3762,9 +3762,16 @@
             textToRender = textToRender.substring(1, textToRender.length - 1);
         }
         
-        // For multiline input from a textarea, wrap in an 'aligned' environment
-        // and replace JS newlines with LaTeX newlines.
-        if (textToRender.includes('\n')) {
+        // Handle multiline and wrapping for KaTeX
+        if (maxWidth > 0) {
+            // Use a parbox for wrapping. KaTeX needs a unit, let's use 'px'.
+            // We also need to inject alignment commands.
+            const alignCmd = { left: '\\raggedright ', center: '\\centering ', right: '\\raggedleft ' }[textAlign] || '\\centering ';
+            // Replace JS newlines with LaTeX paragraph breaks.
+            const parboxContent = textToRender.replace(/\n/g, ' \\par ');
+            textToRender = `\\parbox{${maxWidth}px}{${alignCmd}${parboxContent}}`;
+        } else if (textToRender.includes('\n')) {
+            // Use array for explicit newlines when no wrapping is needed.
             const arrayContent = textToRender.replace(/\n/g, ' \\\\ ');
             const alignChar = { left: 'l', center: 'c', right: 'r' }[textAlign] || 'c';
             textToRender = `\\begin{array}{${alignChar}} ${arrayContent} \\end{array}`;
@@ -3818,8 +3825,11 @@
         }
 
         if (maxWidth > 0) {
+            // Set the width on the measurement container. The \parbox inside KaTeX will fill this width.
+            // This ensures the final SVG has the correct width for alignment, even if the text is short.
+            // We prevent browser-level wrapping since KaTeX is handling it.
             katexMeasureEl.style.width = `${maxWidth}px`;
-            katexMeasureEl.style.whiteSpace = 'normal';
+            katexMeasureEl.style.whiteSpace = 'nowrap';
         } else {
             katexMeasureEl.style.width = 'auto';
             katexMeasureEl.style.whiteSpace = 'nowrap';
