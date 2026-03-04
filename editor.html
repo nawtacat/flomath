@@ -1904,6 +1904,12 @@
                 }
             }
         });
+        document.getElementById('line-anchor-controls').addEventListener('click', (e) => {
+            if (e.target.matches('button[data-anchor]')) {
+                const anchor = e.target.dataset.anchor;
+                updateLineAnchor(anchor);
+            }
+        });
         // Initialize Firebase
         initFirebase();
         updateWatermarkUI();
@@ -3356,32 +3362,12 @@
         if (oldAnchor === newAnchor) return;
 
         saveHistory();
-        const w = layer.width;
-
-        // Find the world position of the current anchor point
-        let oldAnchorWorldX;
-        if (oldAnchor === 'left') {
-            oldAnchorWorldX = layer.x - w / 2;
-        } else if (oldAnchor === 'right') {
-            oldAnchorWorldX = layer.x + w / 2;
-        } else { // center
-            oldAnchorWorldX = layer.x;
-        }
-
-        // Calculate the new layer.x to keep the anchor point at the same world position
-        let newX;
-        if (newAnchor === 'left') {
-            newX = oldAnchorWorldX + w / 2;
-        } else if (newAnchor === 'right') {
-            newX = oldAnchorWorldX - w / 2;
-        } else { // center
-            newX = oldAnchorWorldX;
-        }
-
-        layer.x = newX;
         layer.lineAnchor = newAnchor;
 
-        document.querySelectorAll('#line-anchor-controls button').forEach(btn => btn.classList.toggle('active', btn.dataset.anchor === newAnchor));
+        document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.anchor === newAnchor) btn.classList.add('active');
+        });
         updatePropertiesPanel();
         renderCanvas();
         triggerAutoSave();
