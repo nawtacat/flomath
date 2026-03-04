@@ -2102,25 +2102,27 @@
                 const img = layer.katexImage;
                 const w = layer.katexImageWidth || img.width;
                 const h = layer.katexImageHeight || img.height;
+                const katexAlign = layer.textAlign || 'center';
+                const imgX = katexAlign === 'left' ? 0 : katexAlign === 'right' ? -w : -w / 2;
                 if (isTypewriterActive) {
                     const clipWidth = Math.max(0, w * easedEntryProgress);
                     ctx.save();
                     ctx.beginPath();
-                    ctx.rect(-w / 2, -h / 2, clipWidth, h);
+                    ctx.rect(imgX, -h / 2, clipWidth, h);
                     ctx.clip();
-                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                    ctx.drawImage(img, imgX, -h / 2, w, h);
                     ctx.restore();
                 } else if (clipHorizontal || clipVertical) {
                     const clipWidth = clipHorizontal ? Math.max(0, w * clipFactorH) : w;
                     const clipHeight = clipVertical ? Math.max(0, h * clipFactorV) : h;
                     ctx.save();
                     ctx.beginPath();
-                    ctx.rect(-w / 2, -h / 2, clipWidth, clipHeight);
+                    ctx.rect(imgX, -h / 2, clipWidth, clipHeight);
                     ctx.clip();
-                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                    ctx.drawImage(img, imgX, -h / 2, w, h);
                     ctx.restore();
                 } else {
-                    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+                    ctx.drawImage(img, imgX, -h / 2, w, h);
                 }
             } else if (layer.type === 'text') {
                 const textColor = layer.getValue('color', state.currentTime);
