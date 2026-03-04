@@ -3749,7 +3749,8 @@
         const rawContent = layer.content || '';
         const color = layer.getValue('color', time);
         const maxWidth = layer.textMaxWidth || 0;
-        const contentHash = `${rawContent}|${color}|${maxWidth}`;
+        const textAlign = layer.textAlign || 'center';
+        const contentHash = `${rawContent}|${color}|${maxWidth}|${textAlign}`;
 
         if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === contentHash) {
             return;
