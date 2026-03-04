@@ -2980,8 +2980,10 @@
                 if (isLine) {
                     document.getElementById('prop-shape-line-thickness').value = layer.height || 10;
                     document.getElementById('prop-shape-line-length').value = layer.width || 300;
+                    const currentAnchor = layer.lineAnchor || 'center';
                     document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
-                        btn.classList.toggle('active', btn.dataset.anchor === (layer.lineAnchor || 'center'));
+                        btn.classList.remove('active');
+                        if (btn.dataset.anchor === currentAnchor) btn.classList.add('active');
                     });
                 }
             } else {
@@ -3306,9 +3308,11 @@
             if (val === 'line') {
                 document.getElementById('prop-shape-line-length').value = layer.width;
                 document.getElementById('prop-shape-line-thickness').value = layer.height;
+                 const currentAnchor = layer.lineAnchor || 'center';
                  document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.anchor === (layer.lineAnchor || 'center'));
-                });
+                    btn.classList.remove('active');
+                    if (btn.dataset.anchor === currentAnchor) btn.classList.add('active');
+                 });
             }
             
             renderCanvas();
@@ -3354,13 +3358,25 @@
         saveHistory();
         const w = layer.width;
 
-        let centerX = layer.x;
-        if (oldAnchor === 'left') centerX = layer.x + w / 2;
-        else if (oldAnchor === 'right') centerX = layer.x - w / 2;
+        // Find the world position of the current anchor point
+        let oldAnchorWorldX;
+        if (oldAnchor === 'left') {
+            oldAnchorWorldX = layer.x - w / 2;
+        } else if (oldAnchor === 'right') {
+            oldAnchorWorldX = layer.x + w / 2;
+        } else { // center
+            oldAnchorWorldX = layer.x;
+        }
 
-        let newX = centerX;
-        if (newAnchor === 'left') newX = centerX - w / 2;
-        else if (newAnchor === 'right') newX = centerX + w / 2;
+        // Calculate the new layer.x to keep the anchor point at the same world position
+        let newX;
+        if (newAnchor === 'left') {
+            newX = oldAnchorWorldX + w / 2;
+        } else if (newAnchor === 'right') {
+            newX = oldAnchorWorldX - w / 2;
+        } else { // center
+            newX = oldAnchorWorldX;
+        }
 
         layer.x = newX;
         layer.lineAnchor = newAnchor;
