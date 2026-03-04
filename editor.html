@@ -3338,18 +3338,28 @@
             const newW = parseFloat(val);
             if (isNaN(newW) || newW <= 0) return;
 
-            const anchor = layer.lineAnchor || 'center';
-            const dw = newW - oldW;
-            
-            if (anchor === 'left') {
-                layer.x += dw / 2;
-            } else if (anchor === 'right') {
-                layer.x -= dw / 2;
+            if (Math.abs(newW - oldW) > 0.001) { // Only adjust position if length is actually changing
+                const anchor = layer.lineAnchor || 'center';
+                const dw = newW - oldW;
+                
+                if (anchor !== 'center') {
+                    // Get the current rotation to adjust the center point correctly, respecting animation
+                    const rotationRad = (layer.getValue('rotation', state.currentTime) || 0) * Math.PI / 180;
+                    const dx = (dw / 2) * Math.cos(rotationRad);
+                    const dy = (dw / 2) * Math.sin(rotationRad);
+
+                    if (anchor === 'left') { // 'left' refers to the start of the line vector
+                        layer.x += dx;
+                        layer.y += dy;
+                    } else { // 'right' refers to the end of the line vector
+                        layer.x -= dx;
+                        layer.y -= dy;
+                    }
+                }
             }
-            // for 'center', no change to x
             
             layer.width = newW;
-            updatePropertiesPanel(); // To reflect change in X
+            updatePropertiesPanel(); // To reflect change in X and Y
             renderCanvas();
             triggerAutoSave();
         }
