@@ -3451,7 +3451,8 @@
             const eq = layer.equations.find(e => e.id === eqId);
             if (eq) {
                 if (prop === 'entryTime' || prop === 'exitTime' || prop === 'area') {
-                    eq[prop] = parseFloat(value);
+                    const parsed = parseFloat(value);
+                    if (!isNaN(parsed)) eq[prop] = parsed;
                 } else {
                     eq[prop] = value;
                 }
