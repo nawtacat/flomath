@@ -3764,10 +3764,17 @@
         
         // For multiline KaTeX input, wrap in an 'array' environment to handle alignment.
         // Automatic wrapping for math is not supported by KaTeX, so we rely on manual newlines.
+        let alignCmd = '';
+        if (textAlign === 'left') alignCmd = '\\raggedright ';
+        else if (textAlign === 'right') alignCmd = '\\raggedleft ';
+        else alignCmd = '\\centering ';
         if (textToRender.includes('\n')) {
             const arrayContent = textToRender.replace(/\n/g, ' \\\\ ');
             const alignChar = { left: 'l', center: 'c', right: 'r' }[textAlign] || 'c';
-            textToRender = `\\begin{array}{${alignChar}} ${arrayContent} \\end{array}`;
+            if (maxWidth > 0) {
+              textToRender = `\\makebox[${maxWidth}px][${alignChar}]{$\\begin{array}{${alignChar}} ${alignCmd}${arrayContent} \\end{array}$}`
+            }
+            else textToRender = `\\begin{array}{${alignChar}} ${arrayContent} \\end{array}`;
         }
 
         let katexHtml = textToRender;
@@ -3818,6 +3825,7 @@
         }
 
         if (maxWidth > 0) {
+            katexMeasureEl.style.textAlign = textAlign;
             // Set the width on the measurement container. The \parbox inside KaTeX will fill this width.
             // This ensures the final SVG has the correct width for alignment, even if the text is short.
             // We prevent browser-level wrapping since KaTeX is handling it.
