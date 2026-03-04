@@ -3798,6 +3798,9 @@
             .katex-custom .katex, .katex-custom .katex-html {
                 white-space: normal !important;
             }
+            .katex-custom .katex-display {
+                text-align: ${textAlign} !important;
+            }
         `;
         const styleBlock = katexCssText ? `<style>${katexCssText}${fontOverrideStyle}</style>` : `<style>${fontOverrideStyle}</style>`;
         const contentHtml = `<span style="${colorStyle}" class="katex-custom">${katexHtml}</span>`;
