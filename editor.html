@@ -3844,6 +3844,12 @@
 
     function ensureKatexImage(layer, time) {
         if (!layer || !layer.katex || typeof katex === 'undefined') return;
+
+        if (!katexCssText) {
+            layer.katexNeedsRender = true; // Make sure we re-evaluate on next frame
+            return; // Don't attempt to render until CSS is loaded
+        }
+
         const rawContent = layer.content || '';
         const color = layer.getValue('color', time);
         const maxWidth = layer.textMaxWidth || 0;
@@ -6230,6 +6236,9 @@
                     // Restore Content
                     if (layer.type === 'text') {
                         layer.content = lData.content;
+                        if (layer.katex) {
+                            layer.katexNeedsRender = true;
+                        }
                     } else if (layer.type === 'image' && layer.storageUrl) {
                         const img = new Image();
                         img.crossOrigin = "anonymous";
