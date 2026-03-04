@@ -3873,7 +3873,7 @@
             if (lines.length > 1 && lines[lines.length - 1].trim() === '') {
                 lines.pop();
             }
-            const arrayContent = lines.join(' \\\\ ');
+            const arrayContent = lines.join(' \\\\[-0.25em] ');
 
             const alignChar = { left: 'l', center: 'c', right: 'r' }[textAlign] || 'c';
             if (maxWidth > 0) {
@@ -3918,6 +3918,7 @@
             .katex-custom .katex-display {
                 /* This rule aligns the text *inside* a KaTeX block, which is useful for multi-line formulas. */
                 text-align: ${textAlign};
+                margin: 0 !important;
             }
         `;
         const styleBlock = katexCssText ? `<style>${katexCssText}${fontOverrideStyle}</style>` : `<style>${fontOverrideStyle}</style>`;
