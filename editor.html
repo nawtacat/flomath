@@ -672,6 +672,18 @@
                     <span>Thickness</span>
                     <input type="number" id="prop-shape-line-thickness" min="1" max="100" onchange="updateShapeThickness(this.value)">
                 </div>
+                <div class="property-row" id="prop-shape-line-length-row" style="display:none;">
+                    <span>Length</span>
+                    <input type="number" id="prop-shape-line-length" min="1" onchange="updateShapeLength(this.value)">
+                </div>
+                <div id="prop-shape-line-anchor-row" style="display:none; margin-top: 5px;">
+                    <label>Anchor</label>
+                    <div id="line-anchor-controls" style="display:flex; gap:5px; margin-top:5px;">
+                        <button class="secondary" data-anchor="left">Left</button>
+                        <button class="secondary" data-anchor="center">Center</button>
+                        <button class="secondary" data-anchor="right">Right</button>
+                    </div>
+                </div>
                 <button id="btn-shapecutter-toggle" class="secondary" style="width:100%; margin-top:5px; background:#444;" onclick="toggleShapecutter()">Open Shapecutter Tool</button>
             </div>
             
@@ -1645,6 +1657,7 @@
         this.excludeFromBlur = false;
         this.storageUrl = null; // URL from Firebase Storage
         this.shapeType = 'square'; // for type='shape'
+            this.lineAnchor = 'center'; // for line shape
         this.cuts = []; // Array of {type, x, y, width, height, rotation} (local space)
 
             // Keyframes: { property: [ {time, value}, ... ] }
@@ -2956,8 +2969,21 @@
                 document.getElementById('prop-shape-color').value = layer.color || '#ffffff';
                 
                 const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
-                thicknessRow.style.display = layer.shapeType === 'line' ? 'flex' : 'none';
-                document.getElementById('prop-shape-line-thickness').value = layer.height || 10;
+                const lengthRow = document.getElementById('prop-shape-line-length-row');
+                const anchorRow = document.getElementById('prop-shape-line-anchor-row');
+                const isLine = layer.shapeType === 'line';
+
+                thicknessRow.style.display = isLine ? 'flex' : 'none';
+                lengthRow.style.display = isLine ? 'flex' : 'none';
+                anchorRow.style.display = isLine ? 'block' : 'none';
+
+                if (isLine) {
+                    document.getElementById('prop-shape-line-thickness').value = layer.height || 10;
+                    document.getElementById('prop-shape-line-length').value = layer.width || 300;
+                    document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.anchor === (layer.lineAnchor || 'center'));
+                    });
+                }
             } else {
                 shapeProps.style.display = 'none';
             }
@@ -3273,6 +3299,17 @@
             
             const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
             thicknessRow.style.display = val === 'line' ? 'flex' : 'none';
+            const lengthRow = document.getElementById('prop-shape-line-length-row');
+            lengthRow.style.display = val === 'line' ? 'flex' : 'none';
+            const anchorRow = document.getElementById('prop-shape-line-anchor-row');
+            anchorRow.style.display = val === 'line' ? 'block' : 'none';
+            if (val === 'line') {
+                document.getElementById('prop-shape-line-length').value = layer.width;
+                document.getElementById('prop-shape-line-thickness').value = layer.height;
+                 document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.anchor === (layer.lineAnchor || 'center'));
+                });
+            }
             
             renderCanvas();
             triggerAutoSave();
@@ -3281,6 +3318,57 @@
 
     function updateShapeColor(val) {
         updateColor(val);
+    }
+
+    function updateShapeLength(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'shape' && layer.shapeType === 'line') {
+            saveHistory();
+            const oldW = layer.width;
+            const newW = parseFloat(val);
+            if (isNaN(newW) || newW <= 0) return;
+
+            const anchor = layer.lineAnchor || 'center';
+            const dw = newW - oldW;
+            
+            if (anchor === 'left') {
+                layer.x += dw / 2;
+            } else if (anchor === 'right') {
+                layer.x -= dw / 2;
+            }
+            // for 'center', no change to x
+            
+            layer.width = newW;
+            updatePropertiesPanel(); // To reflect change in X
+            renderCanvas();
+            triggerAutoSave();
+        }
+    }
+
+    function updateLineAnchor(newAnchor) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer || layer.type !== 'shape' || layer.shapeType !== 'line') return;
+        const oldAnchor = layer.lineAnchor || 'center';
+        if (oldAnchor === newAnchor) return;
+
+        saveHistory();
+        const w = layer.width;
+
+        let centerX = layer.x;
+        if (oldAnchor === 'left') centerX = layer.x + w / 2;
+        else if (oldAnchor === 'right') centerX = layer.x - w / 2;
+
+        let newX = centerX;
+        if (newAnchor === 'left') newX = centerX - w / 2;
+        else if (newAnchor === 'right') newX = centerX + w / 2;
+
+        layer.x = newX;
+        layer.lineAnchor = newAnchor;
+
+        document.querySelectorAll('#line-anchor-controls button').forEach(btn => btn.classList.toggle('active', btn.dataset.anchor === newAnchor));
+        updatePropertiesPanel();
+        renderCanvas();
+        triggerAutoSave();
     }
 
     function updateShapeThickness(val) {
