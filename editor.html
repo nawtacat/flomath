@@ -5994,8 +5994,8 @@
                     renderCanvas(true);
                     
                     const frameNumber = String(i).padStart(5, '0');
-                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                    ffmpeg.FS('writeFile', `frame-${frameNumber}.png`, await fetchFile(blob));
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+                    ffmpeg.FS('writeFile', `frame-${frameNumber}.jpg`, await fetchFile(blob));
 
                     progress.style.width = `${((i + 1) / totalFrames) * 50}%`; // 0-50% for rendering
                 }
@@ -6014,7 +6014,7 @@
 
                 const ffmpegArgs = [
                     '-framerate', String(FPS),
-                    '-i', 'frame-%05d.png'
+                    '-i', 'frame-%05d.jpg'
                 ];
                 if (mixedAudioBuffer) {
                     ffmpegArgs.push('-i', 'audio.wav');
