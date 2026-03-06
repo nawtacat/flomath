@@ -177,6 +177,15 @@
       align-self: center; transition: color .15s, transform .15s;
     }
     .ws-card:hover .ws-card-arrow { color: var(--blue); transform: translateX(3px); }
+    .ws-card.locked {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .ws-card.locked:hover {
+      border-color: var(--border);
+      box-shadow: none;
+      transform: none;
+    }
 
     /* ── WHAT TO EXPECT ──────────────────────────────────── */
     #expect { background: var(--bg); }
@@ -339,7 +348,7 @@
       </div>
     </div>
     <div class="hero-video">
-      <iframe src="https://youtu.be/WfCU_0x9z50" title="Welcome to Florian Math"
+      <iframe src="https://www.youtube.com/embed/WfCU_0x9z50" title="Welcome to Florian Math"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen></iframe>
     </div>
@@ -374,7 +383,7 @@
         <span class="ws-domain-count">5 worksheets</span>
       </div>
       <div class="ws-grid">
-        <a class="ws-card" href="ws-linear-eq-1var.html">
+        <a class="ws-card" href="https://flomath.space/leiov.html">
           <div class="ws-card-icon d-algebra" style="background:#dbeafe">📐</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Linear Equations in One Variable</div>
@@ -382,38 +391,34 @@
           </div>
           <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </a>
-        <a class="ws-card" href="ws-linear-functions.html">
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#dbeafe">📈</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Linear Functions</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-linear-eq-2var.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#dbeafe">🔢</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Linear Equations in Two Variables</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-systems-linear.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#dbeafe">⚖️</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Systems of Two Linear Equations</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-linear-inequalities.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#dbeafe">≤</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Linear Inequalities</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
+        </div>
       </div>
     </div>
 
@@ -424,30 +429,27 @@
         <span class="ws-domain-count">3 worksheets</span>
       </div>
       <div class="ws-grid">
-        <a class="ws-card" href="ws-nonlinear-functions.html">
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#ede9fe">∪</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Nonlinear Functions</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-nonlinear-equations.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#ede9fe">x²</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Nonlinear Equations & Systems</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-equivalent-expressions.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#ede9fe">=</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Equivalent Expressions</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
+        </div>
       </div>
     </div>
 
@@ -458,62 +460,55 @@
         <span class="ws-domain-count">7 worksheets</span>
       </div>
       <div class="ws-grid">
-        <a class="ws-card" href="ws-ratios-rates.html">
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#e0f2fe">÷</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Ratios, Rates & Proportional Relationships</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-percentages.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#e0f2fe">%</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Percentages</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-one-variable-data.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#e0f2fe">📊</div>
           <div class="ws-card-body">
             <div class="ws-card-title">One-Variable Data: Distributions & Center</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-two-variable-data.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#e0f2fe">📉</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Two-Variable Data: Models & Scatterplots</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-probability.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#e0f2fe">🎲</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Probability & Conditional Probability</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-inference.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#e0f2fe">🔍</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Inference & Margin of Error</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-statistical-claims.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#e0f2fe">🧪</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Evaluating Statistical Claims</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
+        </div>
       </div>
     </div>
 
@@ -524,41 +519,36 @@
         <span class="ws-domain-count">4 worksheets</span>
       </div>
       <div class="ws-grid">
-        <a class="ws-card" href="ws-area-volume.html">
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#d1fae5">📦</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Area and Volume</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-lines-angles-triangles.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#d1fae5">△</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Lines, Angles & Triangles</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-right-triangles-trig.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#d1fae5">📐</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Right Triangles & Trigonometry</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <a class="ws-card" href="ws-circles.html">
+        </div>
+        <div class="ws-card locked">
           <div class="ws-card-icon" style="background:#d1fae5">⭕</div>
           <div class="ws-card-body">
             <div class="ws-card-title">Circles</div>
-            <div class="ws-card-meta">5 questions · ~5 min</div>
+            <div class="ws-card-meta">Publishing Soon</div>
           </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
+        </div>
       </div>
     </div>
-
   </div>
 </section>
 
