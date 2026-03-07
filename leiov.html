@@ -3,113 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital SAT Practice - Math</title>
+    <title>Florian Math - SAT Practice</title>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         :root {
             --sat-blue: #0071bc;
-            --sat-dark: #1b1c1d;
-            --sat-gray: #f0f3f5;
-            --sat-border: #d6d6d6;
+            --sat-light-blue: #e8f3fb;
+            --sat-dark: #1e1e1e;
+            --sat-border: #d1d1d1;
+            --sat-font: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: var(--sat-font);
             margin: 0;
-            background-color: white;
-            color: var(--sat-dark);
+            padding: 0;
+            background-color: #fff;
+            color: #333;
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            user-select: none;
         }
 
-        /* Header */
+        /* Top Header */
         header {
-            background-color: var(--sat-dark);
-            color: white;
-            padding: 10px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-weight: bold;
-        }
-
-        .timer {
-            background: #333;
-            padding: 5px 15px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 1.1em;
-        }
-
-        /* Sub-header */
-        .sub-nav {
+            padding: 10px 20px;
             border-bottom: 1px solid var(--sat-border);
-            padding: 10px 20px;
+            height: 60px;
+        }
+
+        .module-title { font-weight: 700; font-size: 1.1rem; }
+        
+        .timer-container {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
+        }
+
+        .timer-bubble {
+            border: 1px solid var(--sat-border);
+            border-radius: 20px;
+            padding: 2px 25px;
+            font-weight: 700;
+            font-size: 1.2rem;
             background: white;
         }
 
-        /* Main Layout */
+        .hide-btn {
+            font-size: 0.75rem;
+            color: #666;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 2px;
+        }
+
+        /* Main Content Split Area */
         main {
             display: flex;
             flex: 1;
             overflow: hidden;
+            padding: 0 40px;
+            gap: 40px;
         }
 
-        .question-container {
+        .question-side {
             flex: 1;
-            padding: 40px;
+            padding: 40px 0;
             overflow-y: auto;
-            border-right: 1px solid var(--sat-border);
-        }
-
-        .options-container {
-            flex: 1;
-            padding: 40px;
-            overflow-y: auto;
-            background-color: white;
-        }
-
-        .question-text {
             font-size: 1.15rem;
             line-height: 1.6;
-            margin-bottom: 20px;
         }
 
-        /* Options Style */
-        .option {
+        .options-side {
+            flex: 1;
+            padding: 40px 0;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* SAT Option Styling */
+        .option-container {
             display: flex;
             align-items: center;
             border: 1px solid var(--sat-border);
-            border-radius: 8px;
-            padding: 15px;
+            border-radius: 10px;
+            padding: 18px;
             margin-bottom: 12px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.2s;
+            position: relative;
         }
 
-        .option:hover {
-            background-color: var(--sat-gray);
+        .option-container:hover { background-color: #f5f5f5; }
+        .option-container.selected {
+            border: 2px solid var(--sat-blue);
+            background-color: var(--sat-light-blue);
         }
 
-        .option.selected {
-            border-color: var(--sat-blue);
-            background-color: #eef7ff;
-        }
-
-        .option.eliminated {
+        .option-container.eliminated {
             opacity: 0.4;
-            text-decoration: line-through;
+            pointer-events: none;
         }
 
-        .letter-circle {
-            width: 30px;
-            height: 30px;
+        .option-letter {
+            width: 34px;
+            height: 34px;
             border: 1px solid #777;
             border-radius: 50%;
             display: flex;
@@ -117,133 +121,230 @@
             align-items: center;
             margin-right: 15px;
             font-weight: bold;
+            flex-shrink: 0;
         }
 
-        .selected .letter-circle {
+        .selected .option-letter {
             background-color: var(--sat-blue);
             color: white;
             border-color: var(--sat-blue);
         }
 
-        /* Grid-in Input */
-        .grid-in-container {
-            margin-top: 20px;
+        /* Mark for Review */
+        .mark-for-review {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #444;
+            cursor: pointer;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+            padding: 5px 10px;
+            border-radius: 4px;
+            width: fit-content;
         }
 
-        input[type="text"] {
-            padding: 10px;
+        .mark-icon {
+            color: #d1d1d1;
+            margin-right: 8px;
             font-size: 1.2rem;
-            border: 2px solid var(--sat-border);
-            border-radius: 4px;
-            width: 200px;
         }
+
+        .marked .mark-icon { color: #cc0000; }
+
+        /* Tools */
+        .tools-bar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .tool-icon {
+            width: 35px;
+            height: 35px;
+            border: 1px solid var(--sat-border);
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .tool-icon.active { background-color: #ffeb3b; border-color: #fbc02d; }
 
         /* Footer */
         footer {
+            height: 70px;
             border-top: 1px solid var(--sat-border);
-            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 0 20px;
         }
 
-        button {
-            padding: 10px 25px;
-            border-radius: 20px;
-            border: 1px solid var(--sat-blue);
-            background: white;
-            color: var(--sat-blue);
-            font-weight: bold;
-            cursor: pointer;
+        .footer-left a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            font-size: 0.9rem;
         }
 
-        button.primary {
-            background: var(--sat-blue);
+        .nav-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .q-dropdown {
+            background: #222;
             color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-weight: 600;
         }
 
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .next-btn {
+            background-color: var(--sat-blue);
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 1rem;
         }
 
-        /* Result View */
-        #results {
-            padding: 40px;
-            overflow-y: auto;
+        /* Review Modal */
+        #review-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
         }
 
-        .result-item {
-            border-bottom: 1px solid #eee;
-            padding: 20px 0;
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
         }
 
-        .correct { color: green; font-weight: bold; }
-        .incorrect { color: red; font-weight: bold; }
-        .rationale { background: #f9f9f9; padding: 15px; border-left: 4px solid var(--sat-blue); margin-top: 10px; font-style: italic; }
-        
-        .hidden { display: none !important; }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .grid-box {
+            border: 2px dashed var(--sat-border);
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .grid-box.answered { border-style: solid; background: var(--sat-blue); color: white; }
+        .grid-box.current { border: 2px solid #000; }
+
+        /* Grid-in Input Style */
+        .grid-input {
+            width: 200px;
+            padding: 12px;
+            font-size: 1.2rem;
+            border: 2px solid var(--sat-border);
+            border-radius: 5px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
 
 <header>
-    <div>Section 1: Math</div>
-    <div class="timer" id="timer">35:00</div>
-    <div>Directions</div>
-</header>
-
-<div class="sub-nav">
-    <div id="question-number">Question 1 of 6</div>
-    <div>
-        <button onclick="toggleEliminate()" id="elim-btn">Eliminate Choices</button>
+    <div class="module-title">Math Module 1</div>
+    <div class="timer-container">
+        <div class="timer-bubble" id="timer">35:00</div>
+        <div class="hide-btn">Hide</div>
     </div>
-</div>
+    <div style="width: 100px;"></div> </header>
 
-<main id="quiz-ui">
-    <div class="question-container">
-        <div id="question-content" class="question-text">
+<main>
+    <div class="question-side">
+        <div class="mark-for-review" onclick="toggleMark()">
+            <span class="mark-icon" id="mark-ribbon">⚑</span> 
+            Mark for Review
+        </div>
+        <div id="question-text">
             </div>
     </div>
-    <div class="options-container" id="options-area">
+
+    <div class="options-side">
+        <div class="tools-bar">
+            <div class="tool-icon" id="elim-tool" onclick="toggleEliminator()" title="Eliminate Answers">ABC</div>
         </div>
+        <div id="options-container">
+            </div>
+    </div>
 </main>
 
-<div id="results" class="hidden">
-    <h2>Performance Summary</h2>
-    <div id="results-list"></div>
-    <button onclick="location.reload()" class="primary" style="margin-top: 20px;">Restart Quiz</button>
-</div>
-
 <footer>
-    <button id="back-btn" onclick="prevQuestion()">Back</button>
-    <div id="nav-dots"></div>
-    <button id="next-btn" class="primary" onclick="nextQuestion()">Next</button>
+    <div class="footer-left">
+        <a href="https://flomath.space">Florian Math</a>
+    </div>
+
+    <div class="nav-center">
+        <div class="q-dropdown" onclick="toggleReviewModal()">
+            <span id="current-q-label">Question 1 of 6</span>
+            <span>^</span>
+        </div>
+    </div>
+
+    <div class="footer-right">
+        <button class="next-btn" onclick="nextQuestion()">Next</button>
+    </div>
 </footer>
+
+<div id="review-modal">
+    <div class="modal-content">
+        <h3>Math Module 1</h3>
+        <p>Select a question to jump to it.</p>
+        <div class="grid-container" id="grid-container"></div>
+        <button onclick="toggleReviewModal()" style="margin-top:20px; width:100%; padding:10px; background: #eee; border:none; cursor:pointer;">Close</button>
+    </div>
+</div>
 
 <script>
     const questions = [
         {
             id: "9b886541",
-            text: "If \\(3x-8=7\\), what is the value of \\(3x+8\\)?",
+            text: "If $3x-8=7$, what is the value of $3x+8$?",
             type: "mcq",
             options: ["-1", "5", "13", "23"],
-            correct: 3, // Index D
-            difficulty: "Easy",
-            rationale: "Choice D is correct. It's given that \\(3x-8=7\\). Adding 8 to both sides of this equation yields \\(3x=15\\). Adding 8 to both sides of this equation yields \\(3x+8=23\\). Therefore, the value of \\(3x+8\\) is 23. [cite: 21]"
+            correct: 3 // D
         },
         {
             id: "6ac23de7",
-            text: "\\(\\frac{4x}{5}=20\\)<br><br>In the equation above, what is the value of \\(x\\)?",
+            text: "$\\frac{4x}{5}=20$<br><br>In the equation above, what is the value of $x$?",
             type: "mcq",
             options: ["25", "24", "16", "15"],
-            correct: 0, // Index A
-            difficulty: "Easy",
-            rationale: "Choice A is correct. Multiplying both sides of the equation by 5 results in \\(4x=100\\). Dividing both sides of the resulting equation by 4 results in \\(x=25\\). [cite: 41]"
+            correct: 0 // A
         },
         {
             id: "9d4270fe",
-            text: "A company that creates and sells tape dispensers calculates its monthly profit, in dollars, by subtracting its fixed monthly costs, in dollars, from its monthly sales revenue, in dollars.<br><br>The equation \\(15,000=2.00x-4,500\\) represents this situation for a month where \\(x\\) tape dispensers are created and sold.<br><br>Which statement is the best interpretation of 2.00 in this context?",
+            text: "A company that creates and sells tape dispensers calculates its monthly profit, in dollars, by subtracting its fixed monthly costs from its monthly sales revenue. The equation $15,000=2.00x-4,500$ represents this situation.<br><br>Which statement is the best interpretation of 2.00 in this context?",
             type: "mcq",
             options: [
                 "The monthly sales revenue, in dollars, from selling tape dispensers",
@@ -251,117 +352,93 @@
                 "The monthly cost, in dollars, of creating each tape dispenser",
                 "The monthly cost, in dollars, of creating tape dispensers"
             ],
-            correct: 0, // Index A
-            difficulty: "Medium",
-            rationale: "Choice A is correct. It's given that the company calculates its monthly profit by subtracting fixed costs from monthly sales revenue. It follows that 2.00x represents the monthly sales revenue. [cite: 58-61]"
+            correct: 0 // A [cite: 58-61]
         },
         {
             id: "7a5a74a6",
-            text: "\\(3(2x-6)-11=4(x-3)+6\\)<br><br>If \\(x\\) is the solution to the equation above, what is the value of \\(x-3\\)?",
+            text: "$3(2x-6)-11=4(x-3)+6$<br><br>If $x$ is the solution to the equation above, what is the value of $x-3$?",
             type: "mcq",
-            options: ["\\(\\frac{23}{2}\\)", "\\(\\frac{17}{2}\\)", "\\(\\frac{15}{2}\\)", "-\\( \frac{15}{2} \\)"],
-            correct: 1, // Index B
-            difficulty: "Medium",
-            rationale: "Choice B is correct. Rewriting \\(2x-6\\) as \\(2(x-3)\\) transforms the equation into \\(6(x-3)-11=4(x-3)+6\\). Subtracting \\(4(x-3)\\) and adding 11 yields \\(2(x-3)=17\\), so \\(x-3 = \\frac{17}{2}\\). [cite: 88-90]"
+            options: ["$\\frac{23}{2}$", "$\\frac{17}{2}$", "$\\frac{15}{2}$", "$-\\frac{15}{2}$"],
+            correct: 1 // B [cite: 86]
         },
         {
             id: "b7e6394d",
-            text: "Alan drives an average of 100 miles each week. His car can travel an average of 25 miles per gallon of gasoline. Alan would like to reduce his weekly expenditure on gasoline by $5.<br><br>Assuming gasoline costs $4 per gallon, which equation can Alan use to determine how many fewer average miles, \\(m\\), he should drive each week?",
+            text: "Alan drives an average of 100 miles each week. His car travels 25 miles per gallon. Alan wants to reduce his weekly expenditure on gasoline by $5. Gasoline costs $4 per gallon. Which equation determines how many fewer miles, $m$, he should drive?",
             type: "mcq",
-            options: [
-                "\\(\\frac{25}{4}m=95\\)",
-                "\\(\\frac{25}{4}m=5\\)",
-                "\\(\\frac{4}{25}m=95\\)",
-                "\\(\\frac{4}{25}m=5\\)"
-            ],
-            correct: 3, // Index D
-            difficulty: "Hard",
-            rationale: "Choice D is correct. Since gas is $4/gal and the car gets 25 mpg, the cost is \\(\\frac{4}{25}\\) dollars per mile. Multiplying this by \\(m\\) gives the total cost reduction Alan wants ($5). [cite: 126-133]"
+            options: ["$\\frac{25}{4}m=95$", "$\\frac{25}{4}m=5$", "$\\frac{4}{25}m=95$", "$\\frac{4}{25}m=5$"],
+            correct: 3 // D [cite: 124]
         },
         {
             id: "e6cb2402",
-            text: "\\(3(kx+13)=\\frac{48}{17}x+36\\)<br><br>In the given equation, \\(k\\) is a constant. The equation has no solution. What is the value of \\(k\\)?",
+            text: "$3(kx+13)=\\frac{48}{17}x+36$<br><br>In the given equation, $k$ is a constant. The equation has no solution. What is the value of $k$?",
             type: "grid",
-            correct: "16/17",
-            difficulty: "Hard",
-            rationale: "The correct answer is 16/17. A linear equation has no solution when the coefficients of \\(x\\) are equal but the constants are not. Dividing by 3 yields \\(kx+13 = \\frac{16}{17}x + 12\\). Thus, \\(k = \\frac{16}{17}\\). [cite: 158-160]"
+            correct: "16/17" // [cite: 155]
         }
     ];
 
     let currentIdx = 0;
     let userAnswers = new Array(questions.length).fill(null);
-    let eliminationMode = false;
-    let eliminatedChoices = Array.from({length: questions.length}, () => []);
+    let markedQuestions = new Array(questions.length).fill(false);
+    let eliminatorActive = false;
 
-    function initQuiz() {
+    function init() {
         renderQuestion();
+        renderGrid();
         startTimer(35 * 60);
     }
 
     function renderQuestion() {
         const q = questions[currentIdx];
-        document.getElementById('question-number').innerText = `Question ${currentIdx + 1} of ${questions.length}`;
-        document.getElementById('question-content').innerHTML = q.text;
+        document.getElementById('current-q-label').innerText = `Question ${currentIdx + 1} of ${questions.length}`;
+        document.getElementById('question-text').innerHTML = q.text;
         
-        const optionsArea = document.getElementById('options-area');
-        optionsArea.innerHTML = '';
+        // Ribbon state
+        const ribbon = document.querySelector('.mark-for-review');
+        markedQuestions[currentIdx] ? ribbon.classList.add('marked') : ribbon.classList.remove('marked');
+
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
 
         if (q.type === 'mcq') {
-            document.getElementById('elim-btn').classList.remove('hidden');
             q.options.forEach((opt, i) => {
                 const char = String.fromCharCode(65 + i);
                 const div = document.createElement('div');
-                div.className = `option ${userAnswers[currentIdx] === i ? 'selected' : ''} ${eliminatedChoices[currentIdx].includes(i) ? 'eliminated' : ''}`;
-                div.innerHTML = `<div class="letter-circle">${char}</div> <div>${opt}</div>`;
-                div.onclick = () => handleSelection(i);
-                optionsArea.appendChild(div);
+                div.className = `option-container ${userAnswers[currentIdx] === i ? 'selected' : ''}`;
+                div.innerHTML = `<div class="option-letter">${char}</div> <div>${opt}</div>`;
+                div.onclick = () => selectOption(i);
+                container.appendChild(div);
             });
         } else {
-            document.getElementById('elim-btn').classList.add('hidden');
-            const container = document.createElement('div');
-            container.className = 'grid-in-container';
-            container.innerHTML = `
-                <p>Enter your answer:</p>
-                <input type="text" id="grid-input" value="${userAnswers[currentIdx] || ''}" oninput="saveGridAnswer(this.value)">
-            `;
-            optionsArea.appendChild(container);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'grid-input';
+            input.placeholder = 'Enter value';
+            input.value = userAnswers[currentIdx] || '';
+            input.oninput = (e) => userAnswers[currentIdx] = e.target.value;
+            container.appendChild(input);
         }
 
-        // MathJax re-render
-        if (window.MathJax) {
-            MathJax.typesetPromise();
-        }
-
-        // Navigation button states
-        document.getElementById('back-btn').disabled = currentIdx === 0;
-        document.getElementById('next-btn').innerText = currentIdx === questions.length - 1 ? 'Finish' : 'Next';
+        if (window.MathJax) MathJax.typesetPromise();
     }
 
-    function handleSelection(idx) {
-        if (eliminationMode) {
-            if (eliminatedChoices[currentIdx].includes(idx)) {
-                eliminatedChoices[currentIdx] = eliminatedChoices[currentIdx].filter(i => i !== idx);
-            } else {
-                eliminatedChoices[currentIdx].push(idx);
-                if (userAnswers[currentIdx] === idx) userAnswers[currentIdx] = null;
-            }
+    function selectOption(idx) {
+        if (eliminatorActive) {
+            const options = document.querySelectorAll('.option-container');
+            options[idx].classList.toggle('eliminated');
         } else {
-            if (!eliminatedChoices[currentIdx].includes(idx)) {
-                userAnswers[currentIdx] = idx;
-            }
+            userAnswers[currentIdx] = idx;
+            renderQuestion();
         }
+    }
+
+    function toggleEliminator() {
+        eliminatorActive = !eliminatorActive;
+        document.getElementById('elim-tool').classList.toggle('active');
+    }
+
+    function toggleMark() {
+        markedQuestions[currentIdx] = !markedQuestions[currentIdx];
         renderQuestion();
-    }
-
-    function saveGridAnswer(val) {
-        userAnswers[currentIdx] = val;
-    }
-
-    function toggleEliminate() {
-        eliminationMode = !eliminationMode;
-        const btn = document.getElementById('elim-btn');
-        btn.style.backgroundColor = eliminationMode ? '#ffeb3b' : 'white';
-        btn.innerText = eliminationMode ? 'Exit Elimination' : 'Eliminate Choices';
     }
 
     function nextQuestion() {
@@ -369,60 +446,43 @@
             currentIdx++;
             renderQuestion();
         } else {
-            showResults();
+            alert("End of Module! Check your flomath.space for results.");
         }
     }
 
-    function prevQuestion() {
-        if (currentIdx > 0) {
-            currentIdx--;
-            renderQuestion();
-        }
+    function toggleReviewModal() {
+        const modal = document.getElementById('review-modal');
+        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        renderGrid();
     }
 
-    function showResults() {
-        document.getElementById('quiz-ui').classList.add('hidden');
-        document.querySelector('footer').classList.add('hidden');
-        document.querySelector('.sub-nav').classList.add('hidden');
-        document.getElementById('results').classList.remove('hidden');
-
-        const list = document.getElementById('results-list');
-        let score = 0;
-
-        questions.forEach((q, i) => {
-            const isCorrect = q.type === 'mcq' ? userAnswers[i] === q.correct : userAnswers[i] === q.correct;
-            if (isCorrect) score++;
-
-            const item = document.createElement('div');
-            item.className = 'result-item';
-            item.innerHTML = `
-                <p><strong>Question ${i + 1} (${q.difficulty} Difficulty)</strong></p>
-                <p>${q.text}</p>
-                <p>Your Answer: ${q.type === 'mcq' ? (userAnswers[i] !== null ? String.fromCharCode(65 + userAnswers[i]) : 'None') : (userAnswers[i] || 'None')}</p>
-                <p class="${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? '✓ Correct' : '✗ Incorrect (Correct: ' + (q.type === 'mcq' ? String.fromCharCode(65 + q.correct) : q.correct) + ')'}</p>
-                <div class="rationale"><strong>Rationale:</strong> ${q.rationale}</div>
-            `;
-            list.appendChild(item);
+    function renderGrid() {
+        const grid = document.getElementById('grid-container');
+        grid.innerHTML = '';
+        questions.forEach((_, i) => {
+            const box = document.createElement('div');
+            box.className = `grid-box ${userAnswers[i] !== null ? 'answered' : ''} ${currentIdx === i ? 'current' : ''}`;
+            box.innerText = i + 1;
+            box.onclick = () => {
+                currentIdx = i;
+                renderQuestion();
+                toggleReviewModal();
+            };
+            grid.appendChild(box);
         });
-
-        const header = document.querySelector('#results h2');
-        header.innerText = `You got ${score} out of ${questions.length} correct!`;
-        if (window.MathJax) MathJax.typesetPromise();
     }
 
-    function startTimer(duration) {
-        let timer = duration, minutes, seconds;
-        const display = document.getElementById('timer');
+    function startTimer(seconds) {
+        const timerDisplay = document.getElementById('timer');
         setInterval(() => {
-            minutes = parseInt(timer / 60, 10);
-            seconds = parseInt(timer % 60, 10);
-            display.textContent = (minutes < 10 ? "0" + minutes : minutes) + ":" + (seconds < 10 ? "0" + seconds : seconds);
-            if (--timer < 0) timer = 0;
+            let m = Math.floor(seconds / 60);
+            let s = seconds % 60;
+            timerDisplay.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            if (seconds > 0) seconds--;
         }, 1000);
     }
 
-    initQuiz();
+    window.onload = init;
 </script>
-
 </body>
 </html>
