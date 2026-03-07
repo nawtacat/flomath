@@ -13,7 +13,7 @@
     <style>
         @font-face {
             font-family: 'Minion Pro';
-            src: local('Minion Pro'), local('MinionPro-Regular');
+            src: local('Minion Pro'), local('MinionPro-Regular'), serif;
         }
 
         :root {
@@ -22,347 +22,297 @@
             --sat-border: #d1d1d1;
             --main-font: "Minion Pro", "Georgia", serif;
             --ui-font: "Segoe UI", Arial, sans-serif;
+            
+            /* RGBY Colors */
+            --sat-red: #e02128;
+            --sat-green: #4caf50;
+            --sat-yellow: #fcd116;
         }
 
         body {
             font-family: var(--ui-font);
             margin: 0; padding: 0;
             display: flex; flex-direction: column;
-            height: 100vh; overflow: hidden;
-            background: white;
+            height: 100vh; background: white;
+            color: #333;
+            user-select: none;
         }
 
         /* Top Header */
         header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 40px; border-bottom: 1px solid var(--sat-border);
-            height: 60px; position: relative;
+            height: 60px; flex-shrink: 0;
         }
-
-        .header-left { font-weight: bold; font-size: 1.1rem; }
-
-        .timer-container {
-            display: flex; flex-direction: column; align-items: center;
-        }
-
         .timer-bubble {
             border: 1px solid var(--sat-border); border-radius: 20px;
             padding: 2px 25px; font-weight: 700; font-size: 1.2rem;
+            background: white;
         }
 
-        .timer-hide {
-            font-size: 0.7rem; background: #eee; border-radius: 10px;
-            padding: 2px 10px; margin-top: 4px; cursor: pointer;
-        }
-
-        /* The Colorful Dotted Line */
+        /* RGBY Dotted Line */
         .dotted-line {
-            width: 100%; height: 3px;
-            background-image: linear-gradient(to right, #ccc 20%, #fcd116 20%, #fcd116 40%, #00aeef 40%, #00aeef 60%, #ccc 60%);
-            background-size: 60px 100%;
+            width: 100%; height: 4px;
+            background-image: linear-gradient(to right, 
+                var(--sat-red) 15%, 
+                var(--sat-green) 15%, var(--sat-green) 30%, 
+                var(--sat-blue) 30%, var(--sat-blue) 45%, 
+                var(--sat-yellow) 45%, var(--sat-yellow) 60%,
+                #ccc 60%);
+            background-size: 80px 100%;
             background-repeat: repeat-x;
-            margin-bottom: 10px;
         }
 
-        /* Main Content */
-        main {
-            display: flex; flex: 1; overflow: hidden;
-            padding: 20px 40px; gap: 40px;
-        }
+        /* Layout */
+        main { display: flex; flex: 1; overflow: hidden; padding: 20px 40px; gap: 40px; }
+        .question-column { flex: 1; overflow-y: auto; font-family: var(--main-font); font-size: 1.3rem; line-height: 1.6; }
+        .interaction-column { flex: 1; overflow-y: auto; border-left: 1px solid #f0f0f0; padding-left: 20px; }
 
-        .question-column {
-            flex: 1; overflow-y: auto; padding-right: 20px;
-            font-family: var(--main-font); font-size: 1.3rem; line-height: 1.6;
-        }
-
-        .interaction-column {
-            flex: 1; overflow-y: auto; position: relative;
-        }
-
-        /* SAT Tools */
-        .tool-strip {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 5px 10px; background: #f8f9fa; border-radius: 4px;
-            margin-bottom: 15px; border: 1px solid #eee;
-        }
-
+        /* Tools */
+        .tool-strip { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
         .mark-review { display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
         .mark-review span { font-size: 1.4rem; margin-right: 10px; color: #ddd; }
         .marked span { color: #d00; }
-
+        
         .eliminator-btn {
             border: 1px solid var(--sat-blue); color: var(--sat-blue);
-            background: white; border-radius: 4px; padding: 4px 10px;
+            background: white; border-radius: 4px; padding: 4px 12px;
             font-weight: bold; cursor: pointer; font-size: 0.8rem;
         }
-        .eliminator-btn.active { background: #fcd116; border-color: #fcd116; color: black; }
+        .eliminator-btn.active { background: var(--sat-yellow); color: black; border-color: var(--sat-yellow); }
 
-        /* Answer Options */
+        /* Options */
         .option {
             display: flex; align-items: center; border: 1px solid var(--sat-border);
-            border-radius: 12px; padding: 15px; margin-bottom: 12px;
-            cursor: pointer; transition: 0.2s; position: relative;
+            border-radius: 12px; padding: 15px; margin-bottom: 12px; cursor: pointer;
         }
-        .option:hover { background: #f9f9f9; }
         .option.selected { border: 2px solid var(--sat-blue); background: var(--sat-light-blue); }
-        .option.eliminated { opacity: 0.3; text-decoration: line-through; }
-
+        .option.eliminated { opacity: 0.2; text-decoration: line-through; pointer-events: none; }
+        
         .option-bubble {
             width: 32px; height: 32px; border: 1px solid #888; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            margin-right: 15px; font-weight: bold; font-family: var(--ui-font);
+            display: flex; justify-content: center; align-items: center; margin-right: 15px; font-weight: bold;
         }
         .selected .option-bubble { background: var(--sat-blue); color: white; border-color: var(--sat-blue); }
+        .ans-text { font-family: var(--main-font); font-size: 1.2rem; }
+
+        /* Results Page */
+        #results-view { display: none; flex: 1; overflow-y: auto; padding: 40px; flex-direction: column; align-items: center; }
+        .score-header { text-align: center; margin-bottom: 40px; width: 100%; max-width: 850px; }
+        .feedback-card { 
+            width: 100%; max-width: 850px; border-bottom: 1px solid #eee; 
+            padding: 30px 0; font-family: var(--main-font); 
+        }
+        .status { font-family: var(--ui-font); font-weight: bold; text-transform: uppercase; font-size: 0.8rem; margin-bottom: 8px; }
+        .correct-text { color: #1e8e3e; }
+        .incorrect-text { color: #d93025; }
+        .rationale { background: #fdfdfd; padding: 20px; border-left: 4px solid var(--sat-blue); margin-top: 15px; font-style: italic; }
+
+        /* Footer */
+        footer { height: 70px; border-top: 1px solid var(--sat-border); display: flex; justify-content: space-between; align-items: center; padding: 0 40px; }
+        .nav-center { background: #212121; color: white; padding: 8px 25px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .next-btn { background: var(--sat-blue); color: white; border: none; padding: 12px 35px; border-radius: 30px; font-weight: 700; cursor: pointer; }
         
-        /* KaTeX Answer Content */
-        .ans-text { font-family: 'Minion Pro', serif; font-size: 1.2rem; }
-
-        /* Grid-in Input */
-        .grid-input {
-            width: 250px; padding: 15px; font-size: 1.4rem;
-            border: 2px solid var(--sat-border); border-radius: 8px;
-            font-family: var(--main-font);
-        }
-
-        /* Footer Navigation */
-        footer {
-            height: 70px; border-top: 1px solid var(--sat-border);
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 40px; background: white;
-        }
-
-        .footer-left a { color: black; font-weight: 700; text-decoration: none; }
-
-        .nav-center {
-            background: #212121; color: white; padding: 8px 25px;
-            border-radius: 8px; font-weight: 700; cursor: pointer;
-        }
-
-        .next-btn {
-            background: var(--sat-blue); color: white; border: none;
-            padding: 12px 35px; border-radius: 30px; font-weight: 700;
-            cursor: pointer; font-size: 1rem;
-        }
-
-        /* Navigation Modal */
-        #nav-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); display: none;
-            justify-content: center; align-items: center; z-index: 100;
-        }
-        .modal-body {
-            background: white; padding: 40px; border-radius: 12px;
-            width: 500px; text-align: center;
-        }
-        .grid-layout { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 30px 0; }
-        .grid-cell {
-            border: 2px dashed #ccc; height: 50px; display: flex;
-            justify-content: center; align-items: center; cursor: pointer; font-weight: 700;
-        }
-        .grid-cell.filled { background: var(--sat-blue); color: white; border-style: solid; }
-        .grid-cell.current { border: 2px solid black; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-<header>
-    <div class="header-left">Math Section</div>
+<header id="quiz-header">
+    <div style="font-weight:bold;">Practice Module: Linear Equations</div>
     <div class="timer-container">
-        <div class="timer-bubble" id="timer">35:00</div>
-        <div class="timer-hide">Hide</div>
+        <div class="timer-bubble" id="timer">18:00</div>
     </div>
     <div style="width: 100px;"></div>
 </header>
 
 <div class="dotted-line"></div>
 
-<main>
+<main id="quiz-main">
     <div class="question-column">
-        <div class="mark-review" id="mark-box" onclick="toggleMark()">
+        <div class="mark-review" id="mark-btn" onclick="toggleMark()">
             <span id="mark-flag">⚑</span> Mark for Review
         </div>
-        <div id="q-text-area"></div>
+        <div id="q-content"></div>
     </div>
-
     <div class="interaction-column">
         <div class="tool-strip">
-            <span style="font-weight:bold; font-size: 0.8rem; color:#666;">ID: <span id="q-id">9b886541</span></span>
+            <span style="font-size: 0.8rem; color:#999;">Question ID: <span id="q-id-display"></span></span>
             <button class="eliminator-btn" id="elim-tool" onclick="toggleEliminator()">ABC</button>
         </div>
-        <div id="answers-area"></div>
+        <div id="ans-list"></div>
     </div>
 </main>
 
-<footer>
-    <div class="footer-left"><a href="https://flomath.space">flomath.space</a></div>
-    <div class="nav-center" onclick="toggleModal()">
-        Question <span id="q-progress">1</span> of 6 ▾
+<div id="results-view">
+    <div class="score-header">
+        <h1 style="font-size: 2.8rem; margin: 0;">Practice Complete</h1>
+        <h2 style="color: var(--sat-blue);">Score: <span id="score-val">0</span> / 6</h2>
+        <button onclick="location.reload()" style="margin-top:20px; padding: 10px 30px; border: 1px solid var(--sat-blue); background: none; color: var(--sat-blue); border-radius: 20px; font-weight: bold; cursor: pointer;">Try Again</button>
     </div>
-    <div class="footer-right">
-        <button class="next-btn" onclick="handleNext()">Next</button>
-    </div>
-</footer>
-
-<div id="nav-modal" onclick="toggleModal()">
-    <div class="modal-body" onclick="event.stopPropagation()">
-        <h2 style="margin-top:0;">Review Questions</h2>
-        <div class="grid-layout" id="nav-grid"></div>
-        <button onclick="toggleModal()" style="padding:10px 30px; border-radius: 20px; border:1px solid #ccc; background: white; cursor:pointer;">Close</button>
-    </div>
+    <div id="feedback-container"></div>
 </div>
 
+<footer id="quiz-footer">
+    <div class="footer-left"><a href="https://flomath.space" style="color: black; font-weight: 700; text-decoration: none;">flomath.space</a></div>
+    <div class="nav-center" id="progress-label" onclick="alert('Review mode enabled at end of test.')">Question 1 of 6 ▾</div>
+    <button class="next-btn" onclick="nextQ()">Next</button>
+</footer>
+
 <script>
-    const questions = [
+    const quizData = [
         {
             id: "9b886541",
-            text: "If $3x-8=7$, what is the value of $3x+8$?",
-            type: "mcq",
-            options: ["-1", "5", "13", "23"],
-            correct: 3
+            q: "If $3x-8=7$, what is the value of $3x+8$?",
+            options: ["$-1$", "$5$", "$13$", "$23$"],
+            correct: 3,
+            rationale: "Choice D is correct. Adding 8 to both sides of $3x-8=7$ yields $3x=15$. Adding 8 again yields $3x+8=23$."
         },
         {
             id: "6ac23de7",
-            text: "$\\frac{4x}{5}=20$<br><br>In the equation above, what is the value of $x$?",
-            type: "mcq",
-            options: ["25", "24", "16", "15"],
-            correct: 0
+            q: "$\\frac{4x}{5}=20$<br><br>In the equation above, what is the value of $x$?",
+            options: ["$25$", "$24$", "$16$", "$15$"],
+            correct: 0,
+            rationale: "Choice A is correct. Multiply both sides by 5 to get $4x=100$. Divide by 4 to find $x=25$."
         },
         {
             id: "9d4270fe",
-            text: "A company that creates and sells tape dispensers calculates its monthly profit, in dollars, by subtracting its fixed monthly costs from its monthly sales revenue. The equation $15,000=2.00x-4,500$ represents this situation.<br><br>Which statement is the best interpretation of $2.00$ in this context?",
-            type: "mcq",
+            q: "The equation $15,000=2.00x-4,500$ represents a company's profit. Which statement is the best interpretation of $2.00$ in this context?",
             options: [
-                "The monthly sales revenue from selling tape dispensers",
                 "The monthly sales revenue from each tape dispenser sold",
+                "The monthly sales revenue from selling tape dispensers",
                 "The monthly cost of creating each tape dispenser",
                 "The monthly cost of creating tape dispensers"
             ],
-            correct: 0
+            correct: 0,
+            rationale: "Choice A is correct. $2.00x$ represents total revenue, meaning $2.00$ is the revenue per unit ($x$)."
         },
         {
             id: "7a5a74a6",
-            text: "$3(2x-6)-11=4(x-3)+6$<br><br>If $x$ is the solution to the equation above, what is the value of $x-3$?",
-            type: "mcq",
+            q: "$3(2x-6)-11=4(x-3)+6$<br><br>If $x$ is the solution, what is the value of $x-3$?",
             options: ["$\\frac{23}{2}$", "$\\frac{17}{2}$", "$\\frac{15}{2}$", "$-\\frac{15}{2}$"],
-            correct: 1
+            correct: 1,
+            rationale: "Choice B is correct. Grouping as $6(x-3)-11=4(x-3)+6$ leads to $2(x-3)=17$, so $x-3=\\frac{17}{2}$."
         },
         {
             id: "b7e6394d",
-            text: "Alan drives an average of 100 miles each week. His car can travel an average of 25 miles per gallon of gasoline. Alan wants to reduce his weekly expenditure on gasoline by $5. Assuming gasoline costs $4 per gallon, which equation determines how many fewer average miles, $m$, he should drive?",
-            type: "mcq",
+            q: "Alan drives 100 miles/week at 25 mpg. He wants to save $5 on gas (costing $4/gal). Which equation finds the reduction in miles $m$?",
             options: ["$\\frac{25}{4}m=95$", "$\\frac{25}{4}m=5$", "$\\frac{4}{25}m=95$", "$\\frac{4}{25}m=5$"],
-            correct: 3
+            correct: 3,
+            rationale: "Choice D is correct. Cost per mile is $\\frac{4}{25}$. Multiplied by miles $m$, this must equal the $5 savings."
         },
         {
             id: "e6cb2402",
-            text: "$3(kx+13)=\\frac{48}{17}x+36$<br><br>In the given equation, $k$ is a constant. The equation has no solution. What is the value of $k$?",
+            q: "$3(kx+13)=\\frac{48}{17}x+36$<br><br>The equation has no solution. What is the value of $k$?",
             type: "grid",
-            correct: "16/17"
+            correct: "16/17",
+            rationale: "The correct answer is $16/17$. Distributing or dividing by 3 shows the $x$-coefficients must be equal ($k = \\frac{16}{51} \\times 3 = \\frac{16}{17}$) for no solution."
         }
     ];
 
-    let currentIdx = 0;
-    let userAns = new Array(6).fill(null);
-    let markedArr = new Array(6).fill(false);
-    let eliminationActive = false;
+    let current = 0;
+    let userAnswers = new Array(6).fill(null);
+    let marked = new Array(6).fill(false);
+    let elimMode = false;
 
-    function renderMath(element) {
+    function renderMath(el) {
         if (window.renderMathInElement) {
-            renderMathInElement(element, {
-                delimiters: [
-                    {left: "$$", right: "$$", display: true},
-                    {left: "$", right: "$", display: false}
-                ],
-                throwOnError : false
+            renderMathInElement(el, {
+                delimiters: [{left: "$", right: "$", display: false}, {left: "$$", right: "$$", display: true}],
+                throwOnError: false
             });
         }
     }
 
-    function loadQuestion() {
-        const q = questions[currentIdx];
-        document.getElementById('q-progress').innerText = currentIdx + 1;
-        document.getElementById('q-id').innerText = q.id;
-        document.getElementById('q-text-area').innerHTML = q.text;
+    function loadQ() {
+        const data = quizData[current];
+        document.getElementById('q-id-display').innerText = data.id;
+        document.getElementById('progress-label').innerText = `Question ${current + 1} of 6 ▾`;
+        document.getElementById('q-content').innerHTML = data.q;
         
-        const markBox = document.getElementById('mark-box');
-        markedArr[currentIdx] ? markBox.classList.add('marked') : markBox.classList.remove('marked');
+        const markBtn = document.getElementById('mark-btn');
+        marked[current] ? markBtn.classList.add('marked') : markBtn.classList.remove('marked');
 
-        const container = document.getElementById('answers-area');
-        container.innerHTML = '';
+        const list = document.getElementById('ans-list');
+        list.innerHTML = '';
 
-        if (q.type === 'mcq') {
-            document.getElementById('elim-tool').style.display = 'block';
-            q.options.forEach((opt, i) => {
+        if (data.options) {
+            document.getElementById('elim-tool').style.visibility = 'visible';
+            data.options.forEach((txt, i) => {
                 const div = document.createElement('div');
-                div.className = `option ${userAns[currentIdx] === i ? 'selected' : ''}`;
-                div.innerHTML = `<div class="option-bubble">${String.fromCharCode(65+i)}</div><div class="ans-text">${opt}</div>`;
-                div.onclick = () => selectAns(i);
-                container.appendChild(div);
+                div.className = `option ${userAnswers[current] === i ? 'selected' : ''}`;
+                div.innerHTML = `<div class="option-bubble">${String.fromCharCode(65+i)}</div><div class="ans-text">${txt}</div>`;
+                div.onclick = () => {
+                    if(elimMode) div.classList.toggle('eliminated');
+                    else { userAnswers[current] = i; loadQ(); }
+                };
+                list.appendChild(div);
             });
         } else {
-            document.getElementById('elim-tool').style.display = 'none';
+            document.getElementById('elim-tool').style.visibility = 'hidden';
             const input = document.createElement('input');
-            input.className = 'grid-input';
-            input.placeholder = 'Type answer here';
-            input.value = userAns[currentIdx] || '';
-            input.oninput = (e) => userAns[currentIdx] = e.target.value;
-            container.appendChild(input);
+            input.style = "width: 100%; padding: 15px; font-size: 1.5rem; border: 2px solid #ccc; border-radius: 8px; font-family: 'Minion Pro';";
+            input.value = userAnswers[current] || '';
+            input.oninput = (e) => userAnswers[current] = e.target.value;
+            list.appendChild(input);
         }
         renderMath(document.body);
     }
 
-    function selectAns(i) {
-        if (eliminationActive) {
-            const opts = document.querySelectorAll('.option');
-            opts[i].classList.toggle('eliminated');
-        } else {
-            userAns[currentIdx] = i;
-            loadQuestion();
-        }
-    }
-
     function toggleEliminator() {
-        eliminationActive = !eliminationActive;
+        elimMode = !elimMode;
         document.getElementById('elim-tool').classList.toggle('active');
     }
 
     function toggleMark() {
-        markedArr[currentIdx] = !markedArr[currentIdx];
-        loadQuestion();
+        marked[current] = !marked[current];
+        loadQ();
     }
 
-    function handleNext() {
-        if (currentIdx < questions.length - 1) {
-            currentIdx++;
-            loadQuestion();
-        } else {
-            alert("Test submitted. Visit flomath.space for your detailed scorecard!");
-        }
+    function nextQ() {
+        if (current < 5) { current++; loadQ(); }
+        else { showFinal(); }
     }
 
-    function toggleModal() {
-        const m = document.getElementById('nav-modal');
-        m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
-        const grid = document.getElementById('nav-grid');
-        grid.innerHTML = '';
-        questions.forEach((_, i) => {
-            const cell = document.createElement('div');
-            cell.className = `grid-cell ${userAns[i] !== null ? 'filled' : ''} ${currentIdx === i ? 'current' : ''}`;
-            cell.innerText = i + 1;
-            cell.onclick = () => { currentIdx = i; loadQuestion(); toggleModal(); };
-            grid.appendChild(cell);
+    function showFinal() {
+        document.getElementById('quiz-header').classList.add('hidden');
+        document.getElementById('quiz-main').classList.add('hidden');
+        document.getElementById('quiz-footer').classList.add('hidden');
+        const view = document.getElementById('results-view');
+        view.style.display = 'flex';
+
+        let score = 0;
+        const container = document.getElementById('feedback-container');
+        container.innerHTML = '';
+
+        quizData.forEach((item, i) => {
+            const correct = (item.options) ? userAnswers[i] === item.correct : userAnswers[i] === item.correct;
+            if (correct) score++;
+
+            const card = document.createElement('div');
+            card.className = 'feedback-card';
+            card.innerHTML = `
+                <div class="status ${correct ? 'correct-text' : 'incorrect-text'}">${correct ? '✓ Correct' : '✗ Incorrect'}</div>
+                <div style="font-size: 1.25rem;">${item.q}</div>
+                <div style="margin: 10px 0;"><strong>Your Answer:</strong> ${item.options ? (userAnswers[i] !== null ? String.fromCharCode(65+userAnswers[i]) : 'None') : (userAnswers[i] || 'None')}</div>
+                <div class="rationale"><strong>Explanation:</strong> ${item.rationale}</div>
+            `;
+            container.appendChild(card);
         });
+        document.getElementById('score-val').innerText = score;
+        renderMath(container);
     }
 
-    function startClock(sec) {
+    function startTimer(duration) {
+        let t = duration;
         setInterval(() => {
-            let m = Math.floor(sec / 60), s = sec % 60;
+            let m = Math.floor(t / 60), s = t % 60;
             document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            if (--sec < 0) sec = 0;
+            if (--t < 0) t = 0;
         }, 1000);
     }
 
-    window.onload = () => { loadQuestion(); startClock(35*60); };
+    window.onload = () => { loadQ(); startTimer(18 * 60); };
 </script>
 
 </body>
