@@ -11,12 +11,16 @@
             onload="renderMath(document.body);"></script>
 
     <style>
-        /* Minion Pro fallback to Georgia/Times for serif mathematical look */
+        @font-face {
+            font-family: 'Minion Pro';
+            src: local('Minion Pro'), local('MinionPro-Regular'), serif;
+        }
+
         :root {
             --sat-blue: #0071bc;
             --sat-light-blue: #e8f3fb;
             --sat-border: #d1d1d1;
-            --main-font: "Minion Pro", "Minion", "Georgia", serif;
+            --main-font: "Minion Pro", "Georgia", serif;
             --ui-font: "Segoe UI", Roboto, Arial, sans-serif;
             --sat-red: #e02128;
             --sat-green: #4caf50;
@@ -32,19 +36,19 @@
             user-select: none;
         }
 
-        /* Header */
         header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 40px; border-bottom: 1px solid var(--sat-border);
             height: 60px; flex-shrink: 0;
         }
+
         .timer-bubble {
             border: 1px solid var(--sat-border); border-radius: 20px;
             padding: 4px 28px; font-weight: 700; font-size: 1.2rem;
             background: white;
         }
 
-        /* RGBY Dotted Separator */
+        /* The Multicolor RGBY Dotted Separator */
         .dotted-line {
             width: 100%; height: 5px;
             background-image: linear-gradient(to right, 
@@ -57,13 +61,11 @@
             background-repeat: repeat-x;
         }
 
-        /* Layout */
         main { display: flex; flex: 1; overflow: hidden; padding: 20px 40px; gap: 40px; }
         .content-area { flex: 1; overflow-y: auto; font-family: var(--main-font); font-size: 1.3rem; line-height: 1.6; }
         .interaction-area { flex: 1; overflow-y: auto; border-left: 1px solid #f0f0f0; padding-left: 20px; }
 
-        /* SAT Elements */
-        .mark-review { display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: 0.9rem; margin-bottom: 20px; }
+        .mark-review { display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: 0.9rem; margin-bottom: 20px; font-family: var(--ui-font); }
         .mark-review span { font-size: 1.4rem; margin-right: 10px; color: #ddd; }
         .marked span { color: #d00; }
         
@@ -73,7 +75,6 @@
             font-family: var(--main-font);
         }
         .option.selected { border: 2px solid var(--sat-blue); background: var(--sat-light-blue); }
-        .option.eliminated { opacity: 0.25; text-decoration: line-through; pointer-events: none; }
         
         .option-bubble {
             width: 34px; height: 34px; border: 1px solid #888; border-radius: 50%;
@@ -82,7 +83,7 @@
         }
         .selected .option-bubble { background: var(--sat-blue); color: white; border-color: var(--sat-blue); }
 
-        /* Review Page Styling */
+        /* Review Page on the same page */
         #results-container { display: none; padding: 40px; overflow-y: auto; height: 100%; flex-direction: column; align-items: center; }
         .feedback-item { 
             width: 100%; max-width: 900px; border-bottom: 1px solid #ddd; padding: 35px 0; 
@@ -93,7 +94,6 @@
         .is-incorrect { color: #d93025; }
         .rationale { background: #f9f9f9; padding: 20px; border-left: 5px solid var(--sat-blue); margin-top: 20px; font-style: italic; }
 
-        /* Footer */
         footer { height: 75px; border-top: 1px solid var(--sat-border); display: flex; justify-content: space-between; align-items: center; padding: 0 40px; background: white; }
         .nav-btn { background: var(--sat-blue); color: white; border: none; padding: 12px 35px; border-radius: 30px; font-weight: 700; cursor: pointer; font-size: 1rem; }
         .progress-indicator { background: #212121; color: white; padding: 8px 25px; border-radius: 8px; font-weight: 700; cursor: pointer; }
@@ -121,7 +121,7 @@
         <div id="question-text"></div>
     </div>
     <div class="interaction-area">
-        <div style="margin-bottom: 20px; color: #777; font-size: 0.8rem; font-weight: bold;">
+        <div style="margin-bottom: 20px; color: #777; font-size: 0.8rem; font-weight: bold; font-family: var(--ui-font);">
             ID: <span id="q-id-code"></span>
         </div>
         <div id="options-list"></div>
@@ -132,7 +132,7 @@
     <div style="text-align: center; margin-bottom: 50px;">
         <h1 style="font-size: 3rem; margin: 0;">Practice Summary</h1>
         <h2 style="color: var(--sat-blue); font-size: 2rem;">Score: <span id="final-score">0</span> / 6</h2>
-        <button onclick="location.reload()" style="margin-top: 20px; padding: 12px 40px; border: 2px solid var(--sat-blue); background: none; color: var(--sat-blue); border-radius: 25px; font-weight: 800; cursor: pointer;">Reset Module</button>
+        <button onclick="location.reload()" style="margin-top: 20px; padding: 12px 40px; border: 2px solid var(--sat-blue); background: none; color: var(--sat-blue); border-radius: 25px; font-weight: 800; cursor: pointer; font-family: var(--ui-font);">Reset Module</button>
     </div>
     <div id="feedback-feed" style="width: 100%;"></div>
     <div style="margin: 60px 0;">
@@ -151,54 +151,53 @@
 </footer>
 
 <script>
-    // Data extracted directly from the uploaded SAT Question Bank PDF
     const questionBank = [
         {
             id: "9b886541",
-            q: "If $3x-8=7$, what is the value of $3x+8$?",
+            q: "If $3x - 8 = 7$, what is the value of $3x + 8$?",
             choices: ["$-1$", "$5$", "$13$", "$23$"],
-            answerIdx: 3, // D
-            explanation: "Choice D is correct. It's given that $3x-8=7$. Adding 8 to both sides of this equation yields $3x=15$. Adding 8 to both sides of this equation yields $3x+8=23$."
+            answerIdx: 3,
+            explanation: "Choice D is correct. It's given that $3x - 8 = 7$. Adding 8 to both sides yields $3x = 15$. Adding 8 to both sides again yields $3x + 8 = 23$."
         },
         {
             id: "6ac23de7",
-            q: "$\\frac{4x}{5}=20$<br><br>In the equation above, what is the value of $x$?",
+            q: "$\\frac{4x}{5} = 20$<br><br>In the equation above, what is the value of $x$?",
             choices: ["$25$", "$24$", "$16$", "$15$"],
-            answerIdx: 0, // A
-            explanation: "Choice A is correct. Multiplying both sides of the equation by 5 results in $4x=100$. Dividing both sides of the resulting equation by 4 results in $x=25$."
+            answerIdx: 0,
+            explanation: "Choice A is correct. Multiplying both sides by 5 results in $4x = 100$. Dividing by 4 results in $x = 25$."
         },
         {
             id: "9d4270fe",
-            q: "The equation $15,000=2.00x-4,500$ represents the monthly profit of a company for $x$ tape dispensers sold. Which statement is the best interpretation of $2.00$ in this context?",
+            q: "A company calculating profit by subtracting fixed costs from revenue uses the equation $15,000 = 2.00x - 4,500$. Which statement is the best interpretation of 2.00 in this context?",
             choices: [
-                "The monthly sales revenue, in dollars, from each tape dispenser sold",
                 "The monthly sales revenue, in dollars, from selling tape dispensers",
+                "The monthly sales revenue, in dollars, from each tape dispenser sold",
                 "The monthly cost, in dollars, of creating each tape dispenser",
                 "The monthly cost, in dollars, of creating tape dispensers"
             ],
-            answerIdx: 0, // A
-            explanation: "Choice A is correct. Profit is calculated by subtracting fixed costs from monthly sales revenue. Thus, $2.00x$ represents the monthly sales revenue, making $2.00$ the revenue from each dispenser sold."
+            answerIdx: 0,
+            explanation: "Choice A is correct. 2.00x represents total monthly sales revenue; thus 2.00 is the interpretation of that revenue component."
         },
         {
             id: "7a5a74a6",
-            q: "$3(2x-6)-11=4(x-3)+6$<br><br>If $x$ is the solution to the equation above, what is the value of $x-3$?",
+            q: "$3(2x - 6) - 11 = 4(x - 3) + 6$<br><br>If $x$ is the solution to the equation above, what is the value of $x - 3$?",
             choices: ["$\\frac{23}{2}$", "$\\frac{17}{2}$", "$\\frac{15}{2}$", "$-\\frac{15}{2}$"],
-            answerIdx: 1, // B
-            explanation: "Choice B is correct. Rewriting $2x-6$ as $2(x-3)$ transforms the equation into $6(x-3)-11=4(x-3)+6$. Subtracting $4(x-3)$ and adding 11 yields $2(x-3)=17$, so $x-3 = \\frac{17}{2}$."
+            answerIdx: 1,
+            explanation: "Choice B is correct. Factoring as $6(x - 3) - 11 = 4(x - 3) + 6$ leads to $2(x - 3) = 17$, so $x - 3 = \\frac{17}{2}$."
         },
         {
             id: "b7e6394d",
-            q: "Alan drives 100 miles each week. His car travels 25 mpg. Alan would like to reduce his weekly gasoline expenditure by $5. Gasoline costs $4 per gallon. Which equation determines how many fewer average miles, $m$, he should drive?",
-            choices: ["$\\frac{25}{4}m=95$", "$\\frac{25}{4}m=5$", "$\\frac{4}{25}m=95$", "$\\frac{4}{25}m=5$"],
-            answerIdx: 3, // D
-            explanation: "Choice D is correct. Since gas is $4/gal and the car gets 25 mpg, the cost is $\\frac{4}{25}$ dollars per mile. Alan wants a reduction of $5, so the miles saved $m$ must satisfy $\\frac{4}{25}m = 5$."
+            q: "Alan drives 100 miles weekly at 25 mpg and gas costs $4/gal. Which equation finds the fewer average miles, $m$, he should drive to save $5?",
+            choices: ["$\\frac{25}{4}m = 95$", "$\\frac{25}{4}m = 5$", "$\\frac{4}{25}m = 95$", "$\\frac{4}{25}m = 5$"],
+            answerIdx: 3,
+            explanation: "Choice D is correct. Cost per mile is $\\frac{4}{25}$. Multiplying by miles $m$ gives the expenditure reduction: $\\frac{4}{25}m = 5$."
         },
         {
             id: "e6cb2402",
-            q: "$3(kx+13)=\\frac{48}{17}x+36$<br><br>In the given equation, $k$ is a constant. The equation has no solution. What is the value of $k$?",
+            q: "$3(kx + 13) = \\frac{48}{17}x + 36$<br><br>If the equation has no solution, what is the value of $k$?",
             isGridIn: true,
             answerIdx: "16/17",
-            explanation: "The correct answer is $16/17$. Dividing both sides of the given equation by 3 yields $kx+13=\\frac{48}{51}x+12$. A linear equation has no solution when the coefficients of $x$ are equal but the constant terms aren't. Thus $k = \\frac{48}{51} = \\frac{16}{17}$."
+            explanation: "The correct answer is $16/17$. Dividing by 3 yields $kx + 13 = \\frac{16}{17}x + 12$. For no solution, $x$-coefficients must be equal: $k = \\frac{16}{17}$."
         }
     ];
 
@@ -238,7 +237,7 @@
         } else {
             const input = document.createElement('input');
             input.style = "width: 100%; padding: 18px; font-size: 1.6rem; border: 2px solid #ccc; border-radius: 8px; font-family: var(--main-font);";
-            input.placeholder = "Enter your answer";
+            input.placeholder = "Enter answer";
             input.value = userSelections[currentQ] || '';
             input.oninput = (e) => userSelections[currentQ] = e.target.value;
             list.appendChild(input);
@@ -273,9 +272,9 @@
             div.innerHTML = `
                 <div class="status-header ${isCorrect ? 'is-correct' : 'is-incorrect'}">${isCorrect ? '✓ Correct' : '✗ Incorrect'}</div>
                 <div style="font-size: 1.4rem; margin-bottom: 15px;">${item.q}</div>
-                <p><strong>Your Response:</strong> ${item.isGridIn ? (userSelections[i] || 'Blank') : (userSelections[i] !== null ? String.fromCharCode(65+userSelections[i]) : 'None')}</p>
+                <p><strong>Your Response:</strong> ${item.isGridIn ? (userSelections[i] || 'None') : (userSelections[i] !== null ? String.fromCharCode(65+userSelections[i]) : 'None')}</p>
                 <p><strong>Correct Answer:</strong> ${item.isGridIn ? item.answerIdx : String.fromCharCode(65+item.answerIdx)}</p>
-                <div class="rationale"><strong>Rationale:</strong> ${item.explanation}</div>
+                <div class="rationale"><strong>Explanation:</strong> ${item.explanation}</div>
             `;
             feed.appendChild(div);
         });
