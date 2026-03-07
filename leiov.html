@@ -5,259 +5,231 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Florian Math - Digital SAT Practice</title>
     
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" 
             onload="renderMath(document.body);"></script>
 
     <style>
+        @font-face {
+            font-family: 'Minion Pro';
+            src: local('Minion Pro'), local('MinionPro-Regular');
+        }
+
         :root {
             --sat-blue: #0071bc;
             --sat-light-blue: #e8f3fb;
-            --sat-dark: #1e1e1e;
             --sat-border: #d1d1d1;
-            /* Minion Pro requested for font */
-            --main-font: "Minion Pro", "Minion", "Georgia", "Times New Roman", serif;
-            --ui-font: "Segoe UI", Roboto, Arial, sans-serif;
+            --main-font: "Minion Pro", "Georgia", serif;
+            --ui-font: "Segoe UI", Arial, sans-serif;
         }
 
         body {
-            font-family: var(--main-font);
-            margin: 0;
-            padding: 0;
-            background-color: #fff;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            font-family: var(--ui-font);
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+            background: white;
         }
 
         /* Top Header */
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            border-bottom: 1px solid var(--sat-border);
-            height: 60px;
-            font-family: var(--ui-font);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 40px; border-bottom: 1px solid var(--sat-border);
+            height: 60px; position: relative;
+        }
+
+        .header-left { font-weight: bold; font-size: 1.1rem; }
+
+        .timer-container {
+            display: flex; flex-direction: column; align-items: center;
         }
 
         .timer-bubble {
-            border: 1px solid var(--sat-border);
-            border-radius: 20px;
-            padding: 2px 25px;
-            font-weight: 700;
-            font-size: 1.2rem;
-            background: white;
+            border: 1px solid var(--sat-border); border-radius: 20px;
+            padding: 2px 25px; font-weight: 700; font-size: 1.2rem;
         }
 
-        /* Main Split Layout */
+        .timer-hide {
+            font-size: 0.7rem; background: #eee; border-radius: 10px;
+            padding: 2px 10px; margin-top: 4px; cursor: pointer;
+        }
+
+        /* The Colorful Dotted Line */
+        .dotted-line {
+            width: 100%; height: 3px;
+            background-image: linear-gradient(to right, #ccc 20%, #fcd116 20%, #fcd116 40%, #00aeef 40%, #00aeef 60%, #ccc 60%);
+            background-size: 60px 100%;
+            background-repeat: repeat-x;
+            margin-bottom: 10px;
+        }
+
+        /* Main Content */
         main {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-            padding: 0 40px;
-            gap: 40px;
+            display: flex; flex: 1; overflow: hidden;
+            padding: 20px 40px; gap: 40px;
         }
 
-        .question-side {
-            flex: 1;
-            padding: 40px 0;
-            overflow-y: auto;
-            font-size: 1.25rem; /* Larger for Minion Pro readability */
-            line-height: 1.6;
+        .question-column {
+            flex: 1; overflow-y: auto; padding-right: 20px;
+            font-family: var(--main-font); font-size: 1.3rem; line-height: 1.6;
         }
 
-        .options-side {
-            flex: 1;
-            padding: 40px 0;
-            overflow-y: auto;
-            font-family: var(--ui-font);
+        .interaction-column {
+            flex: 1; overflow-y: auto; position: relative;
         }
 
-        /* SAT Option Styling */
-        .option-container {
-            display: flex;
-            align-items: center;
-            border: 1px solid var(--sat-border);
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: background 0.2s;
+        /* SAT Tools */
+        .tool-strip {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 5px 10px; background: #f8f9fa; border-radius: 4px;
+            margin-bottom: 15px; border: 1px solid #eee;
         }
 
-        .option-container:hover { background-color: #f8f8f8; }
-        .option-container.selected {
-            border: 2px solid var(--sat-blue);
-            background-color: var(--sat-light-blue);
+        .mark-review { display: flex; align-items: center; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+        .mark-review span { font-size: 1.4rem; margin-right: 10px; color: #ddd; }
+        .marked span { color: #d00; }
+
+        .eliminator-btn {
+            border: 1px solid var(--sat-blue); color: var(--sat-blue);
+            background: white; border-radius: 4px; padding: 4px 10px;
+            font-weight: bold; cursor: pointer; font-size: 0.8rem;
         }
+        .eliminator-btn.active { background: #fcd116; border-color: #fcd116; color: black; }
+
+        /* Answer Options */
+        .option {
+            display: flex; align-items: center; border: 1px solid var(--sat-border);
+            border-radius: 12px; padding: 15px; margin-bottom: 12px;
+            cursor: pointer; transition: 0.2s; position: relative;
+        }
+        .option:hover { background: #f9f9f9; }
+        .option.selected { border: 2px solid var(--sat-blue); background: var(--sat-light-blue); }
+        .option.eliminated { opacity: 0.3; text-decoration: line-through; }
+
+        .option-bubble {
+            width: 32px; height: 32px; border: 1px solid #888; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            margin-right: 15px; font-weight: bold; font-family: var(--ui-font);
+        }
+        .selected .option-bubble { background: var(--sat-blue); color: white; border-color: var(--sat-blue); }
         
-        .option-container.eliminated {
-            opacity: 0.3;
-            text-decoration: line-through;
-        }
+        /* KaTeX Answer Content */
+        .ans-text { font-family: 'Minion Pro', serif; font-size: 1.2rem; }
 
-        .option-letter {
-            width: 32px; height: 32px;
-            border: 1px solid #777;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center; align-items: center;
-            margin-right: 15px;
-            font-weight: bold;
-            flex-shrink: 0;
+        /* Grid-in Input */
+        .grid-input {
+            width: 250px; padding: 15px; font-size: 1.4rem;
+            border: 2px solid var(--sat-border); border-radius: 8px;
+            font-family: var(--main-font);
         }
-
-        .selected .option-letter {
-            background-color: var(--sat-blue);
-            color: white;
-            border-color: var(--sat-blue);
-        }
-
-        /* Mark for Review Ribbon */
-        .mark-review-btn {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            margin-bottom: 15px;
-            font-family: var(--ui-font);
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        .mark-icon { font-size: 1.4rem; margin-right: 8px; color: #ccc; }
-        .marked .mark-icon { color: #cc0000; }
-
-        /* Tools */
-        .tools { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-        .tool-btn {
-            border: 1px solid var(--sat-border);
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-family: var(--ui-font);
-        }
-        .tool-btn.active { background: #ffeb3b; }
 
         /* Footer Navigation */
         footer {
-            height: 70px;
-            border-top: 1px solid var(--sat-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            font-family: var(--ui-font);
+            height: 70px; border-top: 1px solid var(--sat-border);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 40px; background: white;
         }
 
-        .nav-dropdown {
-            background: #222;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
+        .footer-left a { color: black; font-weight: 700; text-decoration: none; }
+
+        .nav-center {
+            background: #212121; color: white; padding: 8px 25px;
+            border-radius: 8px; font-weight: 700; cursor: pointer;
         }
 
         .next-btn {
-            background: var(--sat-blue);
-            color: white;
-            border: none;
-            padding: 10px 35px;
-            border-radius: 25px;
-            font-weight: bold;
-            cursor: pointer;
+            background: var(--sat-blue); color: white; border: none;
+            padding: 12px 35px; border-radius: 30px; font-weight: 700;
+            cursor: pointer; font-size: 1rem;
         }
 
-        /* Review Grid Modal */
-        #modal {
+        /* Navigation Modal */
+        #nav-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6);
-            display: none; justify-content: center; align-items: center;
-            z-index: 1000;
+            background: rgba(0,0,0,0.5); display: none;
+            justify-content: center; align-items: center; z-index: 100;
         }
-
-        .modal-content {
-            background: white; padding: 30px; border-radius: 10px;
-            width: 400px; text-align: center;
+        .modal-body {
+            background: white; padding: 40px; border-radius: 12px;
+            width: 500px; text-align: center;
         }
-
-        .grid {
-            display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
-            margin: 20px 0;
+        .grid-layout { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 30px 0; }
+        .grid-cell {
+            border: 2px dashed #ccc; height: 50px; display: flex;
+            justify-content: center; align-items: center; cursor: pointer; font-weight: 700;
         }
-
-        .grid-item {
-            border: 1px dashed #aaa; height: 40px; display: flex;
-            justify-content: center; align-items: center; cursor: pointer;
-        }
-
-        .grid-item.answered { background: var(--sat-blue); color: white; border: none; }
-        .grid-item.current { border: 2px solid black; }
-        
-        .grid-in {
-            width: 100%; padding: 15px; font-size: 1.2rem;
-            border: 2px solid var(--sat-border); border-radius: 5px;
-        }
+        .grid-cell.filled { background: var(--sat-blue); color: white; border-style: solid; }
+        .grid-cell.current { border: 2px solid black; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: bold;">Math Practice</div>
-    <div class="timer-bubble" id="timer">35:00</div>
+    <div class="header-left">Math Section</div>
+    <div class="timer-container">
+        <div class="timer-bubble" id="timer">35:00</div>
+        <div class="timer-hide">Hide</div>
+    </div>
     <div style="width: 100px;"></div>
 </header>
 
+<div class="dotted-line"></div>
+
 <main>
-    <div class="question-side">
-        <div class="mark-review-btn" id="mark-btn" onclick="toggleMark()">
-            <span class="mark-icon">⚑</span> Mark for Review
+    <div class="question-column">
+        <div class="mark-review" id="mark-box" onclick="toggleMark()">
+            <span id="mark-flag">⚑</span> Mark for Review
         </div>
-        <div id="q-content"></div>
+        <div id="q-text-area"></div>
     </div>
-    <div class="options-side">
-        <div class="tools">
-            <div class="tool-btn" id="elim-btn" onclick="toggleEliminator()">ABC</div>
+
+    <div class="interaction-column">
+        <div class="tool-strip">
+            <span style="font-weight:bold; font-size: 0.8rem; color:#666;">ID: <span id="q-id">9b886541</span></span>
+            <button class="eliminator-btn" id="elim-tool" onclick="toggleEliminator()">ABC</button>
         </div>
-        <div id="ans-container"></div>
+        <div id="answers-area"></div>
     </div>
 </main>
 
 <footer>
-    <div><a href="https://flomath.space" style="color: black; text-decoration: none; font-weight: bold;">flomath.space</a></div>
-    <div class="nav-dropdown" onclick="toggleModal()">Question <span id="q-num-label">1</span> of 6 ▾</div>
-    <button class="next-btn" onclick="nextQ()">Next</button>
+    <div class="footer-left"><a href="https://flomath.space">flomath.space</a></div>
+    <div class="nav-center" onclick="toggleModal()">
+        Question <span id="q-progress">1</span> of 6 ▾
+    </div>
+    <div class="footer-right">
+        <button class="next-btn" onclick="handleNext()">Next</button>
+    </div>
 </footer>
 
-<div id="modal" onclick="toggleModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <h3>Question Navigation</h3>
-        <div class="grid" id="nav-grid"></div>
-        <button onclick="toggleModal()">Close</button>
+<div id="nav-modal" onclick="toggleModal()">
+    <div class="modal-body" onclick="event.stopPropagation()">
+        <h2 style="margin-top:0;">Review Questions</h2>
+        <div class="grid-layout" id="nav-grid"></div>
+        <button onclick="toggleModal()" style="padding:10px 30px; border-radius: 20px; border:1px solid #ccc; background: white; cursor:pointer;">Close</button>
     </div>
 </div>
 
 <script>
     const questions = [
         {
+            id: "9b886541",
             text: "If $3x-8=7$, what is the value of $3x+8$?",
             type: "mcq",
             options: ["-1", "5", "13", "23"],
-            correct: 3 //
+            correct: 3
         },
         {
+            id: "6ac23de7",
             text: "$\\frac{4x}{5}=20$<br><br>In the equation above, what is the value of $x$?",
             type: "mcq",
             options: ["25", "24", "16", "15"],
-            correct: 0 //
+            correct: 0
         },
         {
-            text: "A company creates tape dispensers and calculates monthly profit by subtracting fixed costs from revenue. The equation $15,000=2.00x-4,500$ represents this situation.<br><br>Which statement is the best interpretation of $2.00$ in this context?",
+            id: "9d4270fe",
+            text: "A company that creates and sells tape dispensers calculates its monthly profit, in dollars, by subtracting its fixed monthly costs from its monthly sales revenue. The equation $15,000=2.00x-4,500$ represents this situation.<br><br>Which statement is the best interpretation of $2.00$ in this context?",
             type: "mcq",
             options: [
                 "The monthly sales revenue from selling tape dispensers",
@@ -265,123 +237,132 @@
                 "The monthly cost of creating each tape dispenser",
                 "The monthly cost of creating tape dispensers"
             ],
-            correct: 0 //
+            correct: 0
         },
         {
+            id: "7a5a74a6",
             text: "$3(2x-6)-11=4(x-3)+6$<br><br>If $x$ is the solution to the equation above, what is the value of $x-3$?",
             type: "mcq",
             options: ["$\\frac{23}{2}$", "$\\frac{17}{2}$", "$\\frac{15}{2}$", "$-\\frac{15}{2}$"],
-            correct: 1 //
+            correct: 1
         },
         {
-            text: "Alan drives 100 miles/week. Car gets 25 mpg. He wants to reduce gasoline spending by $5. Gasoline is $4/gal. Which equation determines fewer miles, $m$, he should drive?",
+            id: "b7e6394d",
+            text: "Alan drives an average of 100 miles each week. His car can travel an average of 25 miles per gallon of gasoline. Alan wants to reduce his weekly expenditure on gasoline by $5. Assuming gasoline costs $4 per gallon, which equation determines how many fewer average miles, $m$, he should drive?",
             type: "mcq",
             options: ["$\\frac{25}{4}m=95$", "$\\frac{25}{4}m=5$", "$\\frac{4}{25}m=95$", "$\\frac{4}{25}m=5$"],
-            correct: 3 //
+            correct: 3
         },
         {
+            id: "e6cb2402",
             text: "$3(kx+13)=\\frac{48}{17}x+36$<br><br>In the given equation, $k$ is a constant. The equation has no solution. What is the value of $k$?",
             type: "grid",
-            correct: "16/17" //
+            correct: "16/17"
         }
     ];
 
-    let current = 0;
-    let answers = new Array(6).fill(null);
-    let marks = new Array(6).fill(false);
-    let elimMode = false;
+    let currentIdx = 0;
+    let userAns = new Array(6).fill(null);
+    let markedArr = new Array(6).fill(false);
+    let eliminationActive = false;
 
-    function renderMath(el) {
+    function renderMath(element) {
         if (window.renderMathInElement) {
-            renderMathInElement(el, {
+            renderMathInElement(element, {
                 delimiters: [
-                    {left: '$$', right: '$$', display: true},
-                    {left: '$', right: '$', display: false}
-                ]
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false}
+                ],
+                throwOnError : false
             });
         }
     }
 
-    function loadQ() {
-        const q = questions[current];
-        document.getElementById('q-num-label').innerText = current + 1;
-        document.getElementById('q-content').innerHTML = q.text;
+    function loadQuestion() {
+        const q = questions[currentIdx];
+        document.getElementById('q-progress').innerText = currentIdx + 1;
+        document.getElementById('q-id').innerText = q.id;
+        document.getElementById('q-text-area').innerHTML = q.text;
         
-        const btn = document.getElementById('mark-btn');
-        marks[current] ? btn.classList.add('marked') : btn.classList.remove('marked');
+        const markBox = document.getElementById('mark-box');
+        markedArr[currentIdx] ? markBox.classList.add('marked') : markBox.classList.remove('marked');
 
-        const container = document.getElementById('ans-container');
+        const container = document.getElementById('answers-area');
         container.innerHTML = '';
 
         if (q.type === 'mcq') {
-            document.getElementById('elim-btn').style.display = 'block';
+            document.getElementById('elim-tool').style.display = 'block';
             q.options.forEach((opt, i) => {
                 const div = document.createElement('div');
-                div.className = `option-container ${answers[current] === i ? 'selected' : ''}`;
-                div.innerHTML = `<div class="option-letter">${String.fromCharCode(65+i)}</div><div>${opt}</div>`;
-                div.onclick = () => select(i);
+                div.className = `option ${userAns[currentIdx] === i ? 'selected' : ''}`;
+                div.innerHTML = `<div class="option-bubble">${String.fromCharCode(65+i)}</div><div class="ans-text">${opt}</div>`;
+                div.onclick = () => selectAns(i);
                 container.appendChild(div);
             });
         } else {
-            document.getElementById('elim-btn').style.display = 'none';
+            document.getElementById('elim-tool').style.display = 'none';
             const input = document.createElement('input');
-            input.className = 'grid-in';
-            input.placeholder = 'Enter answer';
-            input.value = answers[current] || '';
-            input.oninput = (e) => answers[current] = e.target.value;
+            input.className = 'grid-input';
+            input.placeholder = 'Type answer here';
+            input.value = userAns[currentIdx] || '';
+            input.oninput = (e) => userAns[currentIdx] = e.target.value;
             container.appendChild(input);
         }
         renderMath(document.body);
     }
 
-    function select(i) {
-        if (elimMode) {
-            document.querySelectorAll('.option-container')[i].classList.toggle('eliminated');
+    function selectAns(i) {
+        if (eliminationActive) {
+            const opts = document.querySelectorAll('.option');
+            opts[i].classList.toggle('eliminated');
         } else {
-            answers[current] = i;
-            loadQ();
+            userAns[currentIdx] = i;
+            loadQuestion();
         }
     }
 
     function toggleEliminator() {
-        elimMode = !elimMode;
-        document.getElementById('elim-btn').classList.toggle('active');
+        eliminationActive = !eliminationActive;
+        document.getElementById('elim-tool').classList.toggle('active');
     }
 
     function toggleMark() {
-        marks[current] = !marks[current];
-        loadQ();
+        markedArr[currentIdx] = !markedArr[currentIdx];
+        loadQuestion();
     }
 
-    function nextQ() {
-        if (current < 5) { current++; loadQ(); }
-        else { alert("Quiz Complete! Return to flomath.space for your score."); }
+    function handleNext() {
+        if (currentIdx < questions.length - 1) {
+            currentIdx++;
+            loadQuestion();
+        } else {
+            alert("Test submitted. Visit flomath.space for your detailed scorecard!");
+        }
     }
 
     function toggleModal() {
-        const m = document.getElementById('modal');
+        const m = document.getElementById('nav-modal');
         m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
         const grid = document.getElementById('nav-grid');
         grid.innerHTML = '';
         questions.forEach((_, i) => {
-            const item = document.createElement('div');
-            item.className = `grid-item ${answers[i] !== null ? 'answered' : ''} ${current === i ? 'current' : ''}`;
-            item.innerText = i + 1;
-            item.onclick = () => { current = i; loadQ(); toggleModal(); };
-            grid.appendChild(item);
+            const cell = document.createElement('div');
+            cell.className = `grid-cell ${userAns[i] !== null ? 'filled' : ''} ${currentIdx === i ? 'current' : ''}`;
+            cell.innerText = i + 1;
+            cell.onclick = () => { currentIdx = i; loadQuestion(); toggleModal(); };
+            grid.appendChild(cell);
         });
     }
 
-    function startTimer(duration) {
-        let t = duration;
+    function startClock(sec) {
         setInterval(() => {
-            let m = Math.floor(t / 60), s = t % 60;
+            let m = Math.floor(sec / 60), s = sec % 60;
             document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            if (--t < 0) t = 0;
+            if (--sec < 0) sec = 0;
         }, 1000);
     }
 
-    window.onload = () => { loadQ(); startTimer(35*60); };
+    window.onload = () => { loadQuestion(); startClock(35*60); };
 </script>
 
 </body>
