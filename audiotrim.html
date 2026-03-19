@@ -2,123 +2,39 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Audio Ripple Trimmer</title>
+    <title>Pro Ripple Trimmer (MP3 Edition)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
     <style>
-        :root {
-            --bg: #121212;
-            --surface: #1e1e1e;
-            --primary: #bb86fc;
-            --accent: #03dac6;
-            --text: #e0e0e0;
-            --error: #cf6679;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Header & Controls */
-        header {
-            background-color: var(--surface);
-            padding: 1rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            z-index: 10;
-        }
-
-        .btn-group { display: flex; gap: 10px; align-items: center; }
-
-        button {
-            background: var(--surface);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s;
-        }
-
-        button:hover { background: var(--primary); color: var(--bg); }
-        button:disabled { border-color: #444; color: #444; cursor: not-allowed; }
-        
-        #exportBtn { background: var(--accent); color: var(--bg); border: none; }
-        #exportBtn:hover { filter: brightness(1.2); }
-
-        /* Keyboard Hints */
-        .hints { font-size: 0.8rem; color: #888; }
-        kbd {
-            background: #333;
-            padding: 2px 5px;
-            border-radius: 3px;
-            color: var(--accent);
-            border: 1px solid #444;
-        }
-
-        /* Waveform Workspace */
-        #editor-container {
-            flex-grow: 1;
-            position: relative;
-            overflow-x: auto;
-            overflow-y: hidden;
-            background: #000;
-            cursor: crosshair;
-        }
-
-        #waveform-canvas {
-            display: block;
-            height: 100%;
-        }
-
-        #playhead {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 2px;
-            height: 100%;
-            background: #fff;
-            box-shadow: 0 0 10px rgba(255,255,255,0.8);
-            pointer-events: none;
-            z-index: 5;
-        }
-
-        /* Loading Overlay */
-        #loader {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            place-items: center;
-            z-index: 100;
-        }
+        :root { --bg: #0f0f12; --surface: #1a1a1f; --primary: #7c4dff; --accent: #00e5ff; --text: #f0f0f0; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { background: var(--surface); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; }
+        .controls { display: flex; gap: 12px; align-items: center; }
+        button { background: #2a2a32; border: 1px solid #444; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s; }
+        button:hover { border-color: var(--primary); background: #333; }
+        button:active { transform: translateY(1px); }
+        #exportBtn { background: var(--primary); border: none; font-weight: 600; }
+        #editor-container { flex-grow: 1; overflow-x: auto; overflow-y: hidden; background: #050505; position: relative; cursor: crosshair; }
+        canvas { display: block; height: 100%; }
+        #playhead { position: absolute; top: 0; left: 0; width: 2px; height: 100%; background: var(--accent); box-shadow: 0 0 8px var(--accent); pointer-events: none; }
+        .kbd-hint { font-size: 12px; color: #888; }
+        kbd { background: #333; padding: 2px 4px; border-radius: 3px; color: var(--accent); }
+        #status { position: fixed; bottom: 20px; right: 20px; background: var(--primary); padding: 10px 20px; border-radius: 8px; display: none; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="btn-group">
-        <button onclick="document.getElementById('audioInput').click()">Upload Audio</button>
+    <div class="controls">
+        <button onclick="document.getElementById('audioInput').click()">📁 Open File</button>
         <input type="file" id="audioInput" hidden accept="audio/*">
-        <button id="playBtn" disabled>Play / Pause</button>
+        <button id="playBtn" disabled>Play (Space)</button>
         <button id="zoomIn">Zoom In (+)</button>
         <button id="zoomOut">Zoom Out (-)</button>
     </div>
-
-    <div class="hints">
-        <kbd>S</kbd> Cut | <kbd>Del</kbd> Delete Segment | <kbd>Space</kbd> Play | Mouse Click to Seek
+    <div class="kbd-hint">
+        <kbd>S</kbd> Cut | <kbd>Del</kbd> Ripple Delete | Click to Seek
     </div>
-
-    <button id="exportBtn" disabled>Export WAV (100%)</button>
+    <button id="exportBtn" disabled>Save as MP3</button>
 </header>
 
 <div id="editor-container">
@@ -126,287 +42,234 @@
     <div id="playhead"></div>
 </div>
 
-<div id="loader">Processing High Quality Audio...</div>
+<div id="status">Processing...</div>
 
 <script>
-    /** * AUDIO ENGINE STATE
-     */
-    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioCtx = null;
     let mainBuffer = null;
-    let segments = []; // Array of {start: sec, end: sec}
+    let segments = []; 
     let selectedSegmentIndex = -1;
-    
-    let zoom = 50; // pixels per second
+    let zoom = 60; 
     let currentTime = 0;
     let isPlaying = false;
-    let startTime = 0; // for playback logic
-    let pauseOffset = 0;
+    let startTime = 0;
     let sourceNode = null;
 
     const canvas = document.getElementById('waveform-canvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('editor-container');
     const playhead = document.getElementById('playhead');
+    const statusBox = document.getElementById('status');
+
+    function showStatus(text) { statusBox.innerText = text; statusBox.style.display = 'block'; }
+    function hideStatus() { statusBox.style.display = 'none'; }
 
     // --- File Loading ---
     document.getElementById('audioInput').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        document.getElementById('loader').style.display = 'grid';
-        const arrayBuffer = await file.arrayBuffer();
-        mainBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        showStatus("Decoding Audio...");
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // Initialize with one segment (the whole file)
-        segments = [{ start: 0, end: mainBuffer.duration }];
-        selectedSegmentIndex = 0;
-        
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('playBtn').disabled = false;
-        document.getElementById('exportBtn').disabled = false;
-        
-        render();
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            // Robust decoding
+            mainBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            segments = [{ start: 0, end: mainBuffer.duration }];
+            selectedSegmentIndex = 0;
+            currentTime = 0;
+            
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('exportBtn').disabled = false;
+            hideStatus();
+            render();
+        } catch (err) {
+            alert("Error: Could not decode audio. Try a different format or ensure the file isn't corrupted.");
+            console.error(err);
+            hideStatus();
+        }
     });
 
-    // --- Rendering Engine ---
+    // --- Rendering ---
     function render() {
         if (!mainBuffer) return;
-
         const totalDuration = segments.reduce((acc, s) => acc + (s.end - s.start), 0);
         canvas.width = totalDuration * zoom;
         canvas.height = container.clientHeight;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
+        const data = mainBuffer.getChannelData(0);
         let currentX = 0;
-        const channelData = mainBuffer.getChannelData(0);
-        const sampleRate = mainBuffer.sampleRate;
 
-        segments.forEach((seg, index) => {
+        segments.forEach((seg, idx) => {
             const segWidth = (seg.end - seg.start) * zoom;
-            
-            // Draw segment background
-            ctx.fillStyle = (index === selectedSegmentIndex) ? '#332255' : '#1a1a1a';
+            ctx.fillStyle = (idx === selectedSegmentIndex) ? '#251a4a' : '#0a0a0a';
             ctx.fillRect(currentX, 0, segWidth, canvas.height);
-            
-            // Draw Waveform
+
             ctx.beginPath();
-            ctx.strokeStyle = (index === selectedSegmentIndex) ? varColor('--primary') : varColor('--accent');
+            ctx.strokeStyle = (idx === selectedSegmentIndex) ? '#bb86fc' : '#03dac6';
             ctx.lineWidth = 1;
-            
-            const startSample = Math.floor(seg.start * sampleRate);
-            const endSample = Math.floor(seg.end * sampleRate);
-            const step = Math.floor((endSample - startSample) / segWidth);
+
+            const startIdx = Math.floor(seg.start * mainBuffer.sampleRate);
+            const endIdx = Math.floor(seg.end * mainBuffer.sampleRate);
+            const step = Math.floor((endIdx - startIdx) / segWidth);
 
             for (let i = 0; i < segWidth; i++) {
-                let min = 1.0;
-                let max = -1.0;
+                let min = 1.0, max = -1.0;
                 for (let j = 0; j < step; j++) {
-                    const datum = channelData[startSample + (i * step) + j];
-                    if (datum < min) min = datum;
-                    if (datum > max) max = datum;
+                    const v = data[startIdx + (i * step) + j];
+                    if (v < min) min = v; if (v > max) max = v;
                 }
-                const y1 = (1 + min) * canvas.height / 2;
-                const y2 = (1 + max) * canvas.height / 2;
-                ctx.moveTo(currentX + i, y1);
-                ctx.lineTo(currentX + i, y2);
+                ctx.moveTo(currentX + i, (1 + min) * canvas.height / 2);
+                ctx.lineTo(currentX + i, (1 + max) * canvas.height / 2);
             }
             ctx.stroke();
-
-            // Segment Border
-            ctx.strokeStyle = '#444';
-            ctx.strokeRect(currentX, 0, segWidth, canvas.height);
-
+            
             seg.xStart = currentX;
             seg.xEnd = currentX + segWidth;
             currentX += segWidth;
         });
-
         updatePlayhead();
     }
 
-    function updatePlayhead() {
-        playhead.style.left = (currentTime * zoom) + 'px';
-    }
+    function updatePlayhead() { playhead.style.left = (currentTime * zoom) + 'px'; }
 
-    function varColor(name) {
-        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    }
-
-    // --- Interaction ---
-    container.addEventListener('click', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left + container.scrollLeft;
+    // --- Logic ---
+    container.onclick = (e) => {
+        const x = e.clientX - canvas.getBoundingClientRect().left + container.scrollLeft;
         currentTime = x / zoom;
-        
-        // Find which segment was clicked
         selectedSegmentIndex = segments.findIndex(s => x >= s.xStart && x <= s.xEnd);
-        
-        if (isPlaying) togglePlay(); 
-        updatePlayhead();
+        if (isPlaying) stopPlayback();
         render();
-    });
+    };
 
-    // Zoom Logic
-    document.getElementById('zoomIn').onclick = () => { zoom *= 1.5; render(); };
-    document.getElementById('zoomOut').onclick = () => { zoom /= 1.5; render(); };
-
-    // --- Key Commands ---
-    window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space') {
-            e.preventDefault();
-            togglePlay();
-        }
-        if (e.key.toLowerCase() === 's') {
-            makeCut();
-        }
-        if (e.code === 'Delete' || e.code === 'Backspace') {
-            deleteSelected();
-        }
-    });
+    window.onkeydown = (e) => {
+        if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+        if (e.key.toLowerCase() === 's') makeCut();
+        if (e.code === 'Delete' || e.code === 'Backspace') rippleDelete();
+    };
 
     function makeCut() {
         if (!mainBuffer || selectedSegmentIndex === -1) return;
-
         const seg = segments[selectedSegmentIndex];
-        const localClickTime = currentTime - (seg.xStart / zoom);
-        const cutPointInOriginal = seg.start + localClickTime;
+        const offsetInSeg = currentTime - (seg.xStart / zoom);
+        const splitPoint = seg.start + offsetInSeg;
 
-        if (cutPointInOriginal > seg.start && cutPointInOriginal < seg.end) {
-            const part1 = { start: seg.start, end: cutPointInOriginal };
-            const part2 = { start: cutPointInOriginal, end: seg.end };
-            
-            segments.splice(selectedSegmentIndex, 1, part1, part2);
+        if (splitPoint > seg.start && splitPoint < seg.end) {
+            segments.splice(selectedSegmentIndex, 1, 
+                { start: seg.start, end: splitPoint },
+                { start: splitPoint, end: seg.end }
+            );
             render();
         }
     }
 
-    function deleteSelected() {
-        if (selectedSegmentIndex === -1 || segments.length <= 1) return;
-        
+    function rippleDelete() {
+        if (segments.length <= 1 || selectedSegmentIndex === -1) return;
         segments.splice(selectedSegmentIndex, 1);
         selectedSegmentIndex = Math.max(0, selectedSegmentIndex - 1);
-        
-        // Snap logic: The render function automatically "ripples" 
-        // because it calculates x positions based on the new array order.
         render();
     }
 
-    // --- Playback Logic ---
+    // --- Playback ---
     function togglePlay() {
-        if (isPlaying) {
-            sourceNode.stop();
-            isPlaying = false;
-            pauseOffset = audioCtx.currentTime - startTime;
-        } else {
-            playFrom(currentTime);
-        }
+        if (isPlaying) stopPlayback();
+        else startPlayback(currentTime);
     }
 
-    function playFrom(time) {
-        if (!mainBuffer) return;
-        
-        // We need to construct a buffer of the current segments for seamless playback
-        // For simplicity in a standalone tool, we'll map the current time to the segment logic
-        const totalDuration = segments.reduce((acc, s) => acc + (s.end - s.start), 0);
-        if (time >= totalDuration) time = 0;
-
-        const combinedBuffer = createExportBuffer(); // Use the same logic as export
+    function startPlayback(time) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const exportBuf = createCombinedBuffer();
         sourceNode = audioCtx.createBufferSource();
-        sourceNode.buffer = combinedBuffer;
+        sourceNode.buffer = exportBuf;
         sourceNode.connect(audioCtx.destination);
-        
         startTime = audioCtx.currentTime - time;
         sourceNode.start(0, time);
         isPlaying = true;
-
-        sourceNode.onended = () => { isPlaying = false; };
-        requestAnimationFrame(trackPlayback);
+        requestAnimationFrame(syncPlayhead);
     }
 
-    function trackPlayback() {
+    function stopPlayback() {
+        if (sourceNode) sourceNode.stop();
+        isPlaying = false;
+    }
+
+    function syncPlayhead() {
         if (!isPlaying) return;
         currentTime = audioCtx.currentTime - startTime;
         updatePlayhead();
-        requestAnimationFrame(trackPlayback);
+        requestAnimationFrame(syncPlayhead);
     }
 
-    // --- Export (100% Quality) ---
-    function createExportBuffer() {
+    function createCombinedBuffer() {
         const totalSamples = segments.reduce((acc, s) => acc + Math.floor((s.end - s.start) * mainBuffer.sampleRate), 0);
-        const exportBuf = audioCtx.createBuffer(mainBuffer.numberOfChannels, totalSamples, mainBuffer.sampleRate);
-
-        for (let channel = 0; channel < mainBuffer.numberOfChannels; channel++) {
-            const channelData = mainBuffer.getChannelData(channel);
-            const exportData = exportBuf.getChannelData(channel);
-            
+        const out = audioCtx.createBuffer(mainBuffer.numberOfChannels, totalSamples, mainBuffer.sampleRate);
+        for (let ch = 0; ch < mainBuffer.numberOfChannels; ch++) {
+            const data = mainBuffer.getChannelData(ch);
+            const outData = out.getChannelData(ch);
             let offset = 0;
-            segments.forEach(seg => {
-                const startIdx = Math.floor(seg.start * mainBuffer.sampleRate);
-                const endIdx = Math.floor(seg.end * mainBuffer.sampleRate);
-                const segmentData = channelData.slice(startIdx, endIdx);
-                exportData.set(segmentData, offset);
-                offset += segmentData.length;
+            segments.forEach(s => {
+                const slice = data.slice(s.start * mainBuffer.sampleRate, s.end * mainBuffer.sampleRate);
+                outData.set(slice, offset);
+                offset += slice.length;
             });
         }
-        return exportBuf;
+        return out;
     }
 
-    document.getElementById('exportBtn').onclick = () => {
-        const finalBuffer = createExportBuffer();
-        const wavBlob = bufferToWav(finalBuffer);
-        const url = URL.createObjectURL(wavBlob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = "trimmed_audio.wav";
-        anchor.click();
+    // --- MP3 Export ---
+    document.getElementById('exportBtn').onclick = async () => {
+        showStatus("Encoding MP3 (192kbps)...");
+        const buffer = createCombinedBuffer();
+        
+        // Use a Worker or timeout to prevent UI freeze
+        setTimeout(() => {
+            const mp3Blob = encodeMP3(buffer);
+            const url = URL.createObjectURL(mp3Blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "edited_audio.mp3";
+            a.click();
+            hideStatus();
+        }, 100);
     };
 
-    // Standard WAV encoder logic for 100% quality (PCM 16-bit)
-    function bufferToWav(abuffer) {
-        let numOfChan = abuffer.numberOfChannels,
-            length = abuffer.length * numOfChan * 2 + 44,
-            buffer = new ArrayBuffer(length),
-            view = new DataView(buffer),
-            channels = [], i, sample,
-            offset = 0,
-            pos = 0;
+    function encodeMP3(audioBuffer) {
+        const channels = audioBuffer.numberOfChannels;
+        const sampleRate = audioBuffer.sampleRate;
+        const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, 192);
+        const mp3Data = [];
 
-        // write WAVE header
-        setUint32(0x46464952);                         // "RIFF"
-        setUint32(length - 8);                         // file length - 8
-        setUint32(0x45564157);                         // "WAVE"
-        setUint32(0x20746d66);                         // "fmt " chunk
-        setUint32(16);                                 // length = 16
-        setUint16(1);                                  // PCM (uncompressed)
-        setUint16(numOfChan);
-        setUint32(abuffer.sampleRate);
-        setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-        setUint16(numOfChan * 2);                      // block-align
-        setUint16(16);                                 // 16-bit (hardcoded for compatibility)
-        setUint32(0x61746164);                         // "data" - chunk
-        setUint32(length - pos - 4);                   // chunk length
+        const left = audioBuffer.getChannelData(0);
+        const right = channels > 1 ? audioBuffer.getChannelData(1) : left;
 
-        for(i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+        // Convert Float32 to Int16
+        const convert = (f32) => {
+            let s = Math.max(-1, Math.min(1, f32));
+            return s < 0 ? s * 0x8000 : s * 0x7FFF;
+        };
 
-        while(pos < length) {
-            for(i = 0; i < numOfChan; i++) {           // interleave channels
-                sample = Math.max(-1, Math.min(1, channels[i][offset])); 
-                sample = (sample < 0 ? sample * 0x8000 : sample * 0x7FFF);
-                view.setInt16(pos, sample, true);
-                pos += 2;
+        const sampleBlockSize = 1152;
+        for (let i = 0; i < left.length; i += sampleBlockSize) {
+            const leftChunk = new Int16Array(sampleBlockSize);
+            const rightChunk = new Int16Array(sampleBlockSize);
+            for (let j = 0; j < sampleBlockSize; j++) {
+                leftChunk[j] = convert(left[i + j]);
+                rightChunk[j] = convert(right[i + j]);
             }
-            offset++;
+            const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+            if (mp3buf.length > 0) mp3Data.push(mp3buf);
         }
 
-        return new Blob([buffer], {type: "audio/wav"});
-
-        function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
-        function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+        const end = mp3encoder.flush();
+        if (end.length > 0) mp3Data.push(end);
+        return new Blob(mp3Data, { type: 'audio/mp3' });
     }
 
+    document.getElementById('zoomIn').onclick = () => { zoom *= 1.4; render(); };
+    document.getElementById('zoomOut').onclick = () => { zoom /= 1.4; render(); };
     document.getElementById('playBtn').onclick = togglePlay;
 </script>
-
 </body>
 </html>
