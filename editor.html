@@ -2522,13 +2522,15 @@
                 }
 
                 // Sync video time
-                if (!vid.paused && !state.isPlaying) vid.pause();
-                if (state.isPlaying && vid.paused) vid.play().catch(() => {});
-                
-                // Seek if drifted
-                const vidTime = (state.currentTime - layer.startTime) + (layer.trimStart || 0);
-                if (vid.duration && Math.abs(vid.currentTime - vidTime) > 0.3) {
-                    vid.currentTime = vidTime;
+                if (!isExport) {
+                    if (!vid.paused && !state.isPlaying) vid.pause();
+                    if (state.isPlaying && vid.paused) vid.play().catch(() => {});
+                    
+                    // Seek if drifted
+                    const vidTime = (state.currentTime - layer.startTime) + (layer.trimStart || 0);
+                    if (vid.duration && Math.abs(vid.currentTime - vidTime) > 0.3) {
+                        vid.currentTime = vidTime;
+                    }
                 }
                 
                 if (borderRadius > 0 && w > 0 && h > 0) {
@@ -5962,13 +5964,52 @@
 
     // --- Export Logic ---
 
-    const captureCanvasWithMediaRecorder = (progressCallback, audioBuffer = null) => new Promise((resolve, reject) => {
+    async function seekAllVideosToTime(time) {
+        const promises = [];
+        for (const layer of state.layers) {
+            if (layer.type === 'video' && layer.content) {
+                if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
+                    const vid = layer.content;
+                    const targetTime = Math.max(0, (time - layer.startTime) + (layer.trimStart || 0));
+                    if (Math.abs(vid.currentTime - targetTime) > 0.01) {
+                        promises.push(new Promise(resolve => {
+                            const onSeeked = () => {
+                                vid.removeEventListener('seeked', onSeeked);
+                                resolve();
+                            };
+                            vid.currentTime = targetTime;
+                            vid.addEventListener('seeked', onSeeked, { once: true });
+                            setTimeout(() => {
+                                vid.removeEventListener('seeked', onSeeked);
+                                resolve();
+                            }, 1000);
+                        }));
+                    }
+                }
+            }
+        }
+        if (promises.length > 0) await Promise.all(promises);
+    }
+
+    const captureCanvasWithMediaRecorder = (progressCallback, audioBuffer = null) => new Promise(async (resolve, reject) => {
         if (!canvas.captureStream || typeof MediaRecorder === 'undefined') {
             reject(new Error('MediaRecorder captureStream is not supported in this browser'));
             return;
         }
 
-        const videoStream = canvas.captureStream(FPS);
+        // Try to use manual frame request for better sync if supported
+        let videoStream;
+        let useManualRequest = false;
+        if (canvas.captureStream) {
+            videoStream = canvas.captureStream(0); // 0 FPS = manual
+            const track = videoStream.getVideoTracks()[0];
+            if (track.requestFrame) {
+                useManualRequest = true;
+            } else {
+                videoStream = canvas.captureStream(FPS); // Fallback to auto
+            }
+        }
+
         let stream = videoStream;
         let audioCtx;
         let audioSource;
@@ -5996,10 +6037,7 @@
             videoBitsPerSecond: 80000000 // 80 Mbps for high quality
         });
         const chunks = [];
-        let frame = 0;
         const totalFrames = Math.max(1, Math.round(state.duration * FPS));
-        const intervalMs = 1000 / FPS;
-        let frameInterval;
 
         recorder.ondataavailable = (event) => {
             if (event.data && event.data.size) {
@@ -6013,7 +6051,6 @@
             if (audioCtx) {
                 audioCtx.close();
             }
-            clearInterval(frameInterval);
             stream.getTracks().forEach(track => track.stop());
             reject(event.error || new Error('MediaRecorder error'));
         };
@@ -6028,26 +6065,28 @@
             resolve(new Blob(chunks, { type: mimeType }));
         };
 
-        frameInterval = setInterval(() => {
-            if (frame >= totalFrames) {
-                clearInterval(frameInterval);
-                state.currentTime = state.duration;
-                renderCanvas(true);
-                updateTimelineUI();
-                updatePropertiesPanel();
-                if (progressCallback) progressCallback(1);
-                recorder.stop();
-                return;
-            }
+        recorder.start();
+
+        for (let frame = 0; frame < totalFrames; frame++) {
             state.currentTime = frame / FPS;
+            await seekAllVideosToTime(state.currentTime);
             renderCanvas(true);
             updateTimelineUI();
             updatePropertiesPanel();
-            if (progressCallback) progressCallback(Math.min(1, frame / totalFrames));
-            frame += 1;
-        }, intervalMs);
+            
+            if (useManualRequest) {
+                stream.getVideoTracks()[0].requestFrame();
+                // Small delay to let recorder process the frame
+                await new Promise(r => setTimeout(r, 10)); 
+            } else {
+                // If auto-fps, we just wait roughly 1 frame duration
+                await new Promise(r => setTimeout(r, 1000/FPS));
+            }
 
-        recorder.start();
+            if (progressCallback) progressCallback(Math.min(1, frame / totalFrames));
+        }
+        
+        recorder.stop();
     });
 
     async function preloadKatexForExport() {
@@ -6129,6 +6168,7 @@
                 const totalFrames = Math.round(state.duration * FPS);
                 for (let i = 0; i < totalFrames; i++) {
                     state.currentTime = i / FPS;
+                    await seekAllVideosToTime(state.currentTime);
                     renderCanvas(true);
                     
                     const frameNumber = String(i).padStart(5, '0');
