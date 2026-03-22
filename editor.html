@@ -613,6 +613,25 @@
                 <input type="number" id="prop-border-radius" min="0" onchange="updateProperty('borderRadius', this.value)">
                 <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('borderRadius')">◆</button>
             </div>
+            <div id="crop-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Crop (Pixels)</label>
+                <div class="property-row">
+                    <span>Top</span>
+                    <input type="number" id="prop-crop-top" onchange="updateCrop('top', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Bottom</span>
+                    <input type="number" id="prop-crop-bottom" onchange="updateCrop('bottom', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Left</span>
+                    <input type="number" id="prop-crop-left" onchange="updateCrop('left', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Right</span>
+                    <input type="number" id="prop-crop-right" onchange="updateCrop('right', this.value)">
+                </div>
+            </div>
             
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Text Content</label>
@@ -1661,6 +1680,7 @@
         this.volume = 1; 
         this.muted = false;
         this.excludeFromBlur = false;
+            this.crop = { top: 0, bottom: 0, left: 0, right: 0 };
         this.storageUrl = null; // URL from Firebase Storage
         this.shapeType = 'square'; // for type='shape'
             this.lineAnchor = 'center'; // for line shape
@@ -1721,8 +1741,11 @@
                 }
             } else if (this.type === 'image' || this.type === 'video') {
                 if (this.content && (this.content.width || this.content.videoWidth)) {
-                    this.width = this.content.width || this.content.videoWidth;
-                    this.height = this.content.height || this.content.videoHeight;
+                    const rawW = this.content.width || this.content.videoWidth;
+                    const rawH = this.content.height || this.content.videoHeight;
+                    const c = this.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+                    this.width = Math.max(1, rawW - c.left - c.right);
+                    this.height = Math.max(1, rawH - c.top - c.bottom);
                 }
             } else if (this.type === 'shape') {
                 if (this.shapeType === 'line') {
@@ -2432,10 +2455,11 @@
 
             } else if (layer.type === 'image') {
                 const img = layer.content;
+                const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
 
                 if (borderRadius > 0) {
-                    const w = img ? img.width : (layer.width || 200);
-                    const h = img ? img.height : (layer.height || 200);
+                    const w = layer.width || 200;
+                    const h = layer.height || 200;
                     ctx.beginPath();
                     if (ctx.roundRect) {
                         ctx.roundRect(-w/2, -h/2, w, h, borderRadius);
@@ -2446,17 +2470,20 @@
                 }
 
                 if (img && img.complete && img.naturalWidth !== 0) {
+                    const w = layer.width;
+                    const h = layer.height;
+                    
                     if (clipHorizontal || clipVertical) {
-                        const clipWidth = clipHorizontal ? Math.max(0, img.width * clipFactorH) : img.width;
-                        const clipHeight = clipVertical ? Math.max(0, img.height * clipFactorV) : img.height;
+                        const clipWidth = clipHorizontal ? Math.max(0, w * clipFactorH) : w;
+                        const clipHeight = clipVertical ? Math.max(0, h * clipFactorV) : h;
                         ctx.save();
                         ctx.beginPath();
-                        ctx.rect(-img.width/2, -img.height/2, clipWidth, clipHeight);
+                        ctx.rect(-w/2, -h/2, clipWidth, clipHeight);
                         ctx.clip();
-                        ctx.drawImage(img, -img.width/2, -img.height/2);
+                        ctx.drawImage(img, c.left, c.top, w, h, -w/2, -h/2, w, h);
                         ctx.restore();
                     } else {
-                        ctx.drawImage(img, -img.width/2, -img.height/2);
+                        ctx.drawImage(img, c.left, c.top, w, h, -w/2, -h/2, w, h);
                     }
                 } else if (img && img.complete && img.naturalWidth === 0) {
                     // Placeholder for broken image (CORS error or missing file)
@@ -2473,8 +2500,9 @@
                 }
             } else if (layer.type === 'video') {
                 const vid = layer.content;
-                const w = vid.videoWidth || 0;
-                const h = vid.videoHeight || 0;
+                const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+                const w = layer.width || 0;
+                const h = layer.height || 0;
 
                 // Sync video time
                 if (!vid.paused && !state.isPlaying) vid.pause();
@@ -2494,7 +2522,7 @@
                 }
 
                 if (w > 0 && h > 0) {
-                    ctx.drawImage(vid, -w/2, -h/2);
+                    ctx.drawImage(vid, c.left, c.top, w, h, -w/2, -h/2, w, h);
                 }
             }
 
@@ -2965,6 +2993,7 @@
         const layer = state.layers.find(l => l.id === id);
         
         const panel = document.getElementById('properties-panel');
+        const cropProps = document.getElementById('crop-props');
         const textProps = document.getElementById('text-props');
         const shapeProps = document.getElementById('shape-props');
         const graphProps = document.getElementById('graph-props');
@@ -2973,6 +3002,17 @@
             panel.style.display = 'block';
             document.getElementById('selected-layer-name').innerText = layer.name;
             document.getElementById('prop-name').value = layer.name;
+            
+            if (layer.type === 'image' || layer.type === 'video') {
+                cropProps.style.display = 'block';
+                const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+                document.getElementById('prop-crop-top').value = c.top;
+                document.getElementById('prop-crop-bottom').value = c.bottom;
+                document.getElementById('prop-crop-left').value = c.left;
+                document.getElementById('prop-crop-right').value = c.right;
+            } else {
+                cropProps.style.display = 'none';
+            }
             
             if (layer.type === 'text') {
                 textProps.style.display = 'block';
@@ -3048,6 +3088,7 @@
         } else {
             panel.style.display = 'none';
             if (katexToggle) katexToggle.checked = false;
+            if (cropProps) cropProps.style.display = 'none';
             const entrySelect = document.getElementById('prop-entry');
             const exitSelect = document.getElementById('prop-exit');
             const entryDurationInput = document.getElementById('prop-entry-duration');
@@ -3270,6 +3311,24 @@
             layer.updateDimensions();
             triggerAutoSave();
         }
+    }
+
+    function updateCrop(side, value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+
+        const val = parseInt(value, 10);
+        if (isNaN(val) || val < 0) return;
+
+        if (!layer.crop) layer.crop = { top: 0, bottom: 0, left: 0, right: 0 };
+        
+        saveHistory();
+        layer.crop[side] = val;
+        layer.updateDimensions(); // Recalculate width/height based on crop
+        
+        renderCanvas();
+        triggerAutoSave();
     }
 
     function updateTextMaxWidth(val) {
