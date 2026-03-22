@@ -608,10 +608,34 @@
                 <input type="number" step="0.1" max="1" min="0" id="prop-opacity" onchange="updateProperty('opacity', this.value)">
                 <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('opacity')">◆</button>
             </div>
+            <div class="property-row" id="prop-border-radius-row" style="display:none;">
+                <span>Corner Radius</span>
+                <input type="number" id="prop-border-radius" min="0" onchange="updateProperty('borderRadius', this.value)">
+                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('borderRadius')">◆</button>
+            </div>
+            <div id="crop-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <label>Crop (Pixels)</label>
+                <div class="property-row">
+                    <span>Top</span>
+                    <input type="number" id="prop-crop-top" onchange="updateCrop('top', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Bottom</span>
+                    <input type="number" id="prop-crop-bottom" onchange="updateCrop('bottom', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Left</span>
+                    <input type="number" id="prop-crop-left" onchange="updateCrop('left', this.value)">
+                </div>
+                <div class="property-row">
+                    <span>Right</span>
+                    <input type="number" id="prop-crop-right" onchange="updateCrop('right', this.value)">
+                </div>
+            </div>
             
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Text Content</label>
-                <input type="text" id="prop-text" oninput="updateText(this.value)">
+                <textarea id="prop-text" oninput="updateText(this.value)" rows="3" style="width: 100%; background: #333; border: 1px solid var(--border); color: white; padding: 5px; margin-bottom: 10px; box-sizing: border-box; resize: vertical; font-family: inherit;"></textarea>
                 <div class="property-row">
                     <span>Color</span>
                     <input type="color" id="prop-color" onchange="updateColor(this.value)" style="width: 60px; padding: 1px; height: 24px; border: none; background: none; margin-bottom: 0;">
@@ -671,6 +695,18 @@
                 <div class="property-row" id="prop-shape-line-thickness-row" style="display:none;">
                     <span>Thickness</span>
                     <input type="number" id="prop-shape-line-thickness" min="1" max="100" onchange="updateShapeThickness(this.value)">
+                </div>
+                <div class="property-row" id="prop-shape-line-length-row" style="display:none;">
+                    <span>Length</span>
+                    <input type="number" id="prop-shape-line-length" min="1" onchange="updateShapeLength(this.value)">
+                </div>
+                <div id="prop-shape-line-anchor-row" style="display:none; margin-top: 5px;">
+                    <label>Anchor</label>
+                    <div id="line-anchor-controls" style="display:flex; gap:5px; margin-top:5px;">
+                        <button class="secondary" data-anchor="left">Left</button>
+                        <button class="secondary" data-anchor="center">Center</button>
+                        <button class="secondary" data-anchor="right">Right</button>
+                    </div>
                 </div>
                 <button id="btn-shapecutter-toggle" class="secondary" style="width:100%; margin-top:5px; background:#444;" onclick="toggleShapecutter()">Open Shapecutter Tool</button>
             </div>
@@ -783,12 +819,12 @@
             <div id="float-settings" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
                 <label>Float Distance</label>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="range" id="float-distance" min="0" max="200" step="5" value="40" oninput="updateFloatDistance(this.value)">
+                    <input type="range" id="float-distance" min="0" max="200" step="5" value="40" oninput="updateFloatDistance(this.value)" onchange="saveHistory(); triggerAutoSave();">
                     <span id="float-distance-value" style="min-width:40px; text-align:right; font-size:12px;">40px</span>
                 </div>
                 <label>Float Pace</label>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="range" id="float-pace" min="0.3" max="3" step="0.1" value="1" oninput="updateFloatPace(this.value)">
+                    <input type="range" id="float-pace" min="0.3" max="3" step="0.1" value="1" oninput="updateFloatPace(this.value)" onchange="saveHistory(); triggerAutoSave();">
                     <span id="float-pace-value" style="min-width:40px; text-align:right; font-size:12px;">1.0x</span>
                 </div>
             </div>
@@ -1098,7 +1134,7 @@
     let shapecutterDrag = null;
     let historyStack = [];
     let redoStack = [];
-    const MAX_HISTORY = 50;
+    const MAX_HISTORY = 1;
 
     // Firebase & Project State
     let currentProjectId = null;
@@ -1537,17 +1573,20 @@
             }
             return;
         }
+
+        // Sync play/pause state. Pause BEFORE seeking if editor is paused.
+        if (state.isPlaying && audio.paused) {
+            audio.play().catch(() => {});
+        } else if (!state.isPlaying && !audio.paused) {
+            audio.pause();
+        }
+
         const sourceTime = localTime + (layer.trimStart || 0);
         if (Math.abs(audio.currentTime - sourceTime) > 0.3) {
             audio.currentTime = Math.max(0, sourceTime);
         }
         audio.volume = layer.volume ?? 1;
         audio.muted = layer.muted || false;
-        if (state.isPlaying) {
-            audio.play().catch(() => {});
-        } else {
-            audio.pause();
-        }
     }
 
     function hexToRgb(hex) {
@@ -1606,6 +1645,7 @@
             this.trimStart = 0;
             this.rotation = 0;
             this.opacity = 1;
+            this.borderRadius = 0;
             this.color = '#ffffff'; // for text
             this.fontFamily = 'Arial';
             this.fontWeight = 'bold';
@@ -1625,6 +1665,8 @@
             this.textMaxWidth = 0;
             this.loopingAnimation = 'none';
             this.slotId = null;
+            this.floatDistance = 40;
+            this.floatPace = 1.0;
             this.floatSeed = Math.random() * Math.PI * 2;
             this.katex = false;
             this.katexNeedsRender = false;
@@ -1638,13 +1680,15 @@
         this.volume = 1; 
         this.muted = false;
         this.excludeFromBlur = false;
+            this.crop = { top: 0, bottom: 0, left: 0, right: 0 };
         this.storageUrl = null; // URL from Firebase Storage
         this.shapeType = 'square'; // for type='shape'
+            this.lineAnchor = 'center'; // for line shape
         this.cuts = []; // Array of {type, x, y, width, height, rotation} (local space)
 
             // Keyframes: { property: [ {time, value}, ... ] }
             this.keyframes = {
-                x: [], y: [], scale: [], rotation: [], opacity: [], color: []
+                x: [], y: [], scale: [], rotation: [], opacity: [], borderRadius: [], color: []
             };
 
             this.updateDimensions();
@@ -1663,9 +1707,10 @@
                 ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
 
                 const maxWidth = this.textMaxWidth || 0;
-                if (maxWidth > 0 || this.content.includes('\n')) {
+                const textContent = String(this.content ?? '');
+                if (maxWidth > 0 || textContent.includes('\n')) {
                     const lineHeight = 120;
-                    const paragraphs = this.content.split('\n');
+                    const paragraphs = textContent.split('\n');
                     let lineCount = 0;
                     let maxW = 0;
                     
@@ -1690,14 +1735,17 @@
                     this.width = maxWidth > 0 ? maxWidth : maxW;
                     this.height = lineCount * lineHeight;
                 } else {
-                    const metrics = ctx.measureText(this.content);
+                    const metrics = ctx.measureText(textContent);
                     this.width = metrics.width;
                     this.height = 100; // Approx height
                 }
             } else if (this.type === 'image' || this.type === 'video') {
                 if (this.content && (this.content.width || this.content.videoWidth)) {
-                    this.width = this.content.width || this.content.videoWidth;
-                    this.height = this.content.height || this.content.videoHeight;
+                    const rawW = this.content.width || this.content.videoWidth;
+                    const rawH = this.content.height || this.content.videoHeight;
+                    const c = this.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+                    this.width = Math.max(1, rawW - c.left - c.right);
+                    this.height = Math.max(1, rawH - c.top - c.bottom);
                 }
             } else if (this.type === 'shape') {
                 if (this.shapeType === 'line') {
@@ -1763,21 +1811,28 @@
         }
 
         clone() {
-            const newLayer = new Layer(this.type, this.name, this.content);
-            // Deep copy serializable properties
-            const serialized = JSON.parse(JSON.stringify(this));
+            const newLayer = new Layer(this.type, this.name, null);
+            const serialized = this.toJSON();
             Object.assign(newLayer, serialized);
             
-            // Manually copy non-serializable content
-            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
-                newLayer.content = this.content.cloneNode(true);
+            // Manually copy/recreate content.
+            if (this.type === 'audio' || this.type === 'video') {
+                // Create a NEW media element from its source to get a new WebMediaPlayer instance.
+                // Do NOT use cloneNode(true), as that is the source of the player limit error.
+                const newMediaEl = document.createElement(this.type);
+                if (this.content && this.content.src) {
+                    newMediaEl.src = this.content.src;
+                }
+                newMediaEl.crossOrigin = "anonymous";
+                newMediaEl.muted = true;
+                newLayer.content = newMediaEl;
             } else {
-                newLayer.content = this.content;
+                newLayer.content = this.content; // For text, image
             }
             newLayer.assetBlob = this.assetBlob;
-            newLayer.storageUrl = this.storageUrl;
+            
             newLayer.id = state.nextId++; // Ensure a new unique ID
-            newLayer.slotId = this.slotId;
+            
             if (newLayer.katex) {
                 newLayer.katexNeedsRender = true;
                 newLayer.katexImage = null;
@@ -1785,28 +1840,24 @@
                 newLayer.katexImageHeight = 0;
                 newLayer.katexImageLoading = false;
             }
-            newLayer.excludeFromBlur = this.excludeFromBlur;
-            newLayer.cuts = JSON.parse(JSON.stringify(this.cuts || []));
+            
             return newLayer;
         }
 
         copyForHistory() {
-            const newLayer = new Layer(this.type, this.name, this.content);
-            const serialized = JSON.parse(JSON.stringify(this));
+            const newLayer = new Layer(this.type, this.name, null);
+            const serialized = this.toJSON();
             Object.assign(newLayer, serialized);
             
-            if ((this.type === 'audio' || this.type === 'video') && this.content && this.content.cloneNode) {
-                newLayer.content = this.content.cloneNode(true);
-            } else {
-                newLayer.content = this.content;
-            }
+            // For history, we only copy the REFERENCE to the media element.
+            // We do not clone it, as that creates excess WebMediaPlayer instances and causes crashes.
+            // The live DOM element is not part of the history state itself.
+            newLayer.content = this.content;
             newLayer.assetBlob = this.assetBlob;
-            newLayer.storageUrl = this.storageUrl;
             newLayer.id = this.id; // Keep ID for history
             newLayer.katexImage = this.katexImage;
             newLayer.katexImageWidth = this.katexImageWidth;
             newLayer.katexImageHeight = this.katexImageHeight;
-            newLayer.cuts = JSON.parse(JSON.stringify(this.cuts || []));
             return newLayer;
         }
 
@@ -1882,10 +1933,14 @@
                 }
             }
         });
+        document.getElementById('line-anchor-controls').addEventListener('click', (e) => {
+            if (e.target.matches('button[data-anchor]')) {
+                const anchor = e.target.dataset.anchor;
+                updateLineAnchor(anchor);
+            }
+        });
         // Initialize Firebase
         initFirebase();
-        // Start Autosave
-        setInterval(autoSaveProject, 5000);
         updateWatermarkUI();
         
         updateUndoRedoButtons();
@@ -2014,6 +2069,7 @@
                 if (motionOverride.scale !== undefined) scale = motionOverride.scale;
             }
             const opacity = layer.getValue('opacity', state.currentTime);
+            const borderRadius = layer.getValue('borderRadius', state.currentTime);
             const entryAnim = layer.entryAnimation || { type: 'none', duration: 1 };
             const exitAnim = layer.exitAnimation || { type: 'none', duration: 1 };
             const entryDuration = Math.max(0.1, entryAnim.duration);
@@ -2031,7 +2087,7 @@
                 : (state.currentTime >= exitStart
                     ? clamp(1 - (state.currentTime - exitStart) / exitDuration, 0, 1)
                     : 1);
-            const entryFade = entryAnim.type === 'fade' ? easedEntryProgress : 1;
+            const entryFade = entryAnim.type === 'fade' ? entryProgress : 1;
             const combinedAlpha = opacity * entryFade * exitProgress;
             const exitIsScanHorizontal = exitAnim.type === 'scan-horizontal';
             const exitIsScanVertical = exitAnim.type === 'scan-vertical';
@@ -2044,7 +2100,7 @@
             const clipHorizontal = isEntryScanHorizontal || exitIsScanHorizontal;
             const clipVertical = isEntryScanVertical || exitIsScanVertical;
             const isTypewriterActive = entryAnim.type === 'typewriter' && layer.type === 'text';
-            const textContent = layer.content || '';
+            const textContent = String(layer.content ?? '');
 
             // Apply looping animations on top of keyframed values
             if (layer.loopingAnimation && layer.loopingAnimation !== 'none') {
@@ -2060,8 +2116,8 @@
                         break;
                     }
                     case 'float': {
-                        const distance = Math.max(0, floatSettings.distance);
-                        const pace = Math.max(0.1, floatSettings.pace);
+                        const distance = Math.max(0, layer.floatDistance || 40);
+                        const pace = Math.max(0.1, layer.floatPace || 1.0);
                         const phase = state.currentTime * pace + layer.floatSeed;
                         const driftX = Math.cos(phase * 0.84 + 0.7) * distance * 0.12;
                         const driftY = Math.sin(phase * 0.66 + 1.2) * distance * 0.1;
@@ -2316,7 +2372,8 @@
                          eqAlpha = Math.max(0, (exit - relTime) / fadeOutDur);
                     }
 
-                    let eqString = eq.text.includes('=') ? eq.text.split('=')[1] : eq.text;
+                const eqText = String(eq.text ?? '');
+                let eqString = eqText.includes('=') ? eqText.split('=')[1] : eqText;
                     // Transform some KaTeX/LaTeX syntax to JS-compatible math expressions
                     eqString = eqString.trim()
                                        .replace(/\\sin/g, 'sin')
@@ -2398,18 +2455,35 @@
 
             } else if (layer.type === 'image') {
                 const img = layer.content;
+                const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+
+                if (borderRadius > 0) {
+                    const w = layer.width || 200;
+                    const h = layer.height || 200;
+                    ctx.beginPath();
+                    if (ctx.roundRect) {
+                        ctx.roundRect(-w/2, -h/2, w, h, borderRadius);
+                    } else {
+                        ctx.rect(-w/2, -h/2, w, h);
+                    }
+                    ctx.clip();
+                }
+
                 if (img && img.complete && img.naturalWidth !== 0) {
+                    const w = layer.width;
+                    const h = layer.height;
+                    
                     if (clipHorizontal || clipVertical) {
-                        const clipWidth = clipHorizontal ? Math.max(0, img.width * clipFactorH) : img.width;
-                        const clipHeight = clipVertical ? Math.max(0, img.height * clipFactorV) : img.height;
+                        const clipWidth = clipHorizontal ? Math.max(0, w * clipFactorH) : w;
+                        const clipHeight = clipVertical ? Math.max(0, h * clipFactorV) : h;
                         ctx.save();
                         ctx.beginPath();
-                        ctx.rect(-img.width/2, -img.height/2, clipWidth, clipHeight);
+                        ctx.rect(-w/2, -h/2, clipWidth, clipHeight);
                         ctx.clip();
-                        ctx.drawImage(img, -img.width/2, -img.height/2);
+                        ctx.drawImage(img, c.left, c.top, w, h, -w/2, -h/2, w, h);
                         ctx.restore();
                     } else {
-                        ctx.drawImage(img, -img.width/2, -img.height/2);
+                        ctx.drawImage(img, c.left, c.top, w, h, -w/2, -h/2, w, h);
                     }
                 } else if (img && img.complete && img.naturalWidth === 0) {
                     // Placeholder for broken image (CORS error or missing file)
@@ -2426,17 +2500,54 @@
                 }
             } else if (layer.type === 'video') {
                 const vid = layer.content;
+                if (vid) {
+                const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+                let w = layer.width || 0;
+                let h = layer.height || 0;
+                const vW = vid.videoWidth;
+                const vH = vid.videoHeight;
+                // We check readyState to ensure we don't draw broken frames or throw errors
+                const isReady = vid.readyState >= 2;
+
+                if (vW > 0 && vH > 0 && !layer._videoDimsSynced) {
+                    const newW = vW - c.left - c.right;
+                    const newH = vH - c.top - c.bottom;
+                    if (layer.width === 1280 && layer.height === 720) {
+                        layer.width = newW;
+                        layer.height = newH;
+                        w = newW; h = newH;
+                        layer.updateDimensions();
+                    }
+                    layer._videoDimsSynced = true;
+                }
+
                 // Sync video time
                 if (!vid.paused && !state.isPlaying) vid.pause();
-                if (state.isPlaying && vid.paused) vid.play();
+                if (state.isPlaying && vid.paused) vid.play().catch(() => {});
                 
                 // Seek if drifted
                 const vidTime = (state.currentTime - layer.startTime) + (layer.trimStart || 0);
-                if (Math.abs(vid.currentTime - vidTime) > 0.3) {
+                if (vid.duration && Math.abs(vid.currentTime - vidTime) > 0.3) {
                     vid.currentTime = vidTime;
                 }
                 
-                ctx.drawImage(vid, -vid.videoWidth/2, -vid.videoHeight/2);
+                if (borderRadius > 0 && w > 0 && h > 0) {
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(-w/2, -h/2, w, h, borderRadius);
+                    else ctx.rect(-w/2, -h/2, w, h);
+                    ctx.clip();
+                }
+
+                if (w > 0 && h > 0) {
+                    if (isReady && vW > 0 && vH > 0) {
+                        let sW = vW - c.left - c.right;
+                        let sH = vH - c.top - c.bottom;
+                        if (sW <= 0) sW = vW;
+                        if (sH <= 0) sH = vH;
+                        ctx.drawImage(vid, c.left, c.top, sW, sH, -w/2, -h/2, w, h);
+                    }
+                }
+                }
             }
 
             // Selection outline
@@ -2715,7 +2826,7 @@
     }
 
     function addMediaFile(file) {
-        const fileType = file.type.split('/')[0];
+        let fileType = file.type.split('/')[0];
         if (fileType === 'image') {
             const img = new Image();
             img.onload = () => {
@@ -2738,10 +2849,22 @@
             const vid = document.createElement('video');
             vid.src = URL.createObjectURL(file);
             vid.muted = true;
+            vid.playsInline = true;
+            vid.autoplay = false;
             vid.onloadedmetadata = () => {
                 saveHistory();
                 const l = new Layer('video', file.name, vid);
-                l.duration = vid.duration;
+                l.duration = vid.duration || 10;
+                
+                if (vid.videoWidth) {
+                    l.width = vid.videoWidth;
+                    l.height = vid.videoHeight;
+                } else {
+                    l.width = 1280;
+                    l.height = 720;
+                }
+                l.updateDimensions();
+
                 const center = getViewportCenterWorld();
                 l.x = center.x;
                 l.y = center.y;
@@ -2753,6 +2876,9 @@
                 focusPlayheadOnLayer(l);
                 renderTimeline();
                 triggerAutoSave();
+            };
+            vid.onerror = () => {
+                alert("Could not load video. The format (e.g. .mov codec) might not be supported.");
             };
         } else if (fileType === 'audio') {
             const audio = document.createElement('audio');
@@ -2905,6 +3031,7 @@
         const layer = state.layers.find(l => l.id === id);
         
         const panel = document.getElementById('properties-panel');
+        const cropProps = document.getElementById('crop-props');
         const textProps = document.getElementById('text-props');
         const shapeProps = document.getElementById('shape-props');
         const graphProps = document.getElementById('graph-props');
@@ -2913,6 +3040,17 @@
             panel.style.display = 'block';
             document.getElementById('selected-layer-name').innerText = layer.name;
             document.getElementById('prop-name').value = layer.name;
+            
+            if (layer.type === 'image' || layer.type === 'video') {
+                cropProps.style.display = 'block';
+                const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
+                document.getElementById('prop-crop-top').value = c.top;
+                document.getElementById('prop-crop-bottom').value = c.bottom;
+                document.getElementById('prop-crop-left').value = c.left;
+                document.getElementById('prop-crop-right').value = c.right;
+            } else {
+                cropProps.style.display = 'none';
+            }
             
             if (layer.type === 'text') {
                 textProps.style.display = 'block';
@@ -2948,13 +3086,37 @@
                 document.getElementById('prop-shape-color').value = layer.color || '#ffffff';
                 
                 const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
-                thicknessRow.style.display = layer.shapeType === 'line' ? 'flex' : 'none';
-                document.getElementById('prop-shape-line-thickness').value = layer.height || 10;
+                const lengthRow = document.getElementById('prop-shape-line-length-row');
+                const anchorRow = document.getElementById('prop-shape-line-anchor-row');
+                const isLine = layer.shapeType === 'line';
+
+                thicknessRow.style.display = isLine ? 'flex' : 'none';
+                lengthRow.style.display = isLine ? 'flex' : 'none';
+                anchorRow.style.display = isLine ? 'block' : 'none';
+
+                if (isLine) {
+                    document.getElementById('prop-shape-line-thickness').value = layer.height || 10;
+                    document.getElementById('prop-shape-line-length').value = layer.width || 300;
+                    const currentAnchor = layer.lineAnchor || 'center';
+                    document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.anchor === currentAnchor) btn.classList.add('active');
+                    });
+                }
             } else {
                 shapeProps.style.display = 'none';
             }
 
             document.getElementById('prop-loop').value = layer.loopingAnimation || 'none';
+            const floatSettingsPanel = document.getElementById('float-settings');
+            if (floatSettingsPanel) {
+                floatSettingsPanel.style.display = (layer.loopingAnimation === 'float') ? 'block' : 'none';
+                document.getElementById('float-distance').value = layer.floatDistance || 40;
+                document.getElementById('float-distance-value').innerText = `${Math.round(layer.floatDistance || 40)}px`;
+                document.getElementById('float-pace').value = layer.floatPace || 1.0;
+                document.getElementById('float-pace-value').innerText = `${(layer.floatPace || 1.0).toFixed(1)}x`;
+            }
+
             if (katexToggle) katexToggle.checked = !!layer.katex;
             ensureAnimationInputs(layer);
             updateAnimationUI(layer);
@@ -2964,6 +3126,7 @@
         } else {
             panel.style.display = 'none';
             if (katexToggle) katexToggle.checked = false;
+            if (cropProps) cropProps.style.display = 'none';
             const entrySelect = document.getElementById('prop-entry');
             const exitSelect = document.getElementById('prop-exit');
             const entryDurationInput = document.getElementById('prop-entry-duration');
@@ -2986,9 +3149,18 @@
     function deleteSelectedLayer() {
         if (!state.selectedLayerId) return;
         saveHistory();
-        const removedId = state.selectedLayerId;
-        state.layers = state.layers.filter(l => l.id !== removedId);
-        delete motionTracks[removedId];
+        const layerIndex = state.layers.findIndex(l => l.id === state.selectedLayerId);
+        if (layerIndex === -1) return;
+
+        const layerToRemove = state.layers[layerIndex];
+        if ((layerToRemove.type === 'video' || layerToRemove.type === 'audio') && layerToRemove.content) {
+            const media = layerToRemove.content;
+            media.pause();
+            media.removeAttribute("src");
+            media.load();
+        }
+        state.layers.splice(layerIndex, 1);
+        delete motionTracks[state.selectedLayerId];
         state.selectedLayerId = null;
         selectLayer(null);
         renderTimeline();
@@ -3041,9 +3213,28 @@
             originalLayer.keyframes[prop] = originalLayer.keyframes[prop].filter(kf => kf.time < cutTime);
         });
 
+        // Also split motion tracks if they exist
+        const originalMotionTrack = peekMotionTrack(originalLayer.id);
+        if (originalMotionTrack && originalMotionTrack.keyframes.length > 0) {
+            const newMotionTrack = ensureMotionTrack(newLayer.id);
+
+            // Move motion keyframes that are after the cut to the new layer's track
+            newMotionTrack.keyframes = originalMotionTrack.keyframes.filter(kf => kf.time >= cutTime);
+            originalMotionTrack.keyframes = originalMotionTrack.keyframes.filter(kf => kf.time < cutTime);
+
+            // If the new track inherited any keyframes, copy over the track settings
+            if (newMotionTrack.keyframes.length > 0) {
+                newMotionTrack.easing = originalMotionTrack.easing;
+                newMotionTrack.durationScale = originalMotionTrack.durationScale;
+                newMotionTrack.motionFPS = originalMotionTrack.motionFPS;
+            }
+        }
+
         state.layers.push(newLayer);
         assignLayerToSlot(newLayer, originalLayer.slotId);
-        state.layers.sort((a, b) => a.startTime - b.startTime); // Keep timeline sorted
+        // The state.layers array does not need to be sorted. Render order is determined
+        // by layer slots, and this sort can cause instability if startTime is not a number.
+        // state.layers.sort((a, b) => a.startTime - b.startTime);
         renderTimeline();
         selectLayer(newLayer.id);
         triggerAutoSave();
@@ -3061,6 +3252,14 @@
         document.getElementById('prop-scale').value = layer.getValue('scale', state.currentTime).toFixed(2);
         document.getElementById('prop-rotation').value = Math.round(layer.getValue('rotation', state.currentTime));
         document.getElementById('prop-opacity').value = layer.getValue('opacity', state.currentTime).toFixed(2);
+        document.getElementById('prop-border-radius').value = Math.round(layer.getValue('borderRadius', state.currentTime));
+
+        const borderRadiusRow = document.getElementById('prop-border-radius-row');
+        if (layer.type === 'image' || layer.type === 'video' || layer.type === 'shape') {
+            borderRadiusRow.style.display = 'flex';
+        } else {
+            borderRadiusRow.style.display = 'none';
+        }
 
         if (layer.type === 'text' || layer.type === 'shape') {
             document.getElementById('prop-color').value = layer.getValue('color', state.currentTime);
@@ -3152,6 +3351,24 @@
         }
     }
 
+    function updateCrop(side, value) {
+        if (!state.selectedLayerId) return;
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
+
+        const val = parseInt(value, 10);
+        if (isNaN(val) || val < 0) return;
+
+        if (!layer.crop) layer.crop = { top: 0, bottom: 0, left: 0, right: 0 };
+        
+        saveHistory();
+        layer.crop[side] = val;
+        layer.updateDimensions(); // Recalculate width/height based on crop
+        
+        renderCanvas();
+        triggerAutoSave();
+    }
+
     function updateTextMaxWidth(val) {
         if (!state.selectedLayerId) return;
         const layer = state.layers.find(l => l.id === state.selectedLayerId);
@@ -3228,6 +3445,19 @@
             
             const thicknessRow = document.getElementById('prop-shape-line-thickness-row');
             thicknessRow.style.display = val === 'line' ? 'flex' : 'none';
+            const lengthRow = document.getElementById('prop-shape-line-length-row');
+            lengthRow.style.display = val === 'line' ? 'flex' : 'none';
+            const anchorRow = document.getElementById('prop-shape-line-anchor-row');
+            anchorRow.style.display = val === 'line' ? 'block' : 'none';
+            if (val === 'line') {
+                document.getElementById('prop-shape-line-length').value = layer.width;
+                document.getElementById('prop-shape-line-thickness').value = layer.height;
+                 const currentAnchor = layer.lineAnchor || 'center';
+                 document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.anchor === currentAnchor) btn.classList.add('active');
+                 });
+            }
             
             renderCanvas();
             triggerAutoSave();
@@ -3236,6 +3466,59 @@
 
     function updateShapeColor(val) {
         updateColor(val);
+    }
+
+    function updateShapeLength(val) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (layer && layer.type === 'shape' && layer.shapeType === 'line') {
+            saveHistory();
+            const oldW = layer.width;
+            const newW = parseFloat(val);
+            if (isNaN(newW) || newW <= 0) return;
+
+            if (Math.abs(newW - oldW) > 0.001) { // Only adjust position if length is actually changing
+                const anchor = layer.lineAnchor || 'center';
+                const dw = newW - oldW;
+                
+                if (anchor !== 'center') {
+                    // Get the current rotation to adjust the center point correctly, respecting animation
+                    const rotationRad = (layer.getValue('rotation', state.currentTime) || 0) * Math.PI / 180;
+                    const dx = (dw / 2) * Math.cos(rotationRad);
+                    const dy = (dw / 2) * Math.sin(rotationRad);
+
+                    if (anchor === 'left') { // 'left' refers to the start of the line vector
+                        layer.x += dx;
+                        layer.y += dy;
+                    } else { // 'right' refers to the end of the line vector
+                        layer.x -= dx;
+                        layer.y -= dy;
+                    }
+                }
+            }
+            
+            layer.width = newW;
+            updatePropertiesPanel(); // To reflect change in X and Y
+            renderCanvas();
+            triggerAutoSave();
+        }
+    }
+
+    function updateLineAnchor(newAnchor) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer || layer.type !== 'shape' || layer.shapeType !== 'line') return;
+        const oldAnchor = layer.lineAnchor || 'center';
+        if (oldAnchor === newAnchor) return;
+
+        saveHistory();
+        layer.lineAnchor = newAnchor;
+
+        document.querySelectorAll('#line-anchor-controls button').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.anchor === newAnchor) btn.classList.add('active');
+        });
+        updatePropertiesPanel();
+        renderCanvas();
+        triggerAutoSave();
     }
 
     function updateShapeThickness(val) {
@@ -3406,7 +3689,8 @@
             const eq = layer.equations.find(e => e.id === eqId);
             if (eq) {
                 if (prop === 'entryTime' || prop === 'exitTime' || prop === 'area') {
-                    eq[prop] = parseFloat(value);
+                    const parsed = parseFloat(value);
+                    if (!isNaN(parsed)) eq[prop] = parsed;
                 } else {
                     eq[prop] = value;
                 }
@@ -3698,29 +3982,53 @@
 
     function ensureKatexImage(layer, time) {
         if (!layer || !layer.katex || typeof katex === 'undefined') return;
+
+        if (!katexCssText) {
+            layer.katexNeedsRender = true; // Make sure we re-evaluate on next frame
+            return; // Don't attempt to render until CSS is loaded
+        }
+
         const rawContent = layer.content || '';
         const color = layer.getValue('color', time);
         const maxWidth = layer.textMaxWidth || 0;
-        const contentHash = `${rawContent}|${color}|${maxWidth}`;
+        const textAlign = layer.textAlign || 'center'; 
+        const contentHash = `${rawContent}|${color}|${maxWidth}|${textAlign}`; 
 
         if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === contentHash) {
             return;
         }
         layer.katexNeedsRender = false;
-        layer.katexContentHash = contentHash;
 
-        let textToRender = rawContent.trim();
+        let textToRender = rawContent;
         // Strip surrounding $ or $$ for user convenience
         while (textToRender.startsWith('$') && textToRender.endsWith('$') && textToRender.length > 1) {
             textToRender = textToRender.substring(1, textToRender.length - 1);
         }
         
-        // Replace spaces with KaTeX space command `\ ` to ensure they render in math mode.
-        textToRender = textToRender.replace(/ /g, '\\ ');
+        // For multiline KaTeX input, wrap in an 'array' environment to handle alignment.
+        // Automatic wrapping for math is not supported by KaTeX, so we rely on manual newlines.
+        let alignCmd = '';
+        if (textAlign === 'left') alignCmd = '\\raggedright ';
+        else if (textAlign === 'right') alignCmd = '\\raggedleft ';
+        else alignCmd = '\\centering ';
+        if (textToRender.includes('\n')) {
+            const lines = textToRender.split('\n');
+            // A trailing newline from a textarea shouldn't create an extra blank line at the end.
+            if (lines.length > 1 && lines[lines.length - 1].trim() === '') {
+                lines.pop();
+            }
+            const arrayContent = lines.join(' \\\\[-1.55em] ');
+
+            const alignChar = { left: 'l', center: 'c', right: 'r' }[textAlign] || 'c';
+            if (maxWidth > 0) {
+              textToRender = `\\makebox[${maxWidth}px][${alignChar}]{$\\begin{array}{${alignChar}} ${alignCmd}${arrayContent} \\end{array}$}`
+            }
+            else textToRender = `\\begin{array}{${alignChar}} ${arrayContent} \\end{array}`;
+        }
 
         let katexHtml = textToRender;
         try {
-            katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true });
+            katexHtml = katex.renderToString(textToRender, { throwOnError: false, displayMode: true, strict: 'warn' });
         } catch (error) {
             katexHtml = `<span>${textToRender}</span>`;
         }
@@ -3751,27 +4059,51 @@
             .katex-custom .katex, .katex-custom .katex-html {
                 white-space: normal !important;
             }
+            .katex-custom .katex-display {
+                /* This rule aligns the text *inside* a KaTeX block, which is useful for multi-line formulas. */
+                text-align: ${textAlign};
+                margin: 0 !important;
+            }
         `;
         const styleBlock = katexCssText ? `<style>${katexCssText}${fontOverrideStyle}</style>` : `<style>${fontOverrideStyle}</style>`;
-        const contentHtml = `<span style="${colorStyle}" class="katex-custom">${katexHtml}</span>`;
+        // Add display:inline-block so the container shrinks to the content, allowing justify-content to work.
+        const contentHtml = `<div style="${colorStyle}; display: inline-block;" class="katex-custom">${katexHtml}</div>`;
         if (katexMeasureEl) {
+            // The container for measurement needs text-align to correctly position the katex block for measurement.
+            katexMeasureEl.style.textAlign = textAlign;
             katexMeasureEl.innerHTML = `${styleBlock}${contentHtml}`;
         }
-        
+
         if (maxWidth > 0) {
+            katexMeasureEl.style.textAlign = textAlign;
+            // Set the width on the measurement container. The \parbox inside KaTeX will fill this width.
+            // This ensures the final SVG has the correct width for alignment, even if the text is short.
+            // We prevent browser-level wrapping since KaTeX is handling it.
             katexMeasureEl.style.width = `${maxWidth}px`;
-            katexMeasureEl.style.whiteSpace = 'normal';
+            katexMeasureEl.style.whiteSpace = 'nowrap';
         } else {
             katexMeasureEl.style.width = 'auto';
             katexMeasureEl.style.whiteSpace = 'nowrap';
         }
 
         const rect = katexMeasureEl ? katexMeasureEl.getBoundingClientRect() : { width: 0, height: 0 };
-        const width = Math.max(1, Math.ceil(rect.width));
+        // Add a small padding to the width. This helps prevent the last character from wrapping
+        // in the final SVG render, which can happen due to font-loading race conditions or
+        // sub-pixel measurement differences between the browser's DOM and SVG rendering.
+        const width = Math.max(1, Math.ceil(rect.width) + 2);
         const height = Math.max(1, Math.ceil(rect.height));
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">${styleBlock}${contentHtml}</div></foreignObject></svg>`;
+        const justifyContent = {
+            left: 'flex-start',
+            center: 'center',
+            right: 'flex-end'
+        }[textAlign] || 'center';
+        // The outer div in the foreignObject is responsible for aligning the KaTeX block.
+        // It fills the container and uses text-align to position the inner content.
+        // It's also a flex container to vertically center everything.
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:100%; height:100%; display:flex; align-items:center; justify-content:${justifyContent};">${styleBlock}${contentHtml}</div></foreignObject></svg>`;
         const dataUrl = `data:image/svg+xml;base64,${encodeSvgToBase64(svg)}`;
         const img = new Image();
+        layer.katexContentHash = contentHash; // Set hash only when we are about to render a new image
         layer.katexImageLoading = true;
         img.onload = () => {
             layer.katexImage = img;
@@ -3797,32 +4129,42 @@
             saveHistory();
             layer.loopingAnimation = val;
             triggerAutoSave();
+        } else {
+            return;
         }
+        const floatSettingsPanel = document.getElementById('float-settings');
         if (floatSettingsPanel) {
             floatSettingsPanel.style.display = val === 'float' ? 'block' : 'none';
+            if (val === 'float') {
+                document.getElementById('float-distance').value = layer.floatDistance || 40;
+                document.getElementById('float-distance-value').innerText = `${Math.round(layer.floatDistance || 40)}px`;
+                document.getElementById('float-pace').value = layer.floatPace || 1.0;
+                document.getElementById('float-pace-value').innerText = `${(layer.floatPace || 1.0).toFixed(1)}x`;
+            }
         }
     }
 
     function updateFloatDistance(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed)) return;
-        floatSettings.distance = parsed;
+        layer.floatDistance = parsed;
         if (floatDistanceValueEl) {
             floatDistanceValueEl.innerText = `${Math.round(parsed)}px`;
         }
     }
 
     function updateFloatPace(value) {
+        const layer = state.layers.find(l => l.id === state.selectedLayerId);
+        if (!layer) return;
         const parsed = parseFloat(value);
         if (Number.isNaN(parsed)) return;
-        floatSettings.pace = parsed;
+        layer.floatPace = parsed;
         if (floatPaceValueEl) {
             floatPaceValueEl.innerText = `${parsed.toFixed(1)}x`;
         }
     }
-
-    updateFloatDistance(floatSettings.distance);
-    updateFloatPace(floatSettings.pace);
 
     function updateAnimationUI(layer) {
         const entrySelect = document.getElementById('prop-entry');
@@ -4471,7 +4813,7 @@
 
     function computeMotionTransformForLayer(layer, time) {
         const track = peekMotionTrack(layer.id);
-        if (!track || track.keyframes.length === 0) return null;
+        if (!track || !Array.isArray(track.keyframes) || track.keyframes.length === 0) return null;
         const sorted = track.keyframes.slice().sort((a, b) => a.time - b.time);
         if (sorted.length === 1) {
             return { ...sorted[0].transform };
@@ -5790,8 +6132,8 @@
                     renderCanvas(true);
                     
                     const frameNumber = String(i).padStart(5, '0');
-                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                    ffmpeg.FS('writeFile', `frame-${frameNumber}.png`, await fetchFile(blob));
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+                    ffmpeg.FS('writeFile', `frame-${frameNumber}.jpg`, await fetchFile(blob));
 
                     progress.style.width = `${((i + 1) / totalFrames) * 50}%`; // 0-50% for rendering
                 }
@@ -5810,7 +6152,7 @@
 
                 const ffmpegArgs = [
                     '-framerate', String(FPS),
-                    '-i', 'frame-%05d.png'
+                    '-i', 'frame-%05d.jpg'
                 ];
                 if (mixedAudioBuffer) {
                     ffmpegArgs.push('-i', 'audio.wav');
@@ -5997,7 +6339,17 @@
             state.layerSlots = data.layerSlots || [];
             
             if (data.globalZoom) Object.assign(globalZoom, data.globalZoom);
-            if (data.motionTracks) Object.assign(motionTracks, data.motionTracks);
+            if (data.motionTracks) {
+                Object.assign(motionTracks, data.motionTracks);
+                Object.keys(motionTracks).forEach(key => {
+                    const track = motionTracks[key];
+                    if (track && track.keyframes && !Array.isArray(track.keyframes)) {
+                        track.keyframes = Object.values(track.keyframes);
+                    } else if (track && !track.keyframes) {
+                        track.keyframes = [];
+                    }
+                });
+            }
             if (data.globalFloat) Object.assign(globalFloat, data.globalFloat);
             if (data.globalBlur) Object.assign(globalBlur, data.globalBlur);
             if (data.watermark) Object.assign(watermark, data.watermark);
@@ -6022,6 +6374,9 @@
                     // Restore Content
                     if (layer.type === 'text') {
                         layer.content = lData.content;
+                        if (layer.katex) {
+                            layer.katexNeedsRender = true;
+                        }
                     } else if (layer.type === 'image' && layer.storageUrl) {
                         const img = new Image();
                         img.crossOrigin = "anonymous";
