@@ -2803,7 +2803,7 @@
 
     function addMediaFile(file) {
         let fileType = file.type.split('/')[0];
-        if (!fileType && file.name.toLowerCase().endsWith('.mov')) fileType = 'video';
+        if (file.name.toLowerCase().endsWith('.mov')) fileType = 'video';
         if (fileType === 'image') {
             const img = new Image();
             img.onload = () => {
@@ -2826,10 +2826,22 @@
             const vid = document.createElement('video');
             vid.src = URL.createObjectURL(file);
             vid.muted = true;
+            vid.playsInline = true;
+            vid.autoplay = false;
             vid.onloadedmetadata = () => {
                 saveHistory();
                 const l = new Layer('video', file.name, vid);
-                l.duration = vid.duration;
+                l.duration = vid.duration || 10;
+                
+                if (vid.videoWidth) {
+                    l.width = vid.videoWidth;
+                    l.height = vid.videoHeight;
+                } else {
+                    l.width = 1280;
+                    l.height = 720;
+                }
+                l.updateDimensions();
+
                 const center = getViewportCenterWorld();
                 l.x = center.x;
                 l.y = center.y;
@@ -2841,6 +2853,9 @@
                 focusPlayheadOnLayer(l);
                 renderTimeline();
                 triggerAutoSave();
+            };
+            vid.onerror = () => {
+                alert("Could not load video. The format (e.g. .mov codec) might not be supported.");
             };
         } else if (fileType === 'audio') {
             const audio = document.createElement('audio');
