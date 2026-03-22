@@ -5971,18 +5971,41 @@
                 if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
                     const vid = layer.content;
                     const targetTime = Math.max(0, (time - layer.startTime) + (layer.trimStart || 0));
-                    if (Math.abs(vid.currentTime - targetTime) > 0.01) {
+                    
+                    const needsSeek = Math.abs(vid.currentTime - targetTime) > 0.01;
+                    const notReady = vid.readyState < 2;
+                    const isSeeking = vid.seeking;
+
+                    if (needsSeek || notReady || isSeeking) {
                         promises.push(new Promise(resolve => {
-                            const onSeeked = () => {
-                                vid.removeEventListener('seeked', onSeeked);
-                                resolve();
+                            let resolved = false;
+                            const finish = () => {
+                                if (resolved) return;
+                                resolved = true;
+                                // Wait for texture update to prevent black frames
+                                if (vid.requestVideoFrameCallback) {
+                                    vid.requestVideoFrameCallback(() => resolve());
+                                } else {
+                                    setTimeout(resolve, 50);
+                                }
                             };
-                            vid.currentTime = targetTime;
-                            vid.addEventListener('seeked', onSeeked, { once: true });
+                            
+                            // Safety timeout to prevent hang
                             setTimeout(() => {
-                                vid.removeEventListener('seeked', onSeeked);
-                                resolve();
-                            }, 1000);
+                                if (!resolved) { console.warn('Video seek timeout', layer.name); finish(); }
+                            }, 3000);
+
+                            const onReady = () => {
+                                if (vid.readyState >= 2) finish();
+                                else vid.addEventListener('canplay', finish, { once: true });
+                            };
+
+                            if (needsSeek) {
+                                vid.currentTime = targetTime;
+                                vid.addEventListener('seeked', onReady, { once: true });
+                            } else {
+                                onReady();
+                            }
                         }));
                     }
                 }
