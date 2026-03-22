@@ -2502,16 +2502,31 @@
                 const vid = layer.content;
                 if (vid) {
                 const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
-                const w = layer.width || 0;
-                const h = layer.height || 0;
+                let w = layer.width || 0;
+                let h = layer.height || 0;
+                const vW = vid.videoWidth;
+                const vH = vid.videoHeight;
+                const isReady = vid.readyState >= 2;
+
+                if (vW > 0 && vH > 0 && !layer._videoDimsSynced) {
+                    const newW = vW - c.left - c.right;
+                    const newH = vH - c.top - c.bottom;
+                    if (layer.width === 1280 && layer.height === 720) {
+                        layer.width = newW;
+                        layer.height = newH;
+                        w = newW; h = newH;
+                        layer.updateDimensions();
+                    }
+                    layer._videoDimsSynced = true;
+                }
 
                 // Sync video time
                 if (!vid.paused && !state.isPlaying) vid.pause();
-                if (state.isPlaying && vid.paused) vid.play();
+                if (state.isPlaying && vid.paused) vid.play().catch(() => {});
                 
                 // Seek if drifted
                 const vidTime = (state.currentTime - layer.startTime) + (layer.trimStart || 0);
-                if (Math.abs(vid.currentTime - vidTime) > 0.3) {
+                if (vid.duration && Math.abs(vid.currentTime - vidTime) > 0.3) {
                     vid.currentTime = vidTime;
                 }
                 
@@ -2523,7 +2538,21 @@
                 }
 
                 if (w > 0 && h > 0) {
-                    ctx.drawImage(vid, c.left, c.top, w, h, -w/2, -h/2, w, h);
+                    if (isReady && vW > 0 && vH > 0) {
+                        let sW = vW - c.left - c.right;
+                        let sH = vH - c.top - c.bottom;
+                        if (sW <= 0) sW = vW;
+                        if (sH <= 0) sH = vH;
+                        ctx.drawImage(vid, c.left, c.top, sW, sH, -w/2, -h/2, w, h);
+                    } else {
+                        ctx.fillStyle = '#222';
+                        ctx.fillRect(-w/2, -h/2, w, h);
+                        ctx.fillStyle = '#888';
+                        ctx.font = '14px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(vW ? "Buffering..." : "Video Error / Format", 0, 0);
+                    }
                 }
                 }
             }
