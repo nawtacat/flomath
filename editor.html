@@ -533,7 +533,7 @@
             <button class="secondary" onclick="addShape()">+ Shape</button>
             <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
-            <input type="file" id="vid-upload" accept="video/*,.mov" style="display:none" onchange="handleVideoUpload(this)">
+            <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
             <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
         </div>
 
@@ -2506,6 +2506,7 @@
                 let h = layer.height || 0;
                 const vW = vid.videoWidth;
                 const vH = vid.videoHeight;
+                // We check readyState to ensure we don't draw broken frames or throw errors
                 const isReady = vid.readyState >= 2;
 
                 if (vW > 0 && vH > 0 && !layer._videoDimsSynced) {
@@ -2544,14 +2545,10 @@
                         if (sW <= 0) sW = vW;
                         if (sH <= 0) sH = vH;
                         ctx.drawImage(vid, c.left, c.top, sW, sH, -w/2, -h/2, w, h);
-                    } else {
+                    } else if (isReady === false && combinedAlpha > 0.1) {
+                        // Only draw placeholder if reasonably visible to avoid flashing during fade-ins
                         ctx.fillStyle = '#222';
                         ctx.fillRect(-w/2, -h/2, w, h);
-                        ctx.fillStyle = '#888';
-                        ctx.font = '14px sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(vW ? "Buffering..." : "Video Error / Format", 0, 0);
                     }
                 }
                 }
@@ -2832,58 +2829,8 @@
         triggerAutoSave();
     }
 
-    async function convertToMp4(file) {
-        if (typeof FFmpeg === 'undefined') return file;
-        if (typeof SharedArrayBuffer === 'undefined') {
-            // Fallback for environments without COOP/COEP headers
-            console.warn("SharedArrayBuffer missing, skipping transcode.");
-            return file;
-        }
-
-        const overlay = document.getElementById('export-overlay');
-        const progress = document.getElementById('export-progress');
-        const h2 = overlay.querySelector('h2');
-        const p = overlay.querySelector('p');
-        
-        const prevDisplay = overlay.style.display;
-        const prevH2 = h2.innerText;
-        const prevP = p.innerText;
-
-        overlay.style.display = 'flex';
-        h2.innerText = "Processing Video...";
-        p.innerText = "Converting .mov to web-compatible format...";
-        progress.style.width = '0%';
-
-        try {
-            const { createFFmpeg, fetchFile } = FFmpeg;
-            const ffmpeg = createFFmpeg({ log: true, corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.8.5/dist/ffmpeg-core.js' });
-            await ffmpeg.load();
-            ffmpeg.FS('writeFile', 'input', await fetchFile(file));
-            
-            ffmpeg.setProgress(({ ratio }) => {
-                progress.style.width = `${ratio * 100}%`;
-            });
-
-            await ffmpeg.run('-i', 'input', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', 'output.mp4');
-            const data = ffmpeg.FS('readFile', 'output.mp4');
-            const blob = new Blob([data.buffer], { type: 'video/mp4' });
-            return new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".mp4", { type: 'video/mp4' });
-        } catch(e) {
-            console.error("Transcode failed", e);
-            alert("Could not convert .mov file. It may not display correctly.");
-            return file;
-        } finally {
-            overlay.style.display = prevDisplay;
-            h2.innerText = prevH2;
-            p.innerText = prevP;
-        }
-    }
-
-    async function addMediaFile(file) {
+    function addMediaFile(file) {
         let fileType = file.type.split('/')[0];
-        const isMov = file.name.toLowerCase().endsWith('.mov');
-        if (isMov) fileType = 'video';
-
         if (fileType === 'image') {
             const img = new Image();
             img.onload = () => {
@@ -2903,19 +2850,14 @@
             };
             img.src = URL.createObjectURL(file);
         } else if (fileType === 'video') {
-            let videoFile = file;
-            if (isMov) {
-                videoFile = await convertToMp4(file);
-            }
-
             const vid = document.createElement('video');
-            vid.src = URL.createObjectURL(videoFile);
+            vid.src = URL.createObjectURL(file);
             vid.muted = true;
             vid.playsInline = true;
             vid.autoplay = false;
             vid.onloadedmetadata = () => {
                 saveHistory();
-                const l = new Layer('video', videoFile.name, vid);
+                const l = new Layer('video', file.name, vid);
                 l.duration = vid.duration || 10;
                 
                 if (vid.videoWidth) {
@@ -2930,7 +2872,7 @@
                 const center = getViewportCenterWorld();
                 l.x = center.x;
                 l.y = center.y;
-                uploadAssetToFirebase(videoFile, l);
+                uploadAssetToFirebase(file, l);
                 ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnNewSlot(l);
