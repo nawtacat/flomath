@@ -533,7 +533,7 @@
             <button class="secondary" onclick="addShape()">+ Shape</button>
             <button class="secondary" onclick="document.getElementById('audio-upload').click()">+ Audio</button>
             <input type="file" id="img-upload" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
-            <input type="file" id="vid-upload" accept="video/*" style="display:none" onchange="handleVideoUpload(this)">
+            <input type="file" id="vid-upload" accept="video/*,.mov" style="display:none" onchange="handleVideoUpload(this)">
             <input type="file" id="audio-upload" accept="audio/*" style="display:none" onchange="handleAudioUpload(this)">
         </div>
 
@@ -607,6 +607,11 @@
                 <span>Opacity</span>
                 <input type="number" step="0.1" max="1" min="0" id="prop-opacity" onchange="updateProperty('opacity', this.value)">
                 <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('opacity')">◆</button>
+            </div>
+            <div class="property-row" id="prop-border-radius-row" style="display:none;">
+                <span>Corner Radius</span>
+                <input type="number" id="prop-border-radius" min="0" onchange="updateProperty('borderRadius', this.value)">
+                <button class="secondary" style="padding:2px 6px;" onclick="addKeyframe('borderRadius')">◆</button>
             </div>
             
             <div id="text-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -1621,6 +1626,7 @@
             this.trimStart = 0;
             this.rotation = 0;
             this.opacity = 1;
+            this.borderRadius = 0;
             this.color = '#ffffff'; // for text
             this.fontFamily = 'Arial';
             this.fontWeight = 'bold';
@@ -1662,7 +1668,7 @@
 
             // Keyframes: { property: [ {time, value}, ... ] }
             this.keyframes = {
-                x: [], y: [], scale: [], rotation: [], opacity: [], color: []
+                x: [], y: [], scale: [], rotation: [], opacity: [], borderRadius: [], color: []
             };
 
             this.updateDimensions();
@@ -2040,6 +2046,7 @@
                 if (motionOverride.scale !== undefined) scale = motionOverride.scale;
             }
             const opacity = layer.getValue('opacity', state.currentTime);
+            const borderRadius = layer.getValue('borderRadius', state.currentTime);
             const entryAnim = layer.entryAnimation || { type: 'none', duration: 1 };
             const exitAnim = layer.exitAnimation || { type: 'none', duration: 1 };
             const entryDuration = Math.max(0.1, entryAnim.duration);
@@ -2425,6 +2432,19 @@
 
             } else if (layer.type === 'image') {
                 const img = layer.content;
+
+                if (borderRadius > 0) {
+                    const w = img ? img.width : (layer.width || 200);
+                    const h = img ? img.height : (layer.height || 200);
+                    ctx.beginPath();
+                    if (ctx.roundRect) {
+                        ctx.roundRect(-w/2, -h/2, w, h, borderRadius);
+                    } else {
+                        ctx.rect(-w/2, -h/2, w, h);
+                    }
+                    ctx.clip();
+                }
+
                 if (img && img.complete && img.naturalWidth !== 0) {
                     if (clipHorizontal || clipVertical) {
                         const clipWidth = clipHorizontal ? Math.max(0, img.width * clipFactorH) : img.width;
@@ -2453,6 +2473,9 @@
                 }
             } else if (layer.type === 'video') {
                 const vid = layer.content;
+                const w = vid.videoWidth || 0;
+                const h = vid.videoHeight || 0;
+
                 // Sync video time
                 if (!vid.paused && !state.isPlaying) vid.pause();
                 if (state.isPlaying && vid.paused) vid.play();
@@ -2463,7 +2486,16 @@
                     vid.currentTime = vidTime;
                 }
                 
-                ctx.drawImage(vid, -vid.videoWidth/2, -vid.videoHeight/2);
+                if (borderRadius > 0 && w > 0 && h > 0) {
+                    ctx.beginPath();
+                    if (ctx.roundRect) ctx.roundRect(-w/2, -h/2, w, h, borderRadius);
+                    else ctx.rect(-w/2, -h/2, w, h);
+                    ctx.clip();
+                }
+
+                if (w > 0 && h > 0) {
+                    ctx.drawImage(vid, -w/2, -h/2);
+                }
             }
 
             // Selection outline
@@ -2742,7 +2774,8 @@
     }
 
     function addMediaFile(file) {
-        const fileType = file.type.split('/')[0];
+        let fileType = file.type.split('/')[0];
+        if (!fileType && file.name.toLowerCase().endsWith('.mov')) fileType = 'video';
         if (fileType === 'image') {
             const img = new Image();
             img.onload = () => {
@@ -3140,6 +3173,14 @@
         document.getElementById('prop-scale').value = layer.getValue('scale', state.currentTime).toFixed(2);
         document.getElementById('prop-rotation').value = Math.round(layer.getValue('rotation', state.currentTime));
         document.getElementById('prop-opacity').value = layer.getValue('opacity', state.currentTime).toFixed(2);
+        document.getElementById('prop-border-radius').value = Math.round(layer.getValue('borderRadius', state.currentTime));
+
+        const borderRadiusRow = document.getElementById('prop-border-radius-row');
+        if (layer.type === 'image' || layer.type === 'video' || layer.type === 'shape') {
+            borderRadiusRow.style.display = 'flex';
+        } else {
+            borderRadiusRow.style.display = 'none';
+        }
 
         if (layer.type === 'text' || layer.type === 'shape') {
             document.getElementById('prop-color').value = layer.getValue('color', state.currentTime);
