@@ -2500,6 +2500,7 @@
                 }
             } else if (layer.type === 'video') {
                 const vid = layer.content;
+                if (vid) {
                 const c = layer.crop || { top: 0, bottom: 0, left: 0, right: 0 };
                 const w = layer.width || 0;
                 const h = layer.height || 0;
@@ -2523,6 +2524,7 @@
 
                 if (w > 0 && h > 0) {
                     ctx.drawImage(vid, c.left, c.top, w, h, -w/2, -h/2, w, h);
+                }
                 }
             }
 
