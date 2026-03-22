@@ -2087,7 +2087,7 @@
                 : (state.currentTime >= exitStart
                     ? clamp(1 - (state.currentTime - exitStart) / exitDuration, 0, 1)
                     : 1);
-            const entryFade = entryAnim.type === 'fade' ? easedEntryProgress : 1;
+            const entryFade = entryAnim.type === 'fade' ? entryProgress : 1;
             const combinedAlpha = opacity * entryFade * exitProgress;
             const exitIsScanHorizontal = exitAnim.type === 'scan-horizontal';
             const exitIsScanVertical = exitAnim.type === 'scan-vertical';
@@ -2545,10 +2545,6 @@
                         if (sW <= 0) sW = vW;
                         if (sH <= 0) sH = vH;
                         ctx.drawImage(vid, c.left, c.top, sW, sH, -w/2, -h/2, w, h);
-                    } else if (isReady === false && combinedAlpha > 0.1) {
-                        // Only draw placeholder if reasonably visible to avoid flashing during fade-ins
-                        ctx.fillStyle = '#222';
-                        ctx.fillRect(-w/2, -h/2, w, h);
                     }
                 }
                 }
