@@ -6224,7 +6224,7 @@
                     ffmpegArgs.push('-i', 'audio.wav');
                     ffmpegArgs.push('-c:a', 'aac', '-b:a', '256k', '-map', '0:v', '-map', '1:a');
                 }
-                ffmpegArgs.push('-c:v', 'libx264', '-profile:v', 'high444', '-pix_fmt', 'yuv444p', '-preset', 'slow', '-crf', '10', '-shortest', 'output.mp4');
+                ffmpegArgs.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'fast', '-crf', '22', '-shortest', 'output.mp4');
 
                 await ffmpeg.run(...ffmpegArgs);
 
@@ -6246,7 +6246,9 @@
         } finally {
             if (ffmpeg) {
                 try {
-                    await ffmpeg.exit();
+                        if (typeof ffmpeg.exit === 'function') {
+                            await ffmpeg.exit();
+                        }
                 } catch (exitError) {
                     console.warn('FFmpeg cleanup failed', exitError);
                 }
