@@ -6493,6 +6493,16 @@
             renderTimeline();
             if(statusEl) statusEl.innerText = 'Loaded';
             updateBlurUI();
+
+            // Refresh KaTeX layers to fix rendering glitches on load
+            setTimeout(() => {
+                state.layers.forEach(l => {
+                    if (l.type === 'text' && l.katex) {
+                        l.katexContentHash = null; // Force re-render
+                        l.katexNeedsRender = true;
+                    }
+                });
+            }, 1000);
         });
     }
 
