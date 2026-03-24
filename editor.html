@@ -2082,7 +2082,7 @@
             const isEntryScanVertical = entryAnim.type === 'scan-vertical';
             const motionTrackActive = Boolean(peekMotionTrack(layer.id)?.keyframes.length >= 2);
             const exitStart = Math.max(layer.startTime, layer.startTime + layer.duration - exitDuration);
-            const exitProgress = (motionTrackActive || exitAnim.type === 'none')
+            const exitProgress = (exitAnim.type === 'none')
                 ? 1
                 : (state.currentTime >= exitStart
                     ? clamp(1 - (state.currentTime - exitStart) / exitDuration, 0, 1)
@@ -3995,6 +3995,8 @@
         const maxWidth = layer.textMaxWidth || 0;
         const textAlign = layer.textAlign || 'center'; 
         const contentHash = `${rawContent}|${color}|${maxWidth}|${textAlign}`; 
+
+        if (layer.katexImageLoading && layer.katexContentHash === contentHash) return;
 
         if (!layer.katexNeedsRender && layer.katexImage && layer.katexContentHash === contentHash) {
             return;
