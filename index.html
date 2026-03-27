@@ -31,7 +31,7 @@
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       padding: 0 clamp(16px, 4vw, 48px);
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; justify-content: center;
       height: 60px;
     }
     .nav-logo {
@@ -39,18 +39,6 @@
       color: var(--dark); text-decoration: none;
     }
     .nav-logo span { color: var(--blue); }
-    .nav-links { display: flex; align-items: center; gap: 8px; }
-    .nav-links a {
-      font-size: .82rem; font-weight: 600; padding: 7px 14px;
-      border-radius: 8px; text-decoration: none; color: var(--mid);
-      transition: background .15s, color .15s;
-    }
-    .nav-links a:hover { background: var(--bg); color: var(--dark); }
-    .nav-links .nav-cta {
-      background: var(--dark); color: var(--white);
-      padding: 8px 18px; border-radius: 8px;
-    }
-    .nav-links .nav-cta:hover { background: var(--blue); color: var(--white); }
 
     /* ── HERO ────────────────────────────────────────────── */
     .hero {
@@ -84,19 +72,20 @@
       text-decoration: none; display: inline-block;
     }
     .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,99,235,.35); }
-    .btn-hero-ghost {
-      background: var(--white); color: var(--dark); border: 1.5px solid var(--border);
-      border-radius: 12px; padding: 13px 24px;
-      font-family: inherit; font-size: .95rem; font-weight: 700;
-      cursor: pointer; transition: border-color .15s; text-decoration: none; display: inline-block;
+    
+    .hero-image-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    .btn-hero-ghost:hover { border-color: var(--blue); color: var(--blue); }
-    .hero-video {
-      border-radius: 20px; overflow: hidden;
-      box-shadow: 0 24px 60px rgba(15,23,42,.14);
-      aspect-ratio: 16/9;
+    .profile-img {
+      width: clamp(200px, 25vw, 320px);
+      height: clamp(200px, 25vw, 320px);
+      object-fit: cover;
+      border-radius: 50%;
+      border: 8px solid var(--white);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.1);
     }
-    .hero-video iframe { width: 100%; height: 100%; display: block; border: 0; }
 
     /* ── STATS BAR ───────────────────────────────────────── */
     .stats-bar {
@@ -123,69 +112,6 @@
       letter-spacing: -.03em; margin-bottom: 14px; line-height: 1.2;
     }
     .section-sub { font-size: 1rem; color: var(--mid); line-height: 1.7; max-width: 640px; margin-bottom: 40px; }
-
-    /* ── WORKSHEETS SECTION ──────────────────────────────── */
-    #worksheets { background: var(--white); }
-    .ws-hero-row {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 24px; margin-bottom: 48px; flex-wrap: wrap;
-    }
-    .ws-hero-text { flex: 1; min-width: 240px; }
-    .ws-hero-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: #fef3c7; color: #92400e;
-      font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-      padding: 5px 14px; border-radius: 999px; margin-bottom: 14px;
-    }
-    .ws-domain-group { margin-bottom: 44px; }
-    .ws-domain-header {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 20px; padding-bottom: 12px;
-      border-bottom: 2px solid var(--border);
-    }
-    .ws-domain-name {
-      font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-      padding: 4px 12px; border-radius: 999px;
-    }
-    .ws-domain-count { font-size: .8rem; color: var(--light); font-weight: 600; }
-
-    /* domain colors */
-    .d-algebra    { background: #dbeafe; color: #1d4ed8; }
-    .d-advanced   { background: #ede9fe; color: #7c3aed; }
-    .d-psda       { background: #e0f2fe; color: #0369a1; }
-    .d-geo        { background: #d1fae5; color: #065f46; }
-
-    .ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
-    .ws-card {
-      background: var(--bg); border: 1.5px solid var(--border);
-      border-radius: 12px; padding: 18px 20px;
-      text-decoration: none; color: inherit;
-      display: flex; align-items: flex-start; gap: 14px;
-      transition: border-color .15s, box-shadow .15s, transform .15s;
-    }
-    .ws-card:hover { border-color: var(--blue); box-shadow: 0 4px 16px rgba(37,99,235,.1); transform: translateY(-2px); }
-    .ws-card-icon {
-      width: 36px; height: 36px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: .9rem; flex-shrink: 0;
-    }
-    .ws-card-body {}
-    .ws-card-title { font-size: .875rem; font-weight: 700; line-height: 1.35; margin-bottom: 4px; }
-    .ws-card-meta { font-size: .72rem; color: var(--light); font-weight: 600; }
-    .ws-card-arrow {
-      margin-left: auto; color: var(--light); flex-shrink: 0;
-      align-self: center; transition: color .15s, transform .15s;
-    }
-    .ws-card:hover .ws-card-arrow { color: var(--blue); transform: translateX(3px); }
-    .ws-card.locked {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .ws-card.locked:hover {
-      border-color: var(--border);
-      box-shadow: none;
-      transform: none;
-    }
 
     /* ── WHAT TO EXPECT ──────────────────────────────────── */
     #expect { background: var(--bg); }
@@ -311,14 +237,9 @@
     /* ── RESPONSIVE ──────────────────────────────────────── */
     @media (max-width: 768px) {
       .hero { grid-template-columns: 1fr; gap: 40px; }
-      .hero-video { order: -1; }
+      .hero-image-container { order: -1; }
       .stats-inner { grid-template-columns: repeat(2, 1fr); gap: 16px; }
       .form-row { grid-template-columns: 1fr; }
-      .nav-links a:not(.nav-cta) { display: none; }
-    }
-    @media (max-width: 480px) {
-      .stats-inner { grid-template-columns: repeat(2,1fr); }
-      .ws-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -327,30 +248,21 @@
 <!-- ── NAV ──────────────────────────────────────────────────────── -->
 <nav>
   <a class="nav-logo" href="#"><span>Florian</span> Math</a>
-  <div class="nav-links">
-    <a href="#worksheets">Free Worksheets</a>
-    <a href="#expect">About</a>
-    <a href="#pricing">Pricing</a>
-    <a href="#apply" class="nav-cta">Apply Now</a>
-  </div>
 </nav>
 
 <!-- ── HERO ─────────────────────────────────────────────────────── -->
 <section style="padding:0; background: radial-gradient(ellipse at top, #e0f2ff 0%, #eef2ff 45%, #f8fafc 70%);">
   <div class="hero">
     <div class="hero-text">
-      <div class="hero-pill"><span class="hero-pill-dot"></span>Live &middot; Interactive &middot; SAT Math</div>
-      <h1>Master SAT Math with <span class="accent">live classes</span> & free practice</h1>
-      <p class="hero-sub">Small groups. Personalized feedback. Every SAT Math topic — from linear equations to statistics. Plus free worksheets for every skill, right here.</p>
+      <div class="hero-pill"><span class="hero-pill-dot"></span>Live &middot; Interactive &middot; Small Groups</div>
+      <h1>Master SAT Math with <span class="accent">live sessions</span> tailored for you</h1>
+      <p class="hero-sub">Small groups. Personalized feedback. Deep conceptual understanding. Join the next cohort and transform how you approach problem solving.</p>
       <div class="hero-actions">
-        <a href="#worksheets" class="btn-hero-ghost">📄 Free Worksheets</a>
-        <a href="#apply" class="btn-hero-primary">Apply for Live Classes →</a>
+        <a href="#apply" class="btn-hero-primary">Apply for a Spot →</a>
       </div>
     </div>
-    <div class="hero-video">
-      <iframe src="https://www.youtube.com/embed/WfCU_0x9z50" title="Welcome to Florian Math"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen></iframe>
+    <div class="hero-image-container">
+      <img src="https://flomath.space/Coolblue.jpg" alt="Florian" class="profile-img">
     </div>
   </div>
 </section>
@@ -358,206 +270,19 @@
 <!-- ── STATS BAR ─────────────────────────────────────────────────── -->
 <div class="stats-bar">
   <div class="stats-inner">
-    <div class="stat"><div class="stat-num">19</div><div class="stat-lbl">Free worksheets</div></div>
+    <div class="stat"><div class="stat-num">Personal</div><div class="stat-lbl">Approach</div></div>
     <div class="stat"><div class="stat-num">≤10</div><div class="stat-lbl">Students per class</div></div>
     <div class="stat"><div class="stat-num">90 min</div><div class="stat-lbl">Per live session</div></div>
     <div class="stat"><div class="stat-num">Free</div><div class="stat-lbl">First lesson</div></div>
   </div>
 </div>
 
-<!-- ── WORKSHEETS ────────────────────────────────────────────────── -->
-<section id="worksheets">
-  <div class="section-inner">
-    <div class="ws-hero-row">
-      <div class="ws-hero-text">
-        <div class="ws-hero-badge">⭐ 100% Free</div>
-        <h2 class="section-title">Practice worksheets for every SAT Math skill</h2>
-        <p class="section-sub">Found me on YouTube? Start here — pick any skill, work through 5 SAT-style questions, and get instant step-by-step explanations.</p>
-      </div>
-    </div>
-
-    <!-- Algebra -->
-    <div class="ws-domain-group">
-      <div class="ws-domain-header">
-        <span class="ws-domain-name d-algebra">Algebra</span>
-        <span class="ws-domain-count">5 worksheets</span>
-      </div>
-      <div class="ws-grid">
-        <a class="ws-card" href="https://flomath.space/leiov.html">
-          <div class="ws-card-icon d-algebra" style="background:#dbeafe">📐</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Linear Equations in One Variable</div>
-            <div class="ws-card-meta">6 questions · ~18 min</div>
-          </div>
-          <svg class="ws-card-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-        </a>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#dbeafe">📈</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Linear Functions</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#dbeafe">🔢</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Linear Equations in Two Variables</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#dbeafe">⚖️</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Systems of Two Linear Equations</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#dbeafe">≤</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Linear Inequalities</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Advanced Math -->
-    <div class="ws-domain-group">
-      <div class="ws-domain-header">
-        <span class="ws-domain-name d-advanced">Advanced Math</span>
-        <span class="ws-domain-count">3 worksheets</span>
-      </div>
-      <div class="ws-grid">
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#ede9fe">∪</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Nonlinear Functions</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#ede9fe">x²</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Nonlinear Equations & Systems</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#ede9fe">=</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Equivalent Expressions</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Problem-Solving & Data Analysis -->
-    <div class="ws-domain-group">
-      <div class="ws-domain-header">
-        <span class="ws-domain-name d-psda">Problem-Solving & Data Analysis</span>
-        <span class="ws-domain-count">7 worksheets</span>
-      </div>
-      <div class="ws-grid">
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#e0f2fe">÷</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Ratios, Rates & Proportional Relationships</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#e0f2fe">%</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Percentages</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#e0f2fe">📊</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">One-Variable Data: Distributions & Center</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#e0f2fe">📉</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Two-Variable Data: Models & Scatterplots</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#e0f2fe">🎲</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Probability & Conditional Probability</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#e0f2fe">🔍</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Inference & Margin of Error</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#e0f2fe">🧪</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Evaluating Statistical Claims</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Geometry & Trig -->
-    <div class="ws-domain-group" style="margin-bottom:0">
-      <div class="ws-domain-header">
-        <span class="ws-domain-name d-geo">Geometry & Trigonometry</span>
-        <span class="ws-domain-count">4 worksheets</span>
-      </div>
-      <div class="ws-grid">
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#d1fae5">📦</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Area and Volume</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#d1fae5">△</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Lines, Angles & Triangles</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#d1fae5">📐</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Right Triangles & Trigonometry</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-        <div class="ws-card locked">
-          <div class="ws-card-icon" style="background:#d1fae5">⭕</div>
-          <div class="ws-card-body">
-            <div class="ws-card-title">Circles</div>
-            <div class="ws-card-meta">Publishing Soon</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ── WHAT TO EXPECT ─────────────────────────────────────────────── -->
 <section id="expect">
   <div class="section-inner">
-    <span class="section-label">Live Classes</span>
-    <h2 class="section-title">What to expect in Florian Math sessions</h2>
-    <p class="section-sub">Every week we spend 90 minutes working through the key SAT Math topics. Classes stay capped at 10 people so you actually get time to ask questions.</p>
+    <span class="section-label">Learning Experience</span>
+    <h2 class="section-title">What to expect in our sessions</h2>
+    <p class="section-sub">Every week we spend 90 minutes working through challenging problems together. Classes stay small so everyone has a voice.</p>
     <div class="expect-grid">
       <div class="expect-card">
         <div class="expect-icon">👥</div>
@@ -579,28 +304,17 @@
         <h3>Google Meet + Chat support</h3>
         <p>Every live lesson happens on Google Meet. Ask questions in real time, or hop on a quick follow-up after.</p>
       </div>
-      <div class="expect-card">
-        <div class="expect-icon">🎯</div>
-        <h3>Adaptive pacing</h3>
-        <p>I adjust the pace based on where each person lands after their most recent practice or official test.</p>
-      </div>
-      <div class="expect-card">
-        <div class="expect-icon">📚</div>
-        <h3>Full SAT Math coverage</h3>
-        <p>Algebra, functions, advanced math, geometry, data analysis — every domain, every skill that shows up on test day.</p>
-      </div>
-    </div>
+      
   </div>
 </section>
 
 <!-- ── PRICING ────────────────────────────────────────────────────── -->
 <section id="pricing">
   <div class="section-inner">
-    <span class="section-label">Pricing</span>
-    <h2 class="section-title">Simple, flexible pricing</h2>
-    <p class="section-sub">Your first lesson is completely free. After that, pick the block that fits your rhythm — I'll help you arrange the payment over Google Chat.</p>
+    <span class="section-label">Investment</span>
+    <h2 class="section-title">Transparent pricing</h2>
+    <p class="section-sub">Your first session is always free to ensure we are a good fit for each other.</p>
     <span class="free-tag">✓ First lesson always free</span>
-    <p style="font-size:.82rem;color:var(--light);margin-bottom:4px">Selecting a package captures your preference — you can change your mind before payment is confirmed.</p>
 
     <div class="pricing-grid">
       <div class="pricing-card" id="pc-10">
@@ -642,7 +356,7 @@
   <div class="section-inner apply-inner">
     <span class="section-label">Apply</span>
     <h2 class="section-title">Save your spot</h2>
-    <p class="section-sub">Tell me what you're aiming for and I'll reach out to confirm your place in the next cohort.</p>
+    <p class="section-sub">Briefly share your details and I'll reach out to schedule your first free lesson.</p>
     <div class="form-card">
       <form id="app-form">
         <input type="hidden" name="packageChoice" id="form-pkg"/>
@@ -661,10 +375,7 @@
           </label>
         </div>
         <label>High school / affiliation <input type="text" name="school" placeholder="Example High School"/></label>
-        <div class="form-row">
-          <label>Target test date <input type="date" name="testDate" required/></label>
-          <label>Math topic you want most support with <input type="text" name="mathFocus" placeholder="e.g. Advanced geometry" required/></label>
-        </div>
+        <label>Target achievement date <input type="date" name="testDate" required/></label>
         <label>Availability (days you can join live)
           <select name="availability" required>
             <option value="">Select availability</option>
@@ -673,12 +384,6 @@
             <option>Weekend afternoons</option>
             <option>Flexible / hybrid</option>
           </select>
-        </label>
-        <label>What is your biggest SAT Math challenge right now?
-          <textarea name="challenge" rows="3" placeholder="Describe a topic or mindset challenge" required></textarea>
-        </label>
-        <label>Describe a recent problem you struggled with (optional)
-          <textarea name="problem" rows="3" placeholder="Include the question type or approach you tried"></textarea>
         </label>
         <button type="submit" class="btn-submit" id="btn-submit">Submit Application</button>
         <div class="form-msg" id="form-msg" role="status"></div>
@@ -738,8 +443,6 @@ form.addEventListener('submit', async e => {
     await addDoc(collection(db, 'SATapps'), {
       fullName: fd.get('fullName'), email: fd.get('email'), phone: fd.get('phone'),
       grade: fd.get('grade'), school: fd.get('school'), testDate: fd.get('testDate'),
-      mathFocus: fd.get('mathFocus'), availability: fd.get('availability'),
-      challenge: fd.get('challenge'), problem: fd.get('problem'),
       packageChoice: fd.get('packageChoice'), submittedAt: serverTimestamp(),
     });
     msgEl.textContent = '✓ Application submitted! I\'ll be in touch via email or Google Chat soon.';
