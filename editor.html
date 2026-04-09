@@ -4540,9 +4540,13 @@
     }
 
     function handleZoomKeyframeClick() {
-        const manualTransform = pendingViewportTransform || globalEditingOverride || cloneTransform(getActiveGlobalTransform());
+        // If no keyframe is selected and we aren't actively overriding via Whole Control or dragging,
+        // capture the current animated view rather than the stale manual transform.
+        const useAnimation = activeGlobalKeyframeIndex === null && !wholeControlActive && !viewportPreviewActive;
+        const transformToCapture = useAnimation ? computeGlobalZoomTransform(state.currentTime) : (pendingViewportTransform || globalEditingOverride || getActiveGlobalTransform());
+
         const time = Math.max(0, Math.min(state.duration, state.currentTime));
-        addZoomKeyframe(manualTransform, time);
+        addZoomKeyframe(transformToCapture, time);
         showZoomToast('Global keyframe added');
     }
 
