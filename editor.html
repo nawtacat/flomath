@@ -6326,7 +6326,7 @@
         }
     }
 
-    function uploadAssetToFirebase(file, layer) {
+    async function uploadAssetToFirebase(file, layer) {
         if (!currentProjectId) return; // Can't upload if not in a project context? Or just upload to temp?
         // We'll upload anyway
         const storageRef = firebase.storage().ref();
@@ -6357,7 +6357,7 @@
                 setTimeout(() => statusEl.innerText = originalStatusText, 3000);
             }
             throw error; // Re-throw to propagate failure
-        });
+        }
     }
 
     function triggerAutoSave() {
