@@ -6413,7 +6413,7 @@
             }
         }, 2000);
 
-        firebase.database().ref('states/' + projectId).once('value').then((snapshot) => {
+        firebase.database().ref('states/' + projectId).once('value').then(async (snapshot) => {
             clearTimeout(loadTimeout);
             const data = snapshot.val();
             if (!data) {
@@ -6459,7 +6459,7 @@
             // Reconstruct Layers
             state.layers = [];
             if (data.layers) {
-                data.layers.forEach(lData => {
+                for (const lData of data.layers) {
                     const layer = new Layer(lData.type, lData.name, null);
                     Object.assign(layer, lData);
                     
@@ -6479,21 +6479,23 @@
                         if (layer.katex) {
                             layer.katexNeedsRender = true;
                         }
-                    } else if (layer.type === 'image' && layer.storageUrl) {
-                        const img = new Image();
-                        img.crossOrigin = "anonymous";
-                        img.onload = () => {
-                            layer.updateDimensions();
-                            renderCanvas();
-                        };
-                        img.onerror = () => {
-                            console.warn('Failed to load image (CORS or missing):', layer.storageUrl);
-                            layer.width = 200;
-                            layer.height = 200;
-                            renderCanvas();
-                        };
-                        img.src = layer.storageUrl;
-                        layer.content = img;
+                    } else if (layer.type === 'image') {
+                        if (layer.storageUrl) {
+                            const img = new Image();
+                            img.crossOrigin = "anonymous";
+                            img.onload = () => {
+                                layer.updateDimensions();
+                                renderCanvas();
+                            };
+                            img.onerror = () => {
+                                console.warn('Failed to load image from Storage:', layer.storageUrl);
+                                layer.width = 200;
+                                layer.height = 200;
+                                renderCanvas();
+                            };
+                            img.src = layer.storageUrl;
+                            layer.content = img;
+                        }
                     } else if (layer.type === 'video' && layer.storageUrl) {
                         const vid = document.createElement('video');
                         vid.crossOrigin = "anonymous";
@@ -6506,18 +6508,24 @@
                             audio.crossOrigin = "anonymous";
                             layer.content = audio;
                         } else if (layer.assetFileName) {
-                            fetch(`${SOUND_BASE_URL}${layer.assetFileName}`).then(r => {
-                                if (!r.ok) throw new Error(r.statusText);
-                                return r.blob();
-                            }).then(blob => {
+                            try {
+                                const r = await fetch(`${SOUND_BASE_URL}${layer.assetFileName}`);
+                                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                                const blob = await r.blob();
                                 layer.assetBlob = blob;
-                                layer.content = new Audio(URL.createObjectURL(blob));
-                            }).catch(e => console.warn('Failed to restore stock audio', e));
+                                const audio = new Audio(URL.createObjectURL(blob));
+                                audio.crossOrigin = "anonymous";
+                                layer.content = audio;
+                                // Self-heal: Upload to Firebase Storage so we don't depend on flomath.space next time
+                                uploadAssetToFirebase(blob, layer).then(() => triggerAutoSave());
+                            } catch (e) {
+                                console.warn(`Failed to restore stock audio: ${layer.assetFileName}`, e);
+                            }
                         }
                     }
                     
                     state.layers.push(layer);
-                });
+                }
             }
 
             updateViewportFloatUI();
