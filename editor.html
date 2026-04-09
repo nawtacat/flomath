@@ -2799,7 +2799,7 @@
 
     // --- Layer Management ---
 
-    function addTextLayer() {
+    async function addTextLayer() { // Made async for consistency, though no await here
         saveHistory();
         const l = new Layer('text', 'Text Layer', 'HELLO');
         const center = getViewportCenterWorld();
@@ -2816,7 +2816,7 @@
         triggerAutoSave();
     }
 
-    function addShape() {
+    async function addShape() { // Made async for consistency, though no await here
         saveHistory();
         const l = new Layer('shape', 'Shape Layer', null);
         l.shapeType = 'square';
@@ -2833,17 +2833,21 @@
         triggerAutoSave();
     }
 
-    function addMediaFile(file) {
+    async function addMediaFile(file) {
         let fileType = file.type.split('/')[0];
         if (fileType === 'image') {
             const img = new Image();
-            img.onload = () => {
+            img.onload = async () => {
                 saveHistory();
                 const l = new Layer('image', file.name, img);
                 const center = getViewportCenterWorld();
                 l.x = center.x;
                 l.y = center.y;
-                uploadAssetToFirebase(file, l);
+                try {
+                    await uploadAssetToFirebase(file, l);
+                } catch (e) {
+                    alert("Failed to upload image to Firebase Storage. It might not be saved correctly.");
+                }
                 ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnNewSlot(l);
@@ -2859,7 +2863,7 @@
             vid.muted = true;
             vid.playsInline = true;
             vid.autoplay = false;
-            vid.onloadedmetadata = () => {
+            vid.onloadedmetadata = async () => {
                 saveHistory();
                 const l = new Layer('video', file.name, vid);
                 l.duration = vid.duration || 10;
@@ -2876,7 +2880,11 @@
                 const center = getViewportCenterWorld();
                 l.x = center.x;
                 l.y = center.y;
-                uploadAssetToFirebase(file, l);
+                try {
+                    await uploadAssetToFirebase(file, l);
+                } catch (e) {
+                    alert("Failed to upload video to Firebase Storage. It might not be saved correctly.");
+                }
                 ensureLayerStartsAtPlayhead(l);
                 state.layers.push(l);
                 placeLayerOnNewSlot(l);
@@ -2892,10 +2900,15 @@
             const audio = document.createElement('audio');
             audio.src = URL.createObjectURL(file);
             audio.preload = 'metadata';
-            audio.onloadedmetadata = () => {
+            audio.onloadedmetadata = async () => {
                 saveHistory();
                 const l = new Layer('audio', file.name, audio);
                 l.duration = audio.duration || 5;
+                try {
+                    await uploadAssetToFirebase(file, l);
+                } catch (e) {
+                    alert("Failed to upload audio to Firebase Storage. It might not be saved correctly.");
+                }
                 l.width = 400;
                 l.height = 60;
                 l.assetBlob = file;
@@ -2913,13 +2926,13 @@
         }
     }
 
-    function handleAudioUpload(input) {
+    async function handleAudioUpload(input) {
         if (!input.files[0]) return;
         const file = input.files[0];
         const audio = document.createElement('audio');
         audio.src = URL.createObjectURL(file);
         audio.preload = 'metadata';
-        audio.onloadedmetadata = () => {
+        audio.onloadedmetadata = async () => {
             saveHistory();
             const l = new Layer('audio', file.name, audio);
             l.duration = audio.duration || 5;
@@ -2931,7 +2944,11 @@
             ensureLayerStartsAtPlayhead(l);
             l.assetBlob = file;
             l.assetFileName = file.name;
-            uploadAssetToFirebase(file, l);
+            try {
+                await uploadAssetToFirebase(file, l);
+            } catch (e) {
+                alert("Failed to upload audio to Firebase Storage. It might not be saved correctly.");
+            }
             state.layers.push(l);
             placeLayerOnNewSlot(l);
             selectLayer(l.id);
@@ -3960,13 +3977,19 @@
         audio.preload = 'metadata';
         audio.volume = soundVolume;
         audio.muted = false;
-
+        
         saveHistory();
         const layer = new Layer('audio', `Sound: ${soundId}`, audio);
         layer.duration = 5;
         layer.volume = soundVolume;
         layer.assetFileName = filename;
         layer.assetBlob = blobData;
+        try {
+            await uploadAssetToFirebase(blobData, layer); // Upload the stock sound blob
+        } catch (uploadErr) {
+            console.error('Failed to upload stock sound to Firebase Storage:', uploadErr);
+            alert(`Failed to upload stock sound "${filename}" to Firebase Storage. It might not be saved correctly.`);
+        }
         ensureLayerStartsAtPlayhead(layer);
         state.layers.push(layer);
         placeLayerOnNewSlot(layer);
@@ -6311,14 +6334,16 @@
         
         const statusEl = document.getElementById('save-status');
         if(statusEl) statusEl.innerText = 'Uploading asset...';
+        const originalStatusText = statusEl ? statusEl.innerText : '';
 
-        fileRef.put(file).then((snapshot) => {
-            return snapshot.ref.getDownloadURL();
-        }).then((url) => {
+        try {
+            const snapshot = await fileRef.put(file);
+            const url = await snapshot.ref.getDownloadURL();
             layer.storageUrl = url;
             if(statusEl) statusEl.innerText = 'Asset uploaded.';
-            triggerAutoSave(); // Save the new URL
-        }).catch((error) => {
+            setTimeout(() => { if(statusEl.innerText === 'Asset uploaded.') statusEl.innerText = originalStatusText; }, 2000);
+            return url; // Return the URL
+        } catch (error) {
             console.error('Upload failed:', error);
             
             // Check for the specific "bucket not set up" error
@@ -6329,8 +6354,9 @@
                 if(statusEl) statusEl.innerText = 'Enable Storage in Console';
             } else if(statusEl) {
                 statusEl.innerText = 'Upload failed';
-                setTimeout(() => statusEl.innerText = '', 3000);
+                setTimeout(() => statusEl.innerText = originalStatusText, 3000);
             }
+            throw error; // Re-throw to propagate failure
         });
     }
 
