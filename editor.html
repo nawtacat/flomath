@@ -1631,7 +1631,7 @@
         constructor(type, name, content) {
             this.id = state.nextId++;
             this.type = type; // 'text', 'image', 'video', 'shape'
-            this.name = name;
+            this.name = name || 'Untitled Layer';
             this.content = content; // Text string or Image/Video Element
             this.startTime = 0;
             this.duration = 5;
@@ -1875,6 +1875,12 @@
             }
             // For media, we rely on storageUrl. If storageUrl is missing, we might lose the asset on reload
             // unless we re-upload.
+
+            // Remove any undefined values to prevent Firebase "set failed: value argument contains undefined" errors
+            Object.keys(data).forEach(key => {
+                if (data[key] === undefined) delete data[key];
+            });
+
             return data;
         }
     }
