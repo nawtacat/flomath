@@ -4470,9 +4470,20 @@
 
     function addZoomKeyframe(transform, time) {
         const clamped = Math.max(0, Math.min(state.duration, time));
-        const newId = globalZoom.nextId++;
         saveHistory();
         const finalTransform = cloneTransform(pendingViewportTransform || transform);
+
+        // Update the base manual state (sliders) to match the captured view so that
+        // the subsequent sync call doesn't reset the new keyframe to origin.
+        manualGlobalTransform.x = finalTransform.x;
+        manualGlobalTransform.y = finalTransform.y;
+        manualGlobalTransform.scale = finalTransform.scale;
+        updateViewportControls();
+
+        // Remove existing keyframe at same time to prevent duplicates
+        globalZoom.keyframes = globalZoom.keyframes.filter(k => Math.abs(k.time - clamped) > 0.01);
+
+        const newId = globalZoom.nextId++;
         globalZoom.keyframes.push({
             id: newId,
             time: clamped,
@@ -4540,12 +4551,13 @@
     }
 
     function handleZoomKeyframeClick() {
+        const time = Math.max(0, Math.min(state.duration, state.currentTime));
+
         // If no keyframe is selected and we aren't actively overriding via Whole Control or dragging,
         // capture the current animated view rather than the stale manual transform.
         const useAnimation = activeGlobalKeyframeIndex === null && !wholeControlActive && !viewportPreviewActive;
-        const transformToCapture = useAnimation ? computeGlobalZoomTransform(state.currentTime) : (pendingViewportTransform || globalEditingOverride || getActiveGlobalTransform());
+        const transformToCapture = useAnimation ? computeGlobalZoomTransform(time) : (pendingViewportTransform || globalEditingOverride || getActiveGlobalTransform());
 
-        const time = Math.max(0, Math.min(state.duration, state.currentTime));
         addZoomKeyframe(transformToCapture, time);
         showZoomToast('Global keyframe added');
     }
