@@ -1825,6 +1825,9 @@
                 }
                 newMediaEl.crossOrigin = "anonymous";
                 newMediaEl.muted = true;
+                // Ensure the cloned element is in the DOM so it decodes reliably during export
+                newMediaEl.style.display = 'none';
+                document.body.appendChild(newMediaEl);
                 newLayer.content = newMediaEl;
             } else {
                 newLayer.content = this.content; // For text, image
@@ -2856,9 +2859,9 @@
                 l.y = center.y;
                 try {
                     await uploadAssetToFirebase(file, l);
-                    // Ensure video is in DOM (hidden) so it decodes reliably during export
-                    vid.style.display = 'none';
-                    document.body.appendChild(vid);
+                    // Ensure image is in DOM (hidden) for consistency
+                    img.style.display = 'none';
+                    document.body.appendChild(img);
                 } catch (e) {
                     alert("Failed to upload image to Firebase Storage. It might not be saved correctly.");
                 }
@@ -2896,6 +2899,10 @@
                 l.y = center.y;
                 try {
                     await uploadAssetToFirebase(file, l);
+
+                    // Ensure video is in DOM (hidden) so it decodes reliably during export
+                    vid.style.display = 'none';
+                    document.body.appendChild(vid);
                 } catch (e) {
                     alert("Failed to upload video to Firebase Storage. It might not be saved correctly.");
                 }
