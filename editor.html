@@ -2856,6 +2856,9 @@
                 l.y = center.y;
                 try {
                     await uploadAssetToFirebase(file, l);
+                    // Ensure video is in DOM (hidden) so it decodes reliably during export
+                    vid.style.display = 'none';
+                    document.body.appendChild(vid);
                 } catch (e) {
                     alert("Failed to upload image to Firebase Storage. It might not be saved correctly.");
                 }
@@ -6054,16 +6057,15 @@
                                 resolve();
                             };
                             
-                            // Safety timeout to prevent hang (reduced to 1s)
+                            // Safety timeout to prevent hang (reduced for faster export)
                             const timeoutId = setTimeout(() => {
                                 if (!resolved) onDone();
-                            }, 1000);
+                            }, 300);
 
                             const onReady = () => {
                                 clearTimeout(timeoutId);
-                                // Wait a bit for decoding to ensure 'drawImage' gets the new frame.
-                                // Removed requestVideoFrameCallback as it fails on detached elements.
-                                setTimeout(onDone, 50);
+                                // Reduced delay to speed up export loop
+                                setTimeout(onDone, 10);
                             };
 
                             if (needsSeek) {
@@ -6267,7 +6269,8 @@
                     
                     const frameNumber = String(i).padStart(5, '0');
                     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-                    ffmpeg.FS('writeFile', `frame-${frameNumber}.jpg`, await fetchFile(blob));
+                    const arrayBuffer = await blob.arrayBuffer();
+                    ffmpeg.FS('writeFile', `frame-${frameNumber}.jpg`, new Uint8Array(arrayBuffer));
 
                     progress.style.width = `${((i + 1) / totalFrames) * 50}%`; // 0-50% for rendering
                 }
@@ -6538,6 +6541,8 @@
                         vid.crossOrigin = "anonymous";
                         vid.src = layer.storageUrl;
                         vid.muted = true; // Auto-mute for editor
+                        vid.style.display = 'none';
+                        document.body.appendChild(vid);
                         layer.content = vid;
                     } else if (layer.type === 'audio') {
                         if (layer.storageUrl) {
