@@ -1989,6 +1989,16 @@
         }
 
         renderCanvas();
+
+        // Sync camera sliders with current animation state when not manually overriding
+        if (activeGlobalKeyframeIndex === null && !wholeControlActive && !viewportPreviewActive) {
+            const currentT = getActiveGlobalTransform();
+            manualGlobalTransform.x = currentT.x;
+            manualGlobalTransform.y = currentT.y;
+            manualGlobalTransform.scale = currentT.scale;
+            updateViewportControls();
+        }
+
         animationFrameId = requestAnimationFrame(gameLoop);
     }
 
@@ -5260,6 +5270,11 @@
         
         const time = Math.max(0, offsetX / PIXELS_PER_SECOND);
         state.currentTime = time;
+
+        // Exit keyframe edit mode when scrubbing so we can set up the next viewpoint
+        clearActiveGlobalKeyframe();
+        clearActiveMotionKeyframe();
+
         updateTimelineUI();
         updatePropertiesPanel();
     });
@@ -5993,6 +6008,10 @@
     document.getElementById('btn-play').onclick = () => {
         state.isPlaying = !state.isPlaying;
         if (state.isPlaying) {
+            // Stop editing specific keyframes when playing
+            clearActiveGlobalKeyframe();
+            clearActiveMotionKeyframe();
+            clearViewportPreviewTransform();
             activeBlurKeyframeIndex = null;
             updateBlurUI();
         }
