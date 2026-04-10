@@ -1868,6 +1868,7 @@
             delete data.content; 
             delete data.assetBlob;
             delete data.katexImage;
+            delete data.katexContentHash; // Don't save the render cache to the database
             
             // If it's text, we want to save the content string
             if (this.type === 'text') {
@@ -4144,6 +4145,7 @@
             layer.katexImageHeight = height;
             layer.width = width;
             layer.height = height;
+            layer.katexContentHash = contentHash; // Only lock the hash once the image is ready
             layer.katexImageLoading = false;
         };
         img.onerror = () => {
