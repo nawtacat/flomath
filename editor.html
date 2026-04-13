@@ -1014,7 +1014,10 @@
 
 <div id="katex-measure" aria-hidden="true"></div>
 
-<script>
+
+</body>
+    <script>
+        
     // --- Constants & State ---
     let CANVAS_WIDTH = 1080;
     let CANVAS_HEIGHT = 1920;
@@ -1029,6 +1032,7 @@
         currentTime: 0, // in seconds
         duration: 10, // default 10 seconds
         isPlaying: false,
+        wakeLock: null,
         layers: [],
         selectedLayerId: null,
         background: 'none',
@@ -6214,6 +6218,22 @@
         });
     }
 
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                state.wakeLock = await navigator.wakeLock.request('screen');
+            } catch (err) {
+                console.warn('Wake Lock request failed:', err);
+            }
+        }
+    }
+
+    function releaseWakeLock() {
+        if (state.wakeLock) {
+            state.wakeLock.release().then(() => { state.wakeLock = null; });
+        }
+    }
+
     document.getElementById('btn-export').onclick = async () => {
         const overlay = document.getElementById('export-overlay');
         const progress = document.getElementById('export-progress');
@@ -6229,6 +6249,8 @@
         state.isPlaying = false;
         state.currentTime = 0;
         cancelAnimationFrame(animationFrameId); // Stop main loop interaction
+
+        await requestWakeLock();
 
         let ffmpeg;
         let exportBlob;
@@ -6323,6 +6345,7 @@
             alert('An error occurred during export. Check the console for details.');
         } finally {
             if (ffmpeg) {
+                releaseWakeLock();
                 try {
                         if (typeof ffmpeg.exit === 'function') {
                             await ffmpeg.exit();
@@ -6687,6 +6710,5 @@
     });
     init();
 
-</script>
-</body>
+    </script>
 </html>
