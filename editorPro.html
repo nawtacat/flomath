@@ -673,13 +673,6 @@
                        oninput="updateTextMaxWidth(this.value)" 
                        placeholder="0 for none" 
                        style="margin-bottom: 10px;">
-                <div style="margin-top:10px; border-top:1px dashed #555; padding-top:10px; margin-bottom: 10px;">
-                    <label>Smart Highlight</label>
-                    <div style="display:flex; gap:5px;">
-                        <input type="text" id="smart-highlight-query" placeholder="Text to highlight..." style="margin-bottom:0;">
-                        <button class="secondary" style="white-space:nowrap; padding: 0 10px;" onclick="addSmartHighlight()">Apply</button>
-                    </div>
-                </div>
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-top:6px;">
                     <input type="checkbox" id="prop-katex" onchange="updateKatexMode(this.checked)">
                     Render as KaTeX
@@ -1023,8 +1016,8 @@
 
 
 </body>
-  <script>
-    
+    <script>
+        
     // --- Constants & State ---
     let CANVAS_WIDTH = 1080;
     let CANVAS_HEIGHT = 1920;
@@ -1039,6 +1032,7 @@
         currentTime: 0, // in seconds
         duration: 10, // default 10 seconds
         isPlaying: false,
+        wakeLock: null,
         layers: [],
         selectedLayerId: null,
         background: 'none',
@@ -1714,24 +1708,38 @@
                 const fontFamily = this.fontFamily || 'Arial';
                 const fontWeight = this.fontWeight || 'bold';
                 const fontStyle = this.fontStyle || 'normal';
-                const font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
+                ctx.font = `${fontStyle} ${fontWeight} 100px "${fontFamily}"`;
 
                 const maxWidth = this.textMaxWidth || 0;
                 const textContent = String(this.content ?? '');
                 if (maxWidth > 0 || textContent.includes('\n')) {
                     const lineHeight = 120;
-                    const lines = getWrappedLines(textContent, maxWidth, font);
-                    ctx.save();
-                    ctx.font = font;
-                    const maxW = lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
-                    ctx.restore();
+                    const paragraphs = textContent.split('\n');
+                    let lineCount = 0;
+                    let maxW = 0;
+                    
+                    paragraphs.forEach(p => {
+                        const words = p.split(' ');
+                        let line = '';
+                        for (let i = 0; i < words.length; i++) {
+                            const testLine = line + words[i] + ' ';
+                            const metrics = ctx.measureText(testLine);
+                            if (maxWidth > 0 && metrics.width > maxWidth && i > 0) {
+                                lineCount++;
+                                maxW = Math.max(maxW, ctx.measureText(line.trim()).width);
+                                line = words[i] + ' ';
+                            } else {
+                                line = testLine;
+                            }
+                        }
+                        lineCount++;
+                        maxW = Math.max(maxW, ctx.measureText(line.trim()).width);
+                    });
+                    
                     this.width = maxWidth > 0 ? maxWidth : maxW;
-                    this.height = lines.length * lineHeight;
+                    this.height = lineCount * lineHeight;
                 } else {
-                    ctx.save();
-                    ctx.font = font;
                     const metrics = ctx.measureText(textContent);
-                    ctx.restore();
                     this.width = metrics.width;
                     this.height = 100; // Approx height
                 }
@@ -1885,11 +1893,9 @@
         }
     }
 
-    function getWrappedLines(text, maxWidth, font) {
-        const paragraphs = String(text).split('\n');
+    function renderWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+        const paragraphs = text.split('\n');
         let lines = [];
-        ctx.save();
-        if (font) ctx.font = font;
 
         paragraphs.forEach(paragraph => {
             const words = paragraph.split(' ');
@@ -1906,23 +1912,12 @@
             }
             lines.push(line.trim());
         });
-        ctx.restore();
-        return lines;
-    }
 
-    function renderWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
-        const lines = getWrappedLines(text, maxWidth);
         const startY = y - ((lines.length - 1) * lineHeight) / 2;
         for (let i = 0; i < lines.length; i++) {
             ctx.fillText(lines[i], x, startY + i * lineHeight);
         }
     }
-
-    const zeroDelayYield = () => new Promise(resolve => {
-        const { port1, port2 } = new MessageChannel();
-        port1.onmessage = () => resolve();
-        port2.postMessage(null);
-    });
 
     // --- Core Engine ---
 
@@ -6073,13 +6068,15 @@
                                 resolve();
                             };
                             
+                            // Safety timeout to prevent hang (reduced for faster export)
                             const timeoutId = setTimeout(() => {
                                 if (!resolved) onDone();
                             }, 300);
 
                             const onReady = () => {
                                 clearTimeout(timeoutId);
-                                onDone();
+                                // Reduced delay to speed up export loop
+                                setTimeout(onDone, 10);
                             };
 
                             if (needsSeek) {
@@ -6221,6 +6218,22 @@
         });
     }
 
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                state.wakeLock = await navigator.wakeLock.request('screen');
+            } catch (err) {
+                console.warn('Wake Lock request failed:', err);
+            }
+        }
+    }
+
+    function releaseWakeLock() {
+        if (state.wakeLock) {
+            state.wakeLock.release().then(() => { state.wakeLock = null; });
+        }
+    }
+
     document.getElementById('btn-export').onclick = async () => {
         const overlay = document.getElementById('export-overlay');
         const progress = document.getElementById('export-progress');
@@ -6236,6 +6249,8 @@
         state.isPlaying = false;
         state.currentTime = 0;
         cancelAnimationFrame(animationFrameId); // Stop main loop interaction
+
+        await requestWakeLock();
 
         let ffmpeg;
         let exportBlob;
@@ -6330,6 +6345,7 @@
             alert('An error occurred during export. Check the console for details.');
         } finally {
             if (ffmpeg) {
+                releaseWakeLock();
                 try {
                         if (typeof ffmpeg.exit === 'function') {
                             await ffmpeg.exit();
@@ -6694,5 +6710,5 @@
     });
     init();
 
-  </script>
+    </script>
 </html>
