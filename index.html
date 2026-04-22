@@ -135,7 +135,6 @@
       height: 0;
       overflow: hidden;
       border-radius: 20px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.05);
     }
     .video-container iframe {
       position: absolute;
@@ -331,10 +330,13 @@
     <p class="section-sub">Watch how I break down complex SAT Math concepts into simple, repeatable steps so you can approach the test with confidence.</p>
     <div class="video-container">
       <iframe 
+        frameborder="0"
         src="https://www.youtube.com/embed/uB4C38rWIYw?start=31" 
         title="Florian Math SAT Lesson" 
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-        allowfullscreen>
+        allowfullscreen
+        style="display: block; outline: none;"
+        >
       </iframe>
     </div>
   </div>
