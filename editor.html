@@ -987,6 +987,10 @@
     <div class="timeline-controls">
         <button id="btn-play">Play</button>
         <button class="secondary" id="btn-stop">Stop</button>
+        <label style="margin-left:12px; display:flex; align-items:center; gap:6px; font-size:12px; color:#bbb; user-select:none;">
+            <input type="checkbox" id="speed-control-toggle">
+            Speed Control
+        </label>
         <span id="time-display" style="margin-left:auto; font-family:monospace;">00:00.00</span>
     </div>
     <div class="timeline-tracks" id="timeline-tracks">
@@ -1151,6 +1155,25 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    let speedControlEnabled = false;
+
+    function getLayerPlaybackRate(layer) {
+        const rate = layer && typeof layer.playbackRate === 'number' ? layer.playbackRate : 1;
+        return Number.isFinite(rate) && rate > 0 ? rate : 1;
+    }
+
+    function getLayerSourceDuration(layer) {
+        const sourceDuration = layer && typeof layer.sourceDuration === 'number' ? layer.sourceDuration : null;
+        if (Number.isFinite(sourceDuration) && sourceDuration > 0) return sourceDuration;
+        const fallback = layer && typeof layer.duration === 'number' ? layer.duration : 0;
+        return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+    }
+
+    function getLayerSourceTime(layer, timelineTime) {
+        const localTime = timelineTime - (layer.startTime || 0);
+        const rate = getLayerPlaybackRate(layer);
+        return (layer.trimStart || 0) + localTime * rate;
+    }
     const soundVolumeSlider = document.getElementById('sound-volume-slider');
     const soundVolumeDisplay = document.getElementById('sound-volume-display');
     const SOUND_BASE_URL = 'https://flomath.space/audio/';
@@ -1585,7 +1608,9 @@
             audio.pause();
         }
 
-        const sourceTime = localTime + (layer.trimStart || 0);
+        const rate = getLayerPlaybackRate(layer);
+        if (audio.playbackRate !== rate) audio.playbackRate = rate;
+        const sourceTime = (layer.trimStart || 0) + localTime * rate;
         if (Math.abs(audio.currentTime - sourceTime) > 0.3) {
             audio.currentTime = Math.max(0, sourceTime);
         }
@@ -1639,6 +1664,8 @@
             this.content = content; // Text string or Image/Video Element
             this.startTime = 0;
             this.duration = 5;
+            this.sourceDuration = 5; // Source media seconds represented by this layer (for speed control)
+            this.playbackRate = 1; // Source seconds per timeline second
             this.width = 0;
             this.height = 0;
             
@@ -2555,9 +2582,12 @@
                     if (state.isPlaying && vid.paused) vid.play().catch(() => {});
                     
                     // Seek if drifted
-                    const vidTime = (state.currentTime - layer.startTime) + (layer.trimStart || 0);
+                    const rate = getLayerPlaybackRate(layer);
+                    if (vid.playbackRate !== rate) vid.playbackRate = rate;
+                    const vidTime = (layer.trimStart || 0) + (state.currentTime - layer.startTime) * rate;
                     if (vid.duration && Math.abs(vid.currentTime - vidTime) > 0.3) {
-                        vid.currentTime = vidTime;
+                        const safeTime = clamp(vidTime, 0, Math.max(0, vid.duration - 0.04));
+                        vid.currentTime = safeTime;
                     }
                 }
                 
@@ -2892,6 +2922,8 @@
                 saveHistory();
                 const l = new Layer('video', file.name, vid);
                 l.duration = vid.duration || 10;
+                l.sourceDuration = l.duration;
+                l.playbackRate = 1;
                 
                 if (vid.videoWidth) {
                     l.width = vid.videoWidth;
@@ -2933,6 +2965,8 @@
 	                saveHistory();
 	                const l = new Layer('audio', file.name, audio);
 	                l.duration = audio.duration || 5;
+	                l.sourceDuration = l.duration;
+	                l.playbackRate = 1;
 	                try {
 	                    await uploadAssetToFirebase(file, l);
 	                } catch (e) {
@@ -2964,6 +2998,8 @@
             saveHistory();
             const l = new Layer('audio', file.name, audio);
             l.duration = audio.duration || 5;
+            l.sourceDuration = l.duration;
+            l.playbackRate = 1;
             const center = getViewportCenterWorld();
             l.x = center.x;
             l.y = center.y;
@@ -3007,10 +3043,13 @@
 	                const decoded = await audioDecodeCtx.decodeAudioData(bufferData.slice(0));
 	                const source = offlineCtx.createBufferSource();
 	                source.buffer = decoded;
+	                const rate = getLayerPlaybackRate(layer);
+	                source.playbackRate.value = rate;
 	                const gainNode = offlineCtx.createGain();
 	                gainNode.gain.value = layer.muted ? 0 : (layer.volume ?? 1);
 	                source.connect(gainNode).connect(offlineCtx.destination);
-	                source.start(layer.startTime, layer.trimStart || 0, layer.duration);
+	                const sourceDuration = getLayerSourceDuration(layer);
+	                source.start(layer.startTime, layer.trimStart || 0, sourceDuration);
 	            } catch (err) {
 	                const errText = String(err || '');
 	                const looksLikeCors =
@@ -3264,16 +3303,23 @@
         saveHistory();
         const endOfOriginal = originalLayer.startTime + originalLayer.duration;
         const relativeCut = cutTime - originalLayer.startTime;
+        const rate = getLayerPlaybackRate(originalLayer);
+        const sourceCut = relativeCut * rate;
+        const originalSourceDuration = getLayerSourceDuration(originalLayer);
 
         // Create the new (right-hand side) layer from a clone
         const newLayer = originalLayer.clone();
         newLayer.startTime = cutTime;
         newLayer.duration = endOfOriginal - cutTime;
-        newLayer.trimStart = (originalLayer.trimStart || 0) + relativeCut;
+        newLayer.trimStart = (originalLayer.trimStart || 0) + sourceCut;
+        newLayer.playbackRate = rate;
+        newLayer.sourceDuration = Math.max(0.01, originalSourceDuration - sourceCut);
         newLayer.name = originalLayer.name + ' (split)';
         
         // Adjust original layer's duration
         originalLayer.duration = relativeCut;
+        originalLayer.playbackRate = rate;
+        originalLayer.sourceDuration = Math.max(0.01, sourceCut);
 
         // Move keyframes that are after the cut to the new layer
         Object.keys(originalLayer.keyframes).forEach(prop => {
@@ -4024,6 +4070,8 @@
         saveHistory();
         const layer = new Layer('audio', `Sound: ${soundId}`, audio);
         layer.duration = 5;
+        layer.sourceDuration = layer.duration;
+        layer.playbackRate = 1;
         layer.volume = soundVolume;
         layer.assetFileName = filename;
         layer.assetBlob = blobData;
@@ -4043,6 +4091,8 @@
 
         audio.addEventListener('loadedmetadata', () => {
             layer.duration = Math.max(0.5, audio.duration || layer.duration);
+            layer.sourceDuration = layer.duration;
+            layer.playbackRate = 1;
             renderTimeline();
         });
         audio.addEventListener('error', () => {
@@ -5352,7 +5402,9 @@
             handle: handle,
             startX: e.clientX,
             initialStartTime: layer.startTime,
-            initialDuration: layer.duration
+            initialDuration: layer.duration,
+            initialSourceDuration: getLayerSourceDuration(layer),
+            initialPlaybackRate: getLayerPlaybackRate(layer)
         };
 
         document.addEventListener('mousemove', onDrag);
@@ -5450,12 +5502,33 @@
         if (dragState.type === 'resize-timeline') {
             const dTime = dx / PIXELS_PER_SECOND;
             const layer = state.layers.find(l => l.id === dragState.layerId);
+            if (!layer) return;
+            const allowSpeedControl = speedControlEnabled && (layer.type === 'video' || layer.type === 'audio');
             if (dragState.handle === 'left') {
                 const newDuration = dragState.initialDuration - dTime;
-                if (newDuration > 0.1) { layer.startTime = dragState.initialStartTime + dTime; layer.duration = newDuration; }
+                if (newDuration > 0.1) {
+                    layer.startTime = dragState.initialStartTime + dTime;
+                    layer.duration = newDuration;
+                    if (allowSpeedControl) {
+                        layer.sourceDuration = dragState.initialSourceDuration;
+                        layer.playbackRate = dragState.initialSourceDuration / newDuration;
+                    } else if (layer.type === 'video' || layer.type === 'audio') {
+                        layer.sourceDuration = newDuration;
+                        layer.playbackRate = 1;
+                    }
+                }
             } else { // right handle
                 const newDuration = dragState.initialDuration + dTime;
-                if (newDuration > 0.1) { layer.duration = newDuration; }
+                if (newDuration > 0.1) {
+                    layer.duration = newDuration;
+                    if (allowSpeedControl) {
+                        layer.sourceDuration = dragState.initialSourceDuration;
+                        layer.playbackRate = dragState.initialSourceDuration / newDuration;
+                    } else if (layer.type === 'video' || layer.type === 'audio') {
+                        layer.sourceDuration = newDuration;
+                        layer.playbackRate = 1;
+                    }
+                }
             }
             renderTimeline();
             return;
@@ -6058,6 +6131,14 @@
         updatePropertiesPanel();
     };
 
+    const speedControlToggle = document.getElementById('speed-control-toggle');
+    if (speedControlToggle) {
+        speedControlEnabled = Boolean(speedControlToggle.checked);
+        speedControlToggle.addEventListener('change', () => {
+            speedControlEnabled = Boolean(speedControlToggle.checked);
+        });
+    }
+
     function updatePlayButton() {
         document.getElementById('btn-play').innerText = state.isPlaying ? 'Pause' : 'Play';
     }
@@ -6070,7 +6151,8 @@
             if (layer.type === 'video' && layer.content) {
                 if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
                     const vid = layer.content;
-                    const targetTime = Math.max(0, (time - layer.startTime) + (layer.trimStart || 0));
+                    const targetTimeRaw = getLayerSourceTime(layer, time);
+                    const targetTime = Math.max(0, targetTimeRaw);
                     
                     const needsSeek = Math.abs(vid.currentTime - targetTime) > 0.01;
                     const notReady = vid.readyState < 2;
@@ -6099,7 +6181,8 @@
 
                             if (needsSeek) {
                                 vid.addEventListener('seeked', onReady, { once: true });
-                                vid.currentTime = targetTime;
+                                const safeTime = vid.duration ? clamp(targetTime, 0, Math.max(0, vid.duration - 0.04)) : targetTime;
+                                vid.currentTime = safeTime;
                             } else if (isSeeking) {
                                 vid.addEventListener('seeked', onReady, { once: true });
                             } else if (notReady) {
@@ -6550,6 +6633,14 @@
                 for (const lData of data.layers) {
                     const layer = new Layer(lData.type, lData.name, null);
                     Object.assign(layer, lData);
+                    if (layer.type === 'video' || layer.type === 'audio') {
+                        if (!Number.isFinite(layer.sourceDuration) || layer.sourceDuration <= 0) {
+                            layer.sourceDuration = layer.duration;
+                        }
+                        if (!Number.isFinite(layer.playbackRate) || layer.playbackRate <= 0) {
+                            layer.playbackRate = 1;
+                        }
+                    }
                     
                     // Fix arrays coming back as objects from Firebase
                     if (layer.equations && typeof layer.equations === 'object' && !Array.isArray(layer.equations)) {
