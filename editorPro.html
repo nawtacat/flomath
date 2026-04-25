@@ -677,11 +677,6 @@
                     <input type="checkbox" id="prop-katex" onchange="updateKatexMode(this.checked)">
                     Render as KaTeX
                 </label>
-                <div id="text-color-rules" style="margin-top:10px; border-top:1px dashed #555; padding-top:10px; display:none;">
-                    <label>Timed Color Overrides (KaTeX)</label>
-                    <div id="color-rules-list" style="display:flex; flex-direction:column; gap:5px; margin-bottom:5px;"></div>
-                    <button class="secondary" style="width:100%; font-size:11px;" onclick="addColorRuleToSelected()">+ Add Color Rule</button>
-                </div>
             </div>
             
             <div id="shape-props" style="display:none; margin-top:10px; border-top:1px solid #444; padding-top:10px;">
@@ -992,6 +987,10 @@
     <div class="timeline-controls">
         <button id="btn-play">Play</button>
         <button class="secondary" id="btn-stop">Stop</button>
+        <label style="margin-left:12px; display:flex; align-items:center; gap:6px; font-size:12px; color:#bbb; user-select:none;">
+            <input type="checkbox" id="speed-control-toggle">
+            Speed Control
+        </label>
         <span id="time-display" style="margin-left:auto; font-family:monospace;">00:00.00</span>
     </div>
     <div class="timeline-tracks" id="timeline-tracks">
@@ -1022,7 +1021,6 @@
 
 </body>
     <script>
-        
         
     // --- Constants & State ---
     let CANVAS_WIDTH = 1080;
@@ -1157,6 +1155,25 @@
     const katexCssUrl = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
     let katexCssText = '';
     const clamp = (value, min, max) => (value < min ? min : (value > max ? max : value));
+    let speedControlEnabled = false;
+
+    function getLayerPlaybackRate(layer) {
+        const rate = layer && typeof layer.playbackRate === 'number' ? layer.playbackRate : 1;
+        return Number.isFinite(rate) && rate > 0 ? rate : 1;
+    }
+
+    function getLayerSourceDuration(layer) {
+        const sourceDuration = layer && typeof layer.sourceDuration === 'number' ? layer.sourceDuration : null;
+        if (Number.isFinite(sourceDuration) && sourceDuration > 0) return sourceDuration;
+        const fallback = layer && typeof layer.duration === 'number' ? layer.duration : 0;
+        return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+    }
+
+    function getLayerSourceTime(layer, timelineTime) {
+        const localTime = timelineTime - (layer.startTime || 0);
+        const rate = getLayerPlaybackRate(layer);
+        return (layer.trimStart || 0) + localTime * rate;
+    }
     const soundVolumeSlider = document.getElementById('sound-volume-slider');
     const soundVolumeDisplay = document.getElementById('sound-volume-display');
     const SOUND_BASE_URL = 'https://flomath.space/audio/';
@@ -1591,7 +1608,9 @@
             audio.pause();
         }
 
-        const sourceTime = localTime + (layer.trimStart || 0);
+        const rate = getLayerPlaybackRate(layer);
+        if (audio.playbackRate !== rate) audio.playbackRate = rate;
+        const sourceTime = (layer.trimStart || 0) + localTime * rate;
         if (Math.abs(audio.currentTime - sourceTime) > 0.3) {
             audio.currentTime = Math.max(0, sourceTime);
         }
@@ -1645,6 +1664,8 @@
             this.content = content; // Text string or Image/Video Element
             this.startTime = 0;
             this.duration = 5;
+            this.sourceDuration = 5; // Source media seconds represented by this layer (for speed control)
+            this.playbackRate = 1; // Source seconds per timeline second
             this.width = 0;
             this.height = 0;
             
@@ -1679,7 +1700,6 @@
             this.floatPace = 1.0;
             this.floatSeed = Math.random() * Math.PI * 2;
             this.katex = false;
-            this.colorRules = [];
             this.katexNeedsRender = false;
             this.katexImage = null;
             this.katexImageWidth = 0;
@@ -1821,27 +1841,31 @@
             renderTimeline(); // Update UI markers
         }
 
-        clone() {
-            const newLayer = new Layer(this.type, this.name, null);
-            const serialized = this.toJSON();
-            Object.assign(newLayer, serialized);
-            
-            // Manually copy/recreate content.
-            if (this.type === 'audio' || this.type === 'video') {
-                // Create a NEW media element from its source to get a new WebMediaPlayer instance.
-                // Do NOT use cloneNode(true), as that is the source of the player limit error.
-                const newMediaEl = document.createElement(this.type);
-                if (this.content && this.content.src) {
-                    newMediaEl.src = this.content.src;
-                }
-                newMediaEl.crossOrigin = "anonymous";
-                newMediaEl.muted = true;
-                // Ensure the cloned element is in the DOM so it decodes reliably during export
-                newMediaEl.style.display = 'none';
-                document.body.appendChild(newMediaEl);
-                newLayer.content = newMediaEl;
-            } else {
-                newLayer.content = this.content; // For text, image
+	        clone() {
+	            const newLayer = new Layer(this.type, this.name, null);
+	            const serialized = this.toJSON();
+	            Object.assign(newLayer, serialized);
+	            
+	            // Manually copy/recreate content.
+	            if (this.type === 'audio' || this.type === 'video') {
+	                // Create a NEW media element from its source to get a new WebMediaPlayer instance.
+	                // Do NOT use cloneNode(true), as that is the source of the player limit error.
+	                const newMediaEl = document.createElement(this.type);
+	                if (this.content && this.content.src) {
+	                    newMediaEl.src = this.content.src;
+	                }
+	                // Only videos require CORS-enabled fetches for canvas export. For audio, setting
+	                // crossOrigin forces a CORS request and will fail if the Storage bucket has no ACAO.
+	                if (this.type === 'video') {
+	                    newMediaEl.crossOrigin = "anonymous";
+	                    newMediaEl.muted = true; // Auto-mute editor video playback
+	                }
+	                // Ensure the cloned element is in the DOM so it decodes reliably during export
+	                newMediaEl.style.display = 'none';
+	                document.body.appendChild(newMediaEl);
+	                newLayer.content = newMediaEl;
+	            } else {
+	                newLayer.content = this.content; // For text, image
             }
             newLayer.assetBlob = this.assetBlob;
             
@@ -1866,7 +1890,6 @@
             // For history, we only copy the REFERENCE to the media element.
             // We do not clone it, as that creates excess WebMediaPlayer instances and causes crashes.
             // The live DOM element is not part of the history state itself.
-            newLayer.colorRules = this.colorRules ? JSON.parse(JSON.stringify(this.colorRules)) : [];
             newLayer.content = this.content;
             newLayer.assetBlob = this.assetBlob;
             newLayer.id = this.id; // Keep ID for history
@@ -2559,9 +2582,12 @@
                     if (state.isPlaying && vid.paused) vid.play().catch(() => {});
                     
                     // Seek if drifted
-                    const vidTime = (state.currentTime - layer.startTime) + (layer.trimStart || 0);
+                    const rate = getLayerPlaybackRate(layer);
+                    if (vid.playbackRate !== rate) vid.playbackRate = rate;
+                    const vidTime = (layer.trimStart || 0) + (state.currentTime - layer.startTime) * rate;
                     if (vid.duration && Math.abs(vid.currentTime - vidTime) > 0.3) {
-                        vid.currentTime = vidTime;
+                        const safeTime = clamp(vidTime, 0, Math.max(0, vid.duration - 0.04));
+                        vid.currentTime = safeTime;
                     }
                 }
                 
@@ -2896,6 +2922,8 @@
                 saveHistory();
                 const l = new Layer('video', file.name, vid);
                 l.duration = vid.duration || 10;
+                l.sourceDuration = l.duration;
+                l.playbackRate = 1;
                 
                 if (vid.videoWidth) {
                     l.width = vid.videoWidth;
@@ -2929,28 +2957,29 @@
             vid.onerror = () => {
                 alert("Could not load video. The format (e.g. .mov codec) might not be supported.");
             };
-        } else if (fileType === 'audio') {
-            const audio = document.createElement('audio');
-            audio.src = URL.createObjectURL(file);
-            audio.preload = 'metadata';
-            audio.onloadedmetadata = async () => {
-                saveHistory();
-                const l = new Layer('audio', file.name, audio);
-                l.duration = audio.duration || 5;
-                try {
-                    await uploadAssetToFirebase(file, l);
-                } catch (e) {
-                    alert("Failed to upload audio to Firebase Storage. It might not be saved correctly.");
-                }
-                l.width = 400;
-                l.height = 60;
-                l.assetBlob = file;
-                l.assetFileName = file.name;
-                uploadAssetToFirebase(file, l);
-                ensureLayerStartsAtPlayhead(l);
-                state.layers.push(l);
-                placeLayerOnNewSlot(l);
-                selectLayer(l.id);
+	        } else if (fileType === 'audio') {
+	            const audio = document.createElement('audio');
+	            audio.src = URL.createObjectURL(file);
+	            audio.preload = 'metadata';
+	            audio.onloadedmetadata = async () => {
+	                saveHistory();
+	                const l = new Layer('audio', file.name, audio);
+	                l.duration = audio.duration || 5;
+	                l.sourceDuration = l.duration;
+	                l.playbackRate = 1;
+	                try {
+	                    await uploadAssetToFirebase(file, l);
+	                } catch (e) {
+	                    alert("Failed to upload audio to Firebase Storage. It might not be saved correctly.");
+	                }
+	                l.width = 400;
+	                l.height = 60;
+	                l.assetBlob = file;
+	                l.assetFileName = file.name;
+	                ensureLayerStartsAtPlayhead(l);
+	                state.layers.push(l);
+	                placeLayerOnNewSlot(l);
+	                selectLayer(l.id);
                 focusPlayheadOnLayer(l);
                 renderTimeline();
                 triggerAutoSave();
@@ -2969,6 +2998,8 @@
             saveHistory();
             const l = new Layer('audio', file.name, audio);
             l.duration = audio.duration || 5;
+            l.sourceDuration = l.duration;
+            l.playbackRate = 1;
             const center = getViewportCenterWorld();
             l.x = center.x;
             l.y = center.y;
@@ -2999,27 +3030,45 @@
         const sampleRate = audioDecodeCtx.sampleRate;
         const totalLength = Math.ceil(state.duration * sampleRate);
         const offlineCtx = new OfflineAudioContext(2, totalLength, sampleRate);
-        for (const layer of audioLayers) {
-            try {
-                let blob = layer.assetBlob;
-                if (!blob && layer.storageUrl) {
-                    const resp = await fetch(layer.storageUrl);
-                    if (resp.ok) blob = await resp.blob();
-                }
-                if (!blob) continue;
-
-                const bufferData = await blob.arrayBuffer();
-                const decoded = await audioDecodeCtx.decodeAudioData(bufferData.slice(0));
-                const source = offlineCtx.createBufferSource();
-                source.buffer = decoded;
-                const gainNode = offlineCtx.createGain();
-                gainNode.gain.value = layer.muted ? 0 : (layer.volume ?? 1);
-                source.connect(gainNode).connect(offlineCtx.destination);
-                source.start(layer.startTime, layer.trimStart || 0, layer.duration);
-            } catch (err) {
-                console.warn('Failed to decode audio layer', layer.name, err);
-            }
-        }
+	        for (const layer of audioLayers) {
+	            try {
+	                let blob = layer.assetBlob;
+	                if (!blob && layer.storageUrl) {
+	                    const resp = await fetch(layer.storageUrl);
+	                    if (resp.ok) blob = await resp.blob();
+	                }
+	                if (!blob) continue;
+	
+	                const bufferData = await blob.arrayBuffer();
+	                const decoded = await audioDecodeCtx.decodeAudioData(bufferData.slice(0));
+	                const source = offlineCtx.createBufferSource();
+	                source.buffer = decoded;
+	                const rate = getLayerPlaybackRate(layer);
+	                source.playbackRate.value = rate;
+	                const gainNode = offlineCtx.createGain();
+	                gainNode.gain.value = layer.muted ? 0 : (layer.volume ?? 1);
+	                source.connect(gainNode).connect(offlineCtx.destination);
+	                const sourceDuration = getLayerSourceDuration(layer);
+	                source.start(layer.startTime, layer.trimStart || 0, sourceDuration);
+	            } catch (err) {
+	                const errText = String(err || '');
+	                const looksLikeCors =
+	                    !layer.assetBlob &&
+	                    layer.storageUrl &&
+	                    /firebasestorage\.googleapis\.com|storage\.googleapis\.com/i.test(layer.storageUrl) &&
+	                    /Failed to fetch|CORS|Access-Control-Allow-Origin/i.test(errText);
+	                if (looksLikeCors) {
+	                    console.warn(
+	                        'Audio fetch blocked by CORS; configure Firebase Storage bucket CORS to allow https://flomath.space. Skipping layer:',
+	                        layer.name,
+	                        layer.storageUrl,
+	                        err
+	                    );
+	                } else {
+	                    console.warn('Failed to decode audio layer', layer.name, err);
+	                }
+	            }
+	        }
 
         return offlineCtx.startRendering();
     }
@@ -3121,8 +3170,6 @@
                 document.querySelectorAll('#text-align-controls button').forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.align === (layer.textAlign || 'center'));
                 });
-                document.getElementById('text-color-rules').style.display = layer.katex ? 'block' : 'none';
-                renderColorRulesList(layer);
             } else {
                 textProps.style.display = 'none';
             }
@@ -3256,16 +3303,23 @@
         saveHistory();
         const endOfOriginal = originalLayer.startTime + originalLayer.duration;
         const relativeCut = cutTime - originalLayer.startTime;
+        const rate = getLayerPlaybackRate(originalLayer);
+        const sourceCut = relativeCut * rate;
+        const originalSourceDuration = getLayerSourceDuration(originalLayer);
 
         // Create the new (right-hand side) layer from a clone
         const newLayer = originalLayer.clone();
         newLayer.startTime = cutTime;
         newLayer.duration = endOfOriginal - cutTime;
-        newLayer.trimStart = (originalLayer.trimStart || 0) + relativeCut;
+        newLayer.trimStart = (originalLayer.trimStart || 0) + sourceCut;
+        newLayer.playbackRate = rate;
+        newLayer.sourceDuration = Math.max(0.01, originalSourceDuration - sourceCut);
         newLayer.name = originalLayer.name + ' (split)';
         
         // Adjust original layer's duration
         originalLayer.duration = relativeCut;
+        originalLayer.playbackRate = rate;
+        originalLayer.sourceDuration = Math.max(0.01, sourceCut);
 
         // Move keyframes that are after the cut to the new layer
         Object.keys(originalLayer.keyframes).forEach(prop => {
@@ -3880,10 +3934,8 @@
             return;
         }
         layer.katex = shouldRender;
-        document.getElementById('text-color-rules').style.display = shouldRender ? 'block' : 'none';
         if (shouldRender) {
             layer.katexNeedsRender = true;
-            renderColorRulesList(layer);
         } else {
             layer.katexImage = null;
             layer.katexImageWidth = 0;
@@ -3892,68 +3944,6 @@
             layer.updateDimensions();
         }
         renderTimeline();
-    }
-
-    function renderColorRulesList(layer) {
-        const listEl = document.getElementById('color-rules-list');
-        if (!listEl) return;
-        listEl.innerHTML = '';
-        if (!layer || !layer.colorRules) return;
-
-        layer.colorRules.forEach(rule => {
-            const row = document.createElement('div');
-            row.style.display = 'flex';
-            row.style.gap = '4px';
-            row.style.alignItems = 'center';
-            row.innerHTML = `
-                <input type="text" value="${rule.text}" placeholder="target" style="flex:1; margin:0; font-size:11px;" oninput="updateColorRule(${rule.id}, 'text', this.value)">
-                <input type="color" value="${rule.color}" style="width:24px; height:24px; padding:0; border:none; background:none;" oninput="updateColorRule(${rule.id}, 'color', this.value)">
-                <input type="number" value="${rule.start}" step="0.1" style="width:35px; margin:0; font-size:11px;" onchange="updateColorRule(${rule.id}, 'start', this.value)">
-                <input type="number" value="${rule.end}" step="0.1" style="width:35px; margin:0; font-size:11px;" onchange="updateColorRule(${rule.id}, 'end', this.value)">
-                <button class="secondary" style="padding:2px 5px; background:#a33;" onclick="removeColorRule(${rule.id})">×</button>
-            `;
-            listEl.appendChild(row);
-        });
-    }
-
-    function addColorRuleToSelected() {
-        const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (!layer || layer.type !== 'text') return;
-        saveHistory();
-        if (!layer.colorRules) layer.colorRules = [];
-        layer.colorRules.push({
-            id: Date.now(),
-            text: '',
-            color: '#ff0000',
-            start: 0,
-            end: layer.duration
-        });
-        layer.katexNeedsRender = true;
-        renderColorRulesList(layer);
-        triggerAutoSave();
-    }
-
-    function removeColorRule(ruleId) {
-        const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (!layer) return;
-        saveHistory();
-        layer.colorRules = (layer.colorRules || []).filter(r => r.id !== ruleId);
-        layer.katexNeedsRender = true;
-        renderColorRulesList(layer);
-        triggerAutoSave();
-    }
-
-    function updateColorRule(ruleId, field, value) {
-        const layer = state.layers.find(l => l.id === state.selectedLayerId);
-        if (!layer) return;
-        const rule = (layer.colorRules || []).find(r => r.id === ruleId);
-        if (!rule) return;
-        
-        if (field === 'start' || field === 'end') rule[field] = parseFloat(value) || 0;
-        else rule[field] = value;
-
-        layer.katexNeedsRender = true;
-        triggerAutoSave();
     }
 
     function updateHighlightUI(layer) {
@@ -4080,6 +4070,8 @@
         saveHistory();
         const layer = new Layer('audio', `Sound: ${soundId}`, audio);
         layer.duration = 5;
+        layer.sourceDuration = layer.duration;
+        layer.playbackRate = 1;
         layer.volume = soundVolume;
         layer.assetFileName = filename;
         layer.assetBlob = blobData;
@@ -4099,6 +4091,8 @@
 
         audio.addEventListener('loadedmetadata', () => {
             layer.duration = Math.max(0.5, audio.duration || layer.duration);
+            layer.sourceDuration = layer.duration;
+            layer.playbackRate = 1;
             renderTimeline();
         });
         audio.addEventListener('error', () => {
@@ -4121,16 +4115,8 @@
         const rawContent = layer.content || '';
         const color = layer.getValue('color', time);
         const maxWidth = layer.textMaxWidth || 0;
-        const textAlign = layer.textAlign || 'center';
-
-        const relTime = time - layer.startTime;
-        const activeRules = (layer.colorRules || [])
-            .filter(r => relTime >= r.start && relTime <= r.end)
-            .map(r => `${r.text}:${r.color}`)
-            .sort()
-            .join('|');
-
-        const contentHash = `${rawContent}|${color}|${maxWidth}|${textAlign}|${activeRules}`;
+        const textAlign = layer.textAlign || 'center'; 
+        const contentHash = `${rawContent}|${color}|${maxWidth}|${textAlign}`; 
 
         if (layer.katexImageLoading && layer.katexContentHash === contentHash) return;
 
@@ -4140,17 +4126,6 @@
         layer.katexNeedsRender = false;
 
         let textToRender = rawContent;
-
-        if (layer.colorRules) {
-            layer.colorRules.forEach(rule => {
-                if (relTime >= rule.start && relTime <= rule.end && rule.text) {
-                    const escapedTarget = rule.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const regex = new RegExp(escapedTarget, 'g');
-                    textToRender = textToRender.replace(regex, `{\\color{${rule.color}}${rule.text}}`);
-                }
-            });
-        }
-
         // Strip surrounding $ or $$ for user convenience
         while (textToRender.startsWith('$') && textToRender.endsWith('$') && textToRender.length > 1) {
             textToRender = textToRender.substring(1, textToRender.length - 1);
@@ -5427,7 +5402,9 @@
             handle: handle,
             startX: e.clientX,
             initialStartTime: layer.startTime,
-            initialDuration: layer.duration
+            initialDuration: layer.duration,
+            initialSourceDuration: getLayerSourceDuration(layer),
+            initialPlaybackRate: getLayerPlaybackRate(layer)
         };
 
         document.addEventListener('mousemove', onDrag);
@@ -5525,12 +5502,33 @@
         if (dragState.type === 'resize-timeline') {
             const dTime = dx / PIXELS_PER_SECOND;
             const layer = state.layers.find(l => l.id === dragState.layerId);
+            if (!layer) return;
+            const allowSpeedControl = speedControlEnabled && (layer.type === 'video' || layer.type === 'audio');
             if (dragState.handle === 'left') {
                 const newDuration = dragState.initialDuration - dTime;
-                if (newDuration > 0.1) { layer.startTime = dragState.initialStartTime + dTime; layer.duration = newDuration; }
+                if (newDuration > 0.1) {
+                    layer.startTime = dragState.initialStartTime + dTime;
+                    layer.duration = newDuration;
+                    if (allowSpeedControl) {
+                        layer.sourceDuration = dragState.initialSourceDuration;
+                        layer.playbackRate = dragState.initialSourceDuration / newDuration;
+                    } else if (layer.type === 'video' || layer.type === 'audio') {
+                        layer.sourceDuration = newDuration;
+                        layer.playbackRate = 1;
+                    }
+                }
             } else { // right handle
                 const newDuration = dragState.initialDuration + dTime;
-                if (newDuration > 0.1) { layer.duration = newDuration; }
+                if (newDuration > 0.1) {
+                    layer.duration = newDuration;
+                    if (allowSpeedControl) {
+                        layer.sourceDuration = dragState.initialSourceDuration;
+                        layer.playbackRate = dragState.initialSourceDuration / newDuration;
+                    } else if (layer.type === 'video' || layer.type === 'audio') {
+                        layer.sourceDuration = newDuration;
+                        layer.playbackRate = 1;
+                    }
+                }
             }
             renderTimeline();
             return;
@@ -6133,6 +6131,14 @@
         updatePropertiesPanel();
     };
 
+    const speedControlToggle = document.getElementById('speed-control-toggle');
+    if (speedControlToggle) {
+        speedControlEnabled = Boolean(speedControlToggle.checked);
+        speedControlToggle.addEventListener('change', () => {
+            speedControlEnabled = Boolean(speedControlToggle.checked);
+        });
+    }
+
     function updatePlayButton() {
         document.getElementById('btn-play').innerText = state.isPlaying ? 'Pause' : 'Play';
     }
@@ -6145,7 +6151,8 @@
             if (layer.type === 'video' && layer.content) {
                 if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
                     const vid = layer.content;
-                    const targetTime = Math.max(0, (time - layer.startTime) + (layer.trimStart || 0));
+                    const targetTimeRaw = getLayerSourceTime(layer, time);
+                    const targetTime = Math.max(0, targetTimeRaw);
                     
                     const needsSeek = Math.abs(vid.currentTime - targetTime) > 0.01;
                     const notReady = vid.readyState < 2;
@@ -6174,7 +6181,8 @@
 
                             if (needsSeek) {
                                 vid.addEventListener('seeked', onReady, { once: true });
-                                vid.currentTime = targetTime;
+                                const safeTime = vid.duration ? clamp(targetTime, 0, Math.max(0, vid.duration - 0.04)) : targetTime;
+                                vid.currentTime = safeTime;
                             } else if (isSeeking) {
                                 vid.addEventListener('seeked', onReady, { once: true });
                             } else if (notReady) {
@@ -6625,6 +6633,14 @@
                 for (const lData of data.layers) {
                     const layer = new Layer(lData.type, lData.name, null);
                     Object.assign(layer, lData);
+                    if (layer.type === 'video' || layer.type === 'audio') {
+                        if (!Number.isFinite(layer.sourceDuration) || layer.sourceDuration <= 0) {
+                            layer.sourceDuration = layer.duration;
+                        }
+                        if (!Number.isFinite(layer.playbackRate) || layer.playbackRate <= 0) {
+                            layer.playbackRate = 1;
+                        }
+                    }
                     
                     // Fix arrays coming back as objects from Firebase
                     if (layer.equations && typeof layer.equations === 'object' && !Array.isArray(layer.equations)) {
@@ -6667,23 +6683,24 @@
                         vid.style.display = 'none';
                         document.body.appendChild(vid);
                         layer.content = vid;
-                    } else if (layer.type === 'audio') {
-                        if (layer.storageUrl) {
-                            const audio = new Audio(layer.storageUrl);
-                            audio.crossOrigin = "anonymous";
-                            layer.content = audio;
-                        } else if (layer.assetFileName) {
-                            try {
-                                const r = await fetch(`${SOUND_BASE_URL}${layer.assetFileName}`);
-                                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-                                const blob = await r.blob();
-                                layer.assetBlob = blob;
-                                const audio = new Audio(URL.createObjectURL(blob));
-                                audio.crossOrigin = "anonymous";
-                                layer.content = audio;
-                                // Self-heal: Upload to Firebase Storage so we don't depend on flomath.space next time
-                                uploadAssetToFirebase(blob, layer).then(() => triggerAutoSave());
-                            } catch (e) {
+	                    } else if (layer.type === 'audio') {
+	                        if (layer.storageUrl) {
+	                            const audio = new Audio();
+	                            // Don't set crossOrigin here: Firebase Storage download URLs often lack ACAO,
+	                            // and crossOrigin="anonymous" will prevent audio from loading at all.
+	                            audio.src = layer.storageUrl;
+	                            layer.content = audio;
+	                        } else if (layer.assetFileName) {
+	                            try {
+	                                const r = await fetch(`${SOUND_BASE_URL}${layer.assetFileName}`);
+	                                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+	                                const blob = await r.blob();
+	                                layer.assetBlob = blob;
+	                                const audio = new Audio(URL.createObjectURL(blob));
+	                                layer.content = audio;
+	                                // Self-heal: Upload to Firebase Storage so we don't depend on flomath.space next time
+	                                uploadAssetToFirebase(blob, layer).then(() => triggerAutoSave());
+	                            } catch (e) {
                                 console.warn(`Failed to restore stock audio: ${layer.assetFileName}`, e);
                             }
                         }
@@ -6802,5 +6819,6 @@
         }
     });
     init();
+
     </script>
 </html>
