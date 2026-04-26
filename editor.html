@@ -6811,6 +6811,55 @@
         triggerAutoSave();
     }
 
+    // --- Hotkeys ---
+
+    function isHotkeyTargetEditable(target) {
+        const el = target instanceof Element ? target : null;
+        if (!el) return false;
+        if (el.isContentEditable) return true;
+        const tag = el.tagName;
+        if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+        if (tag === 'INPUT') {
+            const type = (el.getAttribute('type') || 'text').toLowerCase();
+            const nonTextTypes = new Set(['range', 'checkbox', 'radio', 'button', 'submit', 'reset', 'color']);
+            return !nonTextTypes.has(type);
+        }
+        return Boolean(el.closest('[contenteditable="true"]'));
+    }
+
+    function handleEditorHotkeys(e) {
+        if (e.defaultPrevented) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.repeat) return;
+        if (isHotkeyTargetEditable(e.target)) return;
+
+        const key = (e.key || '').toLowerCase();
+        const code = e.code || '';
+
+        if (key === 's') {
+            e.preventDefault();
+            splitSelectedLayer();
+            return;
+        }
+        if (key === 'd') {
+            e.preventDefault();
+            duplicateSelectedLayer();
+            return;
+        }
+        if (key === 'z') {
+            e.preventDefault();
+            handleZoomKeyframeClick();
+            return;
+        }
+        if (code === 'Space' || e.key === ' ') {
+            // Avoid double-toggle when a focused button already handles Space.
+            const activeEl = document.activeElement;
+            if (activeEl && activeEl.tagName === 'BUTTON') return;
+            e.preventDefault();
+            document.getElementById('btn-play')?.click();
+        }
+    }
+
     // Initialize
     // Add global listeners for drag operations
     document.addEventListener('mouseup', () => {
@@ -6818,6 +6867,7 @@
             stopDrag();
         }
     });
+    document.addEventListener('keydown', handleEditorHotkeys);
     init();
 
     </script>
