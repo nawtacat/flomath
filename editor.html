@@ -6846,6 +6846,11 @@
             duplicateSelectedLayer();
             return;
         }
+        if (key === 'r') {
+            e.preventDefault();
+            deleteSelectedLayer();
+            return;
+        }
         if (key === 'z') {
             e.preventDefault();
             handleZoomKeyframeClick();
