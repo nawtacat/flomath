@@ -3069,8 +3069,19 @@
 	                const gainNode = offlineCtx.createGain();
 	                gainNode.gain.value = layer.muted ? 0 : (layer.volume ?? 1);
 	                source.connect(gainNode).connect(offlineCtx.destination);
-	                const sourceDuration = getLayerSourceDuration(layer);
-	                source.start(layer.startTime, layer.trimStart || 0, sourceDuration);
+	                const requestedSourceDuration = getLayerSourceDuration(layer);
+	                const decodedDuration = (decoded && typeof decoded.duration === 'number' && Number.isFinite(decoded.duration))
+	                    ? decoded.duration
+	                    : (decoded ? (decoded.length / decoded.sampleRate) : 0);
+	                const rawOffset = Number(layer.trimStart || 0);
+	                const offset = Number.isFinite(rawOffset) ? clamp(rawOffset, 0, decodedDuration) : 0;
+	                const maxDuration = Math.max(0, decodedDuration - offset);
+	                // Avoid AudioBufferSourceNode.start() throwing when offset+duration exceeds buffer length.
+	                const safeDuration = clamp(requestedSourceDuration, 0, maxDuration);
+	                if (safeDuration <= 0.0001) continue;
+	                const when = Number(layer.startTime || 0);
+	                if (!Number.isFinite(when) || when >= state.duration) continue;
+	                source.start(Math.max(0, when), offset, safeDuration);
 		            } catch (err) {
 		                const errText = String(err || '');
 		                const looksLikeCorsOrCoep =
