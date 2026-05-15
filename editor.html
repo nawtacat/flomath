@@ -2617,17 +2617,35 @@
                     ctx.clip();
                 }
 
-                if (w > 0 && h > 0) {
-                    if (isReady && vW > 0 && vH > 0) {
-                        let sW = vW - c.left - c.right;
-                        let sH = vH - c.top - c.bottom;
-                        if (sW <= 0) sW = vW;
-                        if (sH <= 0) sH = vH;
-                        ctx.drawImage(vid, c.left, c.top, sW, sH, -w/2, -h/2, w, h);
-                    }
-                }
-                }
-            }
+	                if (w > 0 && h > 0) {
+	                    if (isReady && vW > 0 && vH > 0) {
+	                        let sW = vW - c.left - c.right;
+	                        let sH = vH - c.top - c.bottom;
+	                        if (sW <= 0) sW = vW;
+	                        if (sH <= 0) sH = vH;
+	                        ctx.drawImage(vid, c.left, c.top, sW, sH, -w/2, -h/2, w, h);
+	                        // Cache last good frame so exports don't flash blank when a seek hasn't decoded yet.
+	                        if (isExport) {
+	                            if (!layer._lastVideoFrameCanvas) layer._lastVideoFrameCanvas = document.createElement('canvas');
+	                            const cacheCanvas = layer._lastVideoFrameCanvas;
+	                            const cw = Math.max(1, Math.round(w));
+	                            const ch = Math.max(1, Math.round(h));
+	                            if (cacheCanvas.width !== cw) cacheCanvas.width = cw;
+	                            if (cacheCanvas.height !== ch) cacheCanvas.height = ch;
+	                            const cctx = cacheCanvas.getContext('2d');
+	                            if (cctx) {
+	                                cctx.clearRect(0, 0, cw, ch);
+	                                cctx.drawImage(vid, c.left, c.top, sW, sH, 0, 0, cw, ch);
+	                                layer._hasLastVideoFrame = true;
+	                            }
+	                        }
+	                    } else if (isExport && layer._hasLastVideoFrame && layer._lastVideoFrameCanvas) {
+	                        // If the current frame isn't ready, keep the previous decoded frame to avoid a flash.
+	                        ctx.drawImage(layer._lastVideoFrameCanvas, -w/2, -h/2, w, h);
+	                    }
+	                }
+	                }
+	            }
 
             // Selection outline
             if (state.selectedLayerId === layer.id) {
@@ -6175,61 +6193,123 @@
         document.getElementById('btn-play').innerText = state.isPlaying ? 'Pause' : 'Play';
     }
 
-    // --- Export Logic ---
+	    // --- Export Logic ---
 
-    async function seekAllVideosToTime(time) {
-        const promises = [];
-        for (const layer of state.layers) {
-            if (layer.type === 'video' && layer.content) {
-                if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
-                    const vid = layer.content;
-                    const targetTimeRaw = getLayerSourceTime(layer, time);
-                    const targetTime = Math.max(0, targetTimeRaw);
-                    
-                    const needsSeek = Math.abs(vid.currentTime - targetTime) > 0.01;
-                    const notReady = vid.readyState < 2;
-                    const isSeeking = vid.seeking;
+	    function waitForVideoFrame(vid, targetTime, timeoutMs = 1500) {
+	        const EPS = 0.03; // ~1 frame at 30fps
+	        const isAcceptable = () => !vid.seeking && vid.readyState >= 2 && Math.abs((vid.currentTime || 0) - targetTime) <= EPS;
 
-                    if (needsSeek || notReady || isSeeking) {
-                        promises.push(new Promise(resolve => {
-                            let resolved = false;
-                            
-                            const onDone = () => {
-                                if (resolved) return;
-                                resolved = true;
-                                resolve();
-                            };
-                            
-                            // Safety timeout to prevent hang (reduced for faster export)
-                            const timeoutId = setTimeout(() => {
-                                if (!resolved) onDone();
-                            }, 300);
+	        if (isAcceptable()) return Promise.resolve(true);
 
-                            const onReady = () => {
-                                clearTimeout(timeoutId);
-                                // Reduced delay to speed up export loop
-                                setTimeout(onDone, 10);
-                            };
+	        return new Promise(resolve => {
+	            let resolved = false;
+	            const onDone = (ok) => {
+	                if (resolved) return;
+	                resolved = true;
+	                cleanup();
+	                resolve(Boolean(ok));
+	            };
 
-                            if (needsSeek) {
-                                vid.addEventListener('seeked', onReady, { once: true });
-                                const safeTime = vid.duration ? clamp(targetTime, 0, Math.max(0, vid.duration - 0.04)) : targetTime;
-                                vid.currentTime = safeTime;
-                            } else if (isSeeking) {
-                                vid.addEventListener('seeked', onReady, { once: true });
-                            } else if (notReady) {
-                                if (vid.readyState >= 2) onReady();
-                                else vid.addEventListener('canplay', onReady, { once: true });
-                            } else {
-                                onReady();
-                            }
-                        }));
-                    }
-                }
-            }
-        }
-        if (promises.length > 0) await Promise.all(promises);
-    }
+	            const timeoutId = setTimeout(() => onDone(false), timeoutMs);
+
+	            const cleanup = () => {
+	                clearTimeout(timeoutId);
+	                if (rafId) cancelAnimationFrame(rafId);
+	            };
+
+	            let rafId = 0;
+
+	            // Best-effort: use requestVideoFrameCallback when available (Chrome/Edge/Safari 16.4+)
+	            if (typeof vid.requestVideoFrameCallback === 'function') {
+	                const check = () => {
+	                    if (isAcceptable()) return onDone(true);
+	                    try {
+	                        vid.requestVideoFrameCallback(check);
+	                    } catch {
+	                        // If the API throws, fall back to RAF polling
+	                        rafId = requestAnimationFrame(poll);
+	                    }
+	                };
+	                try {
+	                    vid.requestVideoFrameCallback(check);
+	                    return;
+	                } catch {
+	                    // fall through to RAF polling
+	                }
+	            }
+
+	            const poll = () => {
+	                if (isAcceptable()) return onDone(true);
+	                rafId = requestAnimationFrame(poll);
+	            };
+	            rafId = requestAnimationFrame(poll);
+	        });
+	    }
+
+	    async function seekAllVideosToTime(time) {
+	        const promises = [];
+	        for (const layer of state.layers) {
+	            if (layer.type === 'video' && layer.content) {
+	                if (time >= layer.startTime && time <= layer.startTime + layer.duration) {
+	                    const vid = layer.content;
+	                    const targetTimeRaw = getLayerSourceTime(layer, time);
+	                    const targetTime = Math.max(0, targetTimeRaw);
+
+	                    const safeTime = vid.duration ? clamp(targetTime, 0, Math.max(0, vid.duration - 0.04)) : targetTime;
+	                    const needsSeek = Math.abs((vid.currentTime || 0) - safeTime) > 0.01;
+	                    const notReady = vid.readyState < 2;
+	                    const isSeeking = Boolean(vid.seeking);
+
+	                    if (needsSeek || notReady || isSeeking) {
+	                        promises.push((async () => {
+	                            // 1) Seek (or wait for an in-flight seek to finish)
+	                            if (needsSeek) {
+	                                await new Promise(resolve => {
+	                                    let resolved = false;
+	                                    const onDone = () => {
+	                                        if (resolved) return;
+	                                        resolved = true;
+	                                        cleanup();
+	                                        resolve();
+	                                    };
+	                                    const onError = () => onDone();
+	                                    const cleanup = () => {
+	                                        clearTimeout(timeoutId);
+	                                        vid.removeEventListener('seeked', onDone);
+	                                        vid.removeEventListener('error', onError);
+	                                    };
+	                                    const timeoutId = setTimeout(onDone, 1500);
+	                                    vid.addEventListener('seeked', onDone, { once: true });
+	                                    vid.addEventListener('error', onError, { once: true });
+	                                    try { vid.currentTime = safeTime; } catch { onDone(); }
+	                                });
+	                            } else if (isSeeking) {
+	                                await new Promise(resolve => {
+	                                    const timeoutId = setTimeout(resolve, 1500);
+	                                    const onDone = () => { clearTimeout(timeoutId); resolve(); };
+	                                    vid.addEventListener('seeked', onDone, { once: true });
+	                                });
+	                            } else if (notReady) {
+	                                await new Promise(resolve => {
+	                                    if (vid.readyState >= 2) return resolve();
+	                                    const timeoutId = setTimeout(resolve, 1500);
+	                                    const onDone = () => { clearTimeout(timeoutId); resolve(); };
+	                                    vid.addEventListener('canplay', onDone, { once: true });
+	                                    vid.addEventListener('loadeddata', onDone, { once: true });
+	                                    vid.addEventListener('canplaythrough', onDone, { once: true });
+	                                });
+	                            }
+
+	                            // 2) Ensure a decoded frame is actually available at (or near) the requested time.
+	                            // If this fails, render will fall back to the last cached frame to avoid flashes.
+	                            await waitForVideoFrame(vid, safeTime, 1500);
+	                        })());
+	                    }
+	                }
+	            }
+	        }
+	        if (promises.length > 0) await Promise.all(promises);
+	    }
 
     const captureCanvasWithMediaRecorder = (progressCallback, audioBuffer = null) => new Promise(async (resolve, reject) => {
         if (!canvas.captureStream || typeof MediaRecorder === 'undefined') {
