@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlyphForge Studio Pro — Armenian Type Foundry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
+
+    <!-- Top Bar -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white p-2 rounded-lg font-black tracking-wider text-xl">Հ</div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight">GlyphForge Studio Pro</h1>
+                <p class="text-xs text-slate-400 font-mono">Armenian Typography Workbench</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div>
+                <label class="block text-[10px] font-mono text-slate-400 uppercase">Font Family Name</label>
+                <input id="fontName" type="text" value="ArmenianProCustom" class="bg-slate-950 border border-slate-700 px-3 py-1 rounded text-sm text-blue-400 focus:outline-none focus:border-blue-500 font-mono w-48">
+            </div>
+            <button onclick="exportFont()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm px-4 py-2 rounded shadow transition-all duration-150 flex items-center space-x-2 mt-3">
+                <span>Export TrueType (.ttf)</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Left Sidebar: Character Selector -->
+        <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
+            <div class="p-3 bg-slate-950/50 border-b border-slate-800 text-xs font-mono tracking-wider text-slate-400 uppercase">
+                Armenian Unicode Range
+            </div>
+            <div id="glyphList" class="flex-1 overflow-y-auto p-2 grid grid-cols-1 gap-1 content-start">
+                <!-- Injected via JavaScript -->
+            </div>
+        </aside>
+
+        <!-- Center Stage: Drawing Board -->
+        <main class="flex-1 bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            <!-- Tool Ribbon Overlay -->
+            <div class="absolute top-6 left-6 bg-slate-900/90 backdrop-blur border border-slate-800 p-1.5 rounded-xl shadow-2xl flex space-x-1 z-10">
+                <button onclick="setTool('line')" id="tool-line" class="px-3 py-2 rounded-lg text-xs font-medium font-mono transition shadow-sm bg-blue-600 text-white">
+                    [L] Line Segment
+                </button>
+                <button onclick="setTool('curve')" id="tool-curve" class="px-3 py-2 rounded-lg text-xs font-medium font-mono transition shadow-sm text-slate-400 hover:text-slate-200">
+                    [C] Bezier Curve
+                </button>
+                <button onclick="setTool('select')" id="tool-select" class="px-3 py-2 rounded-lg text-xs font-medium font-mono transition shadow-sm text-slate-400 hover:text-slate-200">
+                    [V] Edit Vectors
+                </button>
+            </div>
+
+            <!-- Context Control Overlay -->
+            <div class="absolute top-6 right-6 bg-slate-900/90 backdrop-blur border border-slate-800 p-2 rounded-xl shadow-2xl flex items-center space-x-4 z-10 text-xs font-mono">
+                <button onclick="clearCurrentGlyph()" class="bg-red-950/50 text-red-400 hover:bg-red-900/40 px-3 py-1.5 rounded-lg border border-red-900/50 transition">
+                    Clear Workspace
+                </button>
+            </div>
+
+            <!-- Viewport Container -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl relative">
+                <canvas id="paintBox" width="600" height="600" class="rounded-lg bg-slate-950/50"></canvas>
+            </div>
+
+            <!-- Metrics Status Line -->
+            <div class="mt-4 flex space-x-8 text-xs font-mono text-slate-400 bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-800/60">
+                <div>Glyph: <span id="statusChar" class="text-blue-400 font-bold text-sm">Ա</span></div>
+                <div>Unicode: <span id="statusUnicode" class="text-slate-200">U+0531</span></div>
+                <div>Nodes: <span id="statusNodes" class="text-slate-200">0</span></div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Metrics Adjuster & Instructions -->
+        <aside class="w-72 bg-slate-900 border-l border-slate-800 p-4 flex flex-col justify-between overflow-y-auto">
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-xs font-mono tracking-wider text-slate-400 uppercase mb-3">Glyph Metrics</h3>
+                    <label class="block text-xs font-mono text-slate-300 mb-1">Advance Width: <span id="widthVal" class="text-emerald-400">600</span></label>
+                    <input id="advanceWidthSlider" type="range" min="200" max="1200" step="10" value="600" class="w-full accent-emerald-500">
+                </div>
+
+                <div class="border-t border-slate-800 pt-4">
+                    <h3 class="text-xs font-mono tracking-wider text-slate-400 uppercase mb-2">Workspace Layout</h3>
+                    <div class="space-y-1.5 text-xs font-mono text-slate-400">
+                        <div class="flex justify-between"><span class="text-red-400">■ Cap Height</span> <span>800 em</span></div>
+                        <div class="flex justify-between"><span class="text-amber-400">■ X-Height</span> <span>450 em</span></div>
+                        <div class="flex justify-between"><span class="text-blue-500">■ Baseline</span> <span>0 em</span></div>
+                        <div class="flex justify-between"><span class="text-red-400">■ Descender</span> <span>-200 em</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800 text-[11px] leading-relaxed text-slate-400 space-y-2">
+                <div class="font-bold text-slate-300 font-mono text-xs mb-1">Foundry Guide:</div>
+                <p>• <b class="text-slate-200">Line/Curve Tools:</b> Click on the canvas to layout consecutive paths. Contours close automatically.</p>
+                <p>• <b class="text-slate-200">Curve Handle:</b> Curve mode inserts a node with a green vector tuning node. Tweak it using Edit Vectors mode.</p>
+                <p>• <b class="text-slate-200">Edit Vectors:</b> Click and drag pink anchor points or green handles to adjust curves.</p>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        const canvas = document.getElementById('paintBox');
+        const ctx = canvas.getContext('2d');
+
+        // Font Space Settings (Em square metrics)
+        const SCALE = 0.5; 
+        const OFFSET_X = 120;
+        const BASELINE_Y = 460;
+
+        // Populate complete Armenian Character blocks
+        const armenianGlyphs = [];
+        // Uppercase Range
+        for(let u = 0x0531; u <= 0x0556; u++) { armenianGlyphs.push({ char: String.fromCharCode(u), unicode: u }); }
+        // Lowercase Range
+        for(let u = 0x0561; u <= 0x0586; u++) { armenianGlyphs.push({ char: String.fromCharCode(u), unicode: u }); }
+
+        // State Store
+        let glyphStore = {};
+        let currentUnicode = armenianGlyphs[0].unicode;
+        let currentTool = 'line'; 
+        let selectedPointIndex = null;
+        let selectedHandleType = null; 
+
+        // Initialize Store structures
+        function initStore() {
+            const saved = localStorage.getItem('glyphforge_backup');
+            if (saved) {
+                glyphStore = JSON.parse(saved);
+                // Backwards fill empty ranges if schema modifies
+                armenianGlyphs.forEach(g => {
+                    if(!glyphStore[g.unicode]) glyphStore[g.unicode] = { points: [], advanceWidth: 600 };
+                });
+            } else {
+                armenianGlyphs.forEach(g => {
+                    glyphStore[g.unicode] = { points: [], advanceWidth: 600 };
+                });
+            }
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('glyphforge_backup', JSON.stringify(glyphStore));
+        }
+
+        // Space Converters
+        function toScreen(fontX, fontY) {
+            return {
+                x: OFFSET_X + fontX * SCALE,
+                y: BASELINE_Y - fontY * SCALE
+            };
+        }
+
+        function toFont(screenX, screenY) {
+            return {
+                x: Math.round((screenX - OFFSET_X) / SCALE),
+                y: Math.round((BASELINE_Y - screenY) / SCALE)
+            };
+        }
+
+        // Interface Tool Switcher
+        function setTool(tool) {
+            currentTool = tool;
+            ['line', 'curve', 'select'].forEach(t => {
+                const el = document.getElementById(`tool-${t}`);
+                if(t === tool) {
+                    el.className = "px-3 py-2 rounded-lg text-xs font-medium font-mono transition shadow-sm bg-blue-600 text-white";
+                } else {
+                    el.className = "px-3 py-2 rounded-lg text-xs font-medium font-mono transition shadow-sm text-slate-400 hover:text-slate-200";
+                }
+            });
+        }
+
+        // Viewport Renderer Execution Engine
+        function renderAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Render Structural Font Metrics Boundaries
+            const metrics = [
+                { y: 800, color: 'rgba(239, 68, 68, 0.4)', label: 'Cap Height (800)' },
+                { y: 450, color: 'rgba(245, 158, 11, 0.4)', label: 'X-Height (450)' },
+                { y: 0, color: 'rgba(59, 130, 246, 0.8)', label: 'Baseline (0)' },
+                { y: -200, color: 'rgba(239, 68, 68, 0.4)', label: 'Descender (-200)' }
+            ];
+            
+            metrics.forEach(m => {
+                let s = toScreen(0, m.y);
+                ctx.strokeStyle = m.color;
+                ctx.lineWidth = m.y === 0 ? 2 : 1;
+                ctx.setLineDash(m.y === 0 ? [] : [4, 4]);
+                ctx.beginPath(); ctx.moveTo(0, s.y); ctx.lineTo(canvas.width, s.y); ctx.stroke();
+                ctx.fillStyle = m.color;
+                ctx.font = "9px monospace";
+                ctx.fillText(m.label, 8, s.y - 4);
+            });
+            ctx.setLineDash([]);
+
+            // Bearings Line Space Rendering
+            let activeGlyph = glyphStore[currentUnicode];
+            let leftS = toScreen(0, 0);
+            let rightS = toScreen(activeGlyph.advanceWidth, 0);
+            
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(leftS.x, 0); ctx.lineTo(leftS.x, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(rightS.x, 0); ctx.lineTo(rightS.x, canvas.height); ctx.stroke();
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+            ctx.fillText('LSB', leftS.x + 4, 15);
+            ctx.fillText('RSB', rightS.x - 24, 15);
+
+            // Vector Geometry Render Engine
+            if (activeGlyph.points.length > 0) {
+                ctx.strokeStyle = '#f8fafc';
+                ctx.lineWidth = 3;
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+                ctx.beginPath();
+                
+                let start = toScreen(activeGlyph.points[0].x, activeGlyph.points[0].y);
+                ctx.moveTo(start.x, start.y);
+                
+                for (let i = 1; i < activeGlyph.points.length; i++) {
+                    let pt = activeGlyph.points[i];
+                    let dest = toScreen(pt.x, pt.y);
+                    if (pt.type === 'line') {
+                        ctx.lineTo(dest.x, dest.y);
+                    } else if (pt.type === 'curve') {
+                        let ctrl = toScreen(pt.cx, pt.cy);
+                        ctx.quadraticCurveTo(ctrl.x, ctrl.y, dest.x, dest.y);
+                    }
+                }
+                if (activeGlyph.points.length > 2) {
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.stroke();
+                
+                // Vector Element Handle Node Drawing
+                activeGlyph.points.forEach((pt, idx) => {
+                    let s = toScreen(pt.x, pt.y);
+                    
+                    // Main Anchor points
+                    ctx.fillStyle = (currentTool === 'select' && selectedPointIndex === idx && selectedHandleType === 'anchor') ? '#60a5fa' : '#ec4899';
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Control Handles
+                    if (pt.type === 'curve') {
+                        let sc = toScreen(pt.cx, pt.cy);
+                        ctx.strokeStyle = '#475569';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(sc.x, sc.y); ctx.stroke();
+                        
+                        ctx.fillStyle = (currentTool === 'select' && selectedPointIndex === idx && selectedHandleType === 'control') ? '#60a5fa' : '#10b981';
+                        ctx.beginPath();
+                        ctx.arc(sc.x, sc.y, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            }
+            document.getElementById('statusNodes').innerText = activeGlyph.points.length;
+        }
+
+        // Navigation Controller
+        function selectGlyph(unicode) {
+            currentUnicode = unicode;
+            let g = armenianGlyphs.find(x => x.unicode === unicode);
+            document.getElementById('statusChar').innerText = g.char;
+            document.getElementById('statusUnicode').innerText = `U+0${unicode.toString(16).toUpperCase()}`;
+            document.getElementById('advanceWidthSlider').value = glyphStore[unicode].advanceWidth;
+            document.getElementById('widthVal').innerText = glyphStore[unicode].advanceWidth;
+            updateSidebar();
+            renderAll();
+        }
+
+        function clearCurrentGlyph() {
+            glyphStore[currentUnicode].points = [];
+            saveToLocalStorage();
+            updateSidebar();
+            renderAll();
+        }
+
+        function updateSidebar() {
+            const listContainer = document.getElementById('glyphList');
+            listContainer.innerHTML = '';
+            armenianGlyphs.forEach(g => {
+                const btn = document.createElement('button');
+                const hasData = glyphStore[g.unicode].points.length > 0;
+                const isSelected = g.unicode === currentUnicode;
+                
+                btn.className = `flex items-center justify-between p-2.5 rounded-xl text-left transition duration-150 ${isSelected ? 'bg-blue-600 text-white font-bold shadow-lg' : 'bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-slate-800/40'}`;
+                btn.onclick = () => selectGlyph(g.unicode);
+                
+                btn.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xl font-serif w-6 text-center">${g.char}</span>
+                        <span class="text-[10px] font-mono opacity-50">U+0${g.unicode.toString(16).toUpperCase()}</span>
+                    </div>
+                    ${hasData ? '<span class="w-2 h-2 rounded-full bg-emerald-400 shadow-glow"></span>' : ''}
+                `;
+                listContainer.appendChild(btn);
+            });
+        }
+
+        // Canvas UI Event Binding Interceptors
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            let activeGlyph = glyphStore[currentUnicode];
+            
+            if (currentTool === 'select') {
+                for (let i = 0; i < activeGlyph.points.length; i++) {
+                    let pt = activeGlyph.points[i];
+                    let sAnc = toScreen(pt.x, pt.y);
+                    if (Math.hypot(mx - sAnc.x, my - sAnc.y) < 8) {
+                        selectedPointIndex = i;
+                        selectedHandleType = 'anchor';
+                        return;
+                    }
+                    if (pt.type === 'curve') {
+                        let sCtrl = toScreen(pt.cx, pt.cy);
+                        if (Math.hypot(mx - sCtrl.x, my - sCtrl.y) < 8) {
+                            selectedPointIndex = i;
+                            selectedHandleType = 'control';
+                            return;
+                        }
+                    }
+                }
+            } else {
+                // Vector Generation Mode
+                let fCoord = toFont(mx, my);
+                if (currentTool === 'line') {
+                    activeGlyph.points.push({ x: fCoord.x, y: fCoord.y, type: 'line' });
+                } else if (currentTool === 'curve') {
+                    let prev = activeGlyph.points[activeGlyph.points.length - 1] || { x: 0, y: 0 };
+                    let cx = Math.round((prev.x + fCoord.x) / 2);
+                    let cy = Math.round((prev.y + fCoord.y) / 2) + 80; // Arc deviation vector
+                    activeGlyph.points.push({ x: fCoord.x, y: fCoord.y, type: 'curve', cx: cx, cy: cy });
+                }
+                saveToLocalStorage();
+                updateSidebar();
+                renderAll();
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (currentTool !== 'select' || selectedPointIndex === null) return;
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            let fCoord = toFont(mx, my);
+            
+            let activeGlyph = glyphStore[currentUnicode];
+            let pt = activeGlyph.points[selectedPointIndex];
+            
+            if (selectedHandleType === 'anchor') {
+                let dx = fCoord.x - pt.x;
+                let dy = fCoord.y - pt.y;
+                pt.x = fCoord.x;
+                pt.y = fCoord.y;
+                if (pt.type === 'curve') { pt.cx += dx; pt.cy += dy; }
+            } else if (selectedHandleType === 'control') {
+                pt.cx = fCoord.x;
+                pt.cy = fCoord.y;
+            }
+            renderAll();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (selectedPointIndex !== null) saveToLocalStorage();
+            selectedPointIndex = null;
+            selectedHandleType = null;
+            renderAll();
+        });
+
+        // Key Commands Router
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT') return;
+            if (e.key.toLowerCase() === 'l') setTool('line');
+            if (e.key.toLowerCase() === 'c') setTool('curve');
+            if (e.key.toLowerCase() === 'v') setTool('select');
+        });
+
+        document.getElementById('advanceWidthSlider').addEventListener('input', (e) => {
+            glyphStore[currentUnicode].advanceWidth = parseInt(e.target.value);
+            document.getElementById('widthVal').innerText = e.target.value;
+            saveToLocalStorage();
+            renderAll();
+        });
+
+        // Binary TrueType Compiler Core Execution Block
+        function exportFont() {
+            const fontName = document.getElementById('fontName').value.replace(/\s+/g, '') || 'ArmenianProFont';
+            
+            // Standard baseline execution requirement: a valid fallback glyf mapping at index 0
+            const notdefPath = new opentype.Path();
+            notdefPath.moveTo(100, 0); notdefPath.lineTo(100, 700); notdefPath.lineTo(500, 700); notdefPath.lineTo(500, 0); notdefPath.closePath();
+            const notdefGlyph = new opentype.Glyph({
+                name: '.notdef', unicode: 0, advanceWidth: 600, path: notdefPath
+            });
+            
+            const compiledGlyphs = [notdefGlyph];
+            
+            armenianGlyphs.forEach(g => {
+                let activeData = glyphStore[g.unicode];
+                let outPath = new opentype.Path();
+                
+                if (activeData.points.length > 0) {
+                    outPath.moveTo(activeData.points[0].x, activeData.points[0].y);
+                    for (let i = 1; i < activeData.points.length; i++) {
+                        let pt = activeData.points[i];
+                        if (pt.type === 'line') {
+                            outPath.lineTo(pt.x, pt.y);
+                        } else if (pt.type === 'curve') {
+                            outPath.quadraticCurveTo(pt.cx, pt.cy, pt.x, pt.y);
+                        }
+                    }
+                    if (activeData.points.length > 2) {
+                        outPath.closePath();
+                    }
+                }
+                
+                let glyphInstance = new opentype.Glyph({
+                    name: 'arm_' + g.unicode,
+                    unicode: g.unicode,
+                    advanceWidth: parseInt(activeData.advanceWidth),
+                    path: outPath
+                });
+                compiledGlyphs.push(glyphInstance);
+            });
+            
+            // Compile structures to binary TrueType table formats via Opentype.js serialization
+            const font = new opentype.Font({
+                familyName: fontName,
+                styleName: 'Regular',
+                unitsPerEm: 1000,
+                ascender: 800,
+                descender: -200,
+                glyphs: compiledGlyphs
+            });
+            
+            font.download();
+        }
+
+        // Bootstrap App Engine
+        initStore();
+        selectGlyph(armenianGlyphs[0].unicode);
+    </script>
+</body>
+</html>
