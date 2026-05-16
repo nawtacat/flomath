@@ -3,20 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conifer.am — Նվիրե՛ք գեղեցիկ, վերցրե՛ք պատասխանատու</title>
+    <title>Conifer.am — Մինիմալիստական Զգեստապահարան</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Armenian:wght@400;500;600&family=Noto+Serif+Armenian:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Armenian:wght@400;700;900&family=Noto+Serif+Armenian:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Color palette and typography matching the organic branding */
+        /* Bold, Minimalist, Mono-chromatic CSS variables */
         :root {
-            --bg-color: #FBF9F6;      /* Warm, sustainable cream background */
-            --text-main: #141B18;     /* Deep pine charcoal */
-            --text-muted: #5A6561;    /* Soft muted slate */
-            --accent-green: #2D4A3E;  /* Forest green accent */
-            --border-color: #E6E1DA;  /* Subtle dividers */
+            --bg-color: #FFFFFF;       /* Pure white */
+            --black-pure: #000000;     /* Absolute black */
+            --black-deep: #111111;     /* Editorial deep black */
+            --black-shade: #222222;    /* Soft black shadow text */
+            --gray-muted: #888888;     /* Clean minimalist gray */
+            --gray-light: #F2F2F2;     /* Subtle panel block gray */
+            --border-thick: 2px solid #000000;
+            --border-thin: 1px solid #E5E5E5;
             --font-display: 'Noto Serif Armenian', serif;
             --font-sans: 'Noto Sans Armenian', sans-serif;
         }
@@ -29,195 +32,229 @@
 
         body {
             background-color: var(--bg-color);
-            color: var(--text-main);
+            color: var(--black-pure);
             font-family: var(--font-sans);
-            line-height: 1.6;
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Header / Navigation */
+        /* Top Navigation Header */
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1.5rem 4rem;
-            border-bottom: 1px solid var(--border-color);
+            padding: 2rem 3rem;
+            border-bottom: var(--border-thick);
+            background: var(--bg-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .logo-link {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-        }
-
-        /* Displays your exact logo cleanly */
-        .logo-img {
-            height: 48px; 
+        .logo-link img {
+            height: 42px; 
             width: auto;
             object-fit: contain;
+            /* Keeps the logo looking crisp and matching the pitch-black vibe */
+            filter: grayscale(100%) brightness(0); 
         }
 
         nav a {
-            color: var(--text-main);
+            color: var(--black-pure);
             text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-            margin-left: 2.5rem;
-            transition: opacity 0.2s;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: 2rem;
+            transition: color 0.15s ease;
         }
 
         nav a:hover {
-            opacity: 0.7;
+            color: var(--gray-muted);
         }
 
-        /* Hero Section */
+        /* Bold Hero Layout */
         .hero {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 6rem 4rem 4rem 4rem;
-            text-align: center;
+            padding: 8rem 3rem 6rem 3rem;
+            display: grid;
+            grid-template-columns: 1fr;
+            border-bottom: var(--border-thin);
         }
 
-        .badge {
-            font-size: 0.75rem;
-            letter-spacing: 1px;
-            color: var(--accent-green);
-            background-color: #EBF0EE;
-            padding: 6px 16px;
-            border-radius: 50px;
-            display: inline-block;
+        .hero-tag {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
             margin-bottom: 1.5rem;
-            font-weight: 600;
+            color: var(--black-shade);
         }
 
         h1 {
             font-family: var(--font-display);
-            font-size: 3.8rem;
-            font-weight: 400;
-            line-height: 1.2;
-            margin-bottom: 1.5rem;
-            letter-spacing: -0.5px;
+            font-size: 5rem;
+            font-weight: 700;
+            line-height: 1.05;
+            letter-spacing: -2px;
+            color: var(--black-deep);
+            margin-bottom: 2rem;
+            text-transform: uppercase;
         }
 
-        .hero p {
-            font-family: var(--font-display);
-            font-size: 1.35rem;
-            color: var(--text-muted);
-            max-width: 650px;
-            margin: 0 auto 3rem auto;
-            line-height: 1.5;
+        .hero-intro {
+            font-size: 1.25rem;
+            max-width: 600px;
+            color: var(--black-shade);
+            margin-bottom: 3.5rem;
+            line-height: 1.6;
         }
 
+        /* Strong CTA Button Interaction */
         .cta-btn {
-            background-color: var(--text-main);
+            background-color: var(--black-pure);
             color: var(--bg-color);
-            padding: 1rem 2.5rem;
-            border-radius: 4px;
+            padding: 1.25rem 3rem;
             text-decoration: none;
-            font-weight: 500;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1.5px;
             display: inline-block;
-            transition: transform 0.2s, background-color 0.2s;
-            font-size: 0.95rem;
+            align-self: start;
+            width: fit-content;
+            border: 2px solid var(--black-pure);
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         .cta-btn:hover {
-            background-color: var(--accent-green);
-            transform: translateY(-2px);
+            background-color: transparent;
+            color: var(--black-pure);
         }
 
-        /* Curation Feed Section (The "Boutique" Look) */
+        /* Curated Clean Grid Feed */
         .feed-section {
-            max-width: 1200px;
-            margin: 4rem auto;
-            padding: 0 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 5rem 3rem;
         }
 
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
-        }
-
-        .section-header h2 {
-            font-family: var(--font-display);
-            font-size: 2rem;
-            font-weight: 400;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 2.5rem;
-        }
-
-        .item-card {
-            background: none;
-            display: flex;
-            flex-direction: column;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-        }
-
-        .image-placeholder {
-            width: 100%;
-            aspect-ratio: 4/5;
-            background-color: #EDE9E2;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            font-size: 0.9rem;
-            text-align: center;
-            padding: 1rem;
-            transition: opacity 0.2s;
-            font-family: var(--font-display);
-        }
-
-        .item-card:hover .image-placeholder {
-            opacity: 0.9;
-        }
-
-        .item-meta {
+        .section-title-bar {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            margin-bottom: 0.25rem;
+            margin-bottom: 3rem;
         }
 
-        .item-title {
+        .section-title-bar h2 {
             font-family: var(--font-display);
-            font-size: 1.3rem;
-            font-weight: 600;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: -1px;
         }
 
-        .item-tag {
-            font-size: 0.7rem;
-            color: var(--accent-green);
-            font-weight: 600;
+        .location-tag {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+
+        /* Editorial Image Grids */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 3.5rem 2rem;
+        }
+
+        .item-card {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-frame {
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            background-color: var(--gray-light);
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid transparent;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+            padding: 2rem;
+        }
+
+        .image-frame span.item-type {
+            font-family: var(--font-display);
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--black-deep);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .image-frame span.item-desc {
+            font-size: 0.8rem;
+            color: var(--gray-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .item-tag.pending {
-            color: #A3704C;
+        /* Hover effect shifts background to a sharper dark line frame */
+        .item-card:hover .image-frame {
+            border-color: var(--black-pure);
+            background-color: #FAFAFA;
         }
 
-        .item-location {
-            font-size: 0.8rem;
-            color: var(--text-muted);
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.4rem;
         }
 
+        .item-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid var(--black-pure);
+            padding: 2px 8px;
+        }
+
+        .status-badge.reserved {
+            background-color: var(--black-pure);
+            color: var(--bg-color);
+        }
+
+        .item-specs {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--gray-muted);
+            font-weight: 500;
+        }
+
+        /* Mobile Adjustments */
         @media (max-width: 768px) {
-            header { padding: 1rem 1.5rem; }
+            header { padding: 1.5rem; }
             nav { display: none; }
-            h1 { font-size: 2.5rem; }
-            .feed-section { padding: 0 1.5rem; }
+            h1 { font-size: 3rem; }
+            .hero { padding: 4rem 1.5rem; }
+            .feed-section { padding: 3rem 1.5rem; }
+            .grid { grid-template-columns: 1fr; gap: 2.5rem; }
         }
     </style>
 </head>
@@ -225,55 +262,73 @@
 
     <header>
         <a href="#" class="logo-link">
-            <img src="https://flomath.space/conifer/conifer.png" alt="Conifer Logo" class="logo-img">
+            <img src="https://flomath.space/conifer/conifer.png" alt="Conifer">
         </a>
         <nav>
-            <a href="#">Գտնել իրեր</a>
-            <a href="#">Մեր գաղափարախոսությունը</a>
-            <a href="#">Նվիրել</a>
+            <a href="#">Հավաքածու</a>
+            <a href="#">Հայեցակարգ</a>
+            <a href="#">Տեղադրել հագուստ</a>
         </nav>
     </header>
 
     <main>
         <section class="hero">
-            <span class="badge">Վերահսկվող համայնքային փոխանակում</span>
-            <h1>Նվիրե՛ք գեղեցիկ։<br>Վերցրե՛ք պատասխանատու։</h1>
-            <p>Երևանի համադրված, անվճար հարթակը՝ այն իրերը փոխանցելու համար, որոնք դեռ պատմություններ ունեն պատմելու։</p>
-            <a href="#" class="cta-btn">Տեսնել բոլոր հայտարարությունները</a>
+            <div class="hero-tag">Conifer // Վերահսկվող հարթակ</div>
+            <h1>Կրի՛ր պատմությունը:<br>Անվճար զգեստապահարան:</h1>
+            <p class="hero-intro">Երևանի առաջին մինիմալիստական համայնքը, որտեղ կարող ես անվճար փոխանցել քո որակյալ հագուստը կամ գտնել բացառիկ նմուշներ։ Առանց միջնորդների, առանց վճարների։</p>
+            <a href="#" class="cta-btn">Բացահայտել ֆիդը</a>
         </section>
 
         <section class="feed-section">
-            <div class="section-header">
-                <h2>Այսօր հաստատվածները</h2>
-                <span style="font-size: 0.85rem; color: var(--text-muted);">Երևան, Հայաստան</span>
+            <div class="section-title-bar">
+                <h2>Այսօր Հաստատված</h2>
+                <div class="location-tag">Երևան / 2026</div>
             </div>
             
             <div class="grid">
                 <a href="#" class="item-card">
-                    <div class="image-placeholder">Փայտե հնաոճ աթոռ (կաղնուց)</div>
-                    <div class="item-meta">
-                        <span class="item-title">Ճաշասեղանի աթոռ</span>
-                        <span class="item-tag">Ազատ է</span>
+                    <div class="image-frame">
+                        <span class="item-type">Վերարկու</span>
+                        <span class="item-desc">Vintage Բուրդ / Սև</span>
                     </div>
-                    <span class="item-location">Արաբկիր, Երևան</span>
+                    <div class="item-row">
+                        <span class="item-name">Դասական Աշնանային Վերարկու</span>
+                        <span class="status-badge">Ազատ է</span>
+                    </div>
+                    <div class="item-specs">
+                        <span>Չափս: M (48)</span>
+                        <span>Կենտրոն</span>
+                    </div>
                 </a>
 
                 <a href="#" class="item-card">
-                    <div class="image-placeholder">Արվեստի պատմության պատկերագրքեր</div>
-                    <div class="item-meta">
-                        <span class="item-title">Գեղարվեստական գրքեր</span>
-                        <span class="item-tag">Ազատ է</span>
+                    <div class="image-frame">
+                        <span class="item-type">Բաճկոն</span>
+                        <span class="item-desc">Օրիգինալ Դենիմ / Levi's</span>
                     </div>
-                    <span class="item-location">Կենտրոն, Երևան</span>
+                    <div class="item-row">
+                        <span class="item-name">Ջինսե Հաստ Բաճկոն</span>
+                        <span class="status-badge">Ազատ է</span>
+                    </div>
+                    <div class="item-specs">
+                        <span>Չափս: L</span>
+                        <span>Արաբկիր</span>
+                    </div>
                 </a>
 
                 <a href="#" class="item-card">
-                    <div class="image-placeholder">Zenit TTL ֆոտոխցիկ (առանց օբյեկտիվի)</div>
-                    <div class="item-meta">
-                        <span class="item-title">Անալոգային ֆոտոխցիկ</span>
-                        <span class="item-tag pending">Ամրագրված է</span>
+                    <div class="image-frame">
+                        <span class="item-type">Սվիտեր</span>
+                        <span class="item-desc">Գործված հաստ մանվածք</span>
                     </div>
-                    <span class="item-location">Նորք Մարաշ, Երևան</span>
+                    <div class="item-row">
+                        <span class="item-name">Մինիմալիստական Սվիտեր</span>
+                        <span class="status-badge reserved">Ամրագրված</span>
+                    </div>
+                    <div class="item-specs">
+                        <span>Չափս: S</span>
+                        <span>Մալաթիա</span>
+                    </div>
                 </a>
             </div>
         </section>
