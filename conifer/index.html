@@ -1,24 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hy">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conifer.am — Give Freely, Take Responsibly</title>
+    <title>Conifer.am — Նվիրե՛ք գեղեցիկ, վերցրե՛ք պատասխանատու</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&viewport=width=device-width&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Armenian:wght@400;500;600&family=Noto+Serif+Armenian:wght@400;600&display=swap" rel="stylesheet">
 
     <style>
-        /* Modern CSS Reset & CSS Variables matching the organic vibe */
+        /* Color palette and typography matching the organic branding */
         :root {
-            --bg-color: #FBF9F6;      /* Warm, sustainable cream */
+            --bg-color: #FBF9F6;      /* Warm, sustainable cream background */
             --text-main: #141B18;     /* Deep pine charcoal */
             --text-muted: #5A6561;    /* Soft muted slate */
-            --accent-green: #2D4A3E;  /* Forest accent */
-            --border-color: #E6E1DA;  /* Subtle divider lines */
-            --font-display: 'Cormorant Garamond', serif;
-            --font-sans: 'Plus Jakarta Sans', sans-serif;
+            --accent-green: #2D4A3E;  /* Forest green accent */
+            --border-color: #E6E1DA;  /* Subtle dividers */
+            --font-display: 'Noto Serif Armenian', serif;
+            --font-sans: 'Noto Sans Armenian', sans-serif;
         }
 
         * {
@@ -40,35 +40,27 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2rem 4rem;
+            padding: 1.5rem 4rem;
             border-bottom: 1px solid var(--border-color);
         }
 
-        .logo-container {
+        .logo-link {
             display: flex;
             align-items: center;
-            gap: 12px;
+            text-decoration: none;
         }
 
-        /* Abstract approximation of your tree mark using CSS paths */
-        .logo-icon {
-            width: 32px;
-            height: 32px;
-            background-color: var(--text-main);
-            clip-path: polygon(50% 0%, 20% 40%, 40% 40%, 15% 70%, 45% 70%, 10% 100%, 90% 100%, 55% 70%, 85% 70%, 60% 40%, 80% 40%);
-        }
-
-        .logo-text {
-            font-family: var(--font-display);
-            font-size: 2.2rem;
-            font-weight: 600;
-            letter-spacing: -0.5px;
+        /* Displays your exact logo cleanly */
+        .logo-img {
+            height: 48px; 
+            width: auto;
+            object-fit: contain;
         }
 
         nav a {
             color: var(--text-main);
             text-decoration: none;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 500;
             margin-left: 2.5rem;
             transition: opacity 0.2s;
@@ -87,10 +79,8 @@
         }
 
         .badge {
-            font-family: var(--font-sans);
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
             color: var(--accent-green);
             background-color: #EBF0EE;
             padding: 6px 16px;
@@ -102,25 +92,20 @@
 
         h1 {
             font-family: var(--font-display);
-            font-size: 4.5rem;
+            font-size: 3.8rem;
             font-weight: 400;
-            line-height: 1.1;
+            line-height: 1.2;
             margin-bottom: 1.5rem;
-            letter-spacing: -1px;
-        }
-
-        h1 em {
-            font-family: var(--font-display);
-            font-style: italic;
+            letter-spacing: -0.5px;
         }
 
         .hero p {
             font-family: var(--font-display);
-            font-size: 1.5rem;
+            font-size: 1.35rem;
             color: var(--text-muted);
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto 3rem auto;
-            line-height: 1.4;
+            line-height: 1.5;
         }
 
         .cta-btn {
@@ -132,6 +117,7 @@
             font-weight: 500;
             display: inline-block;
             transition: transform 0.2s, background-color 0.2s;
+            font-size: 0.95rem;
         }
 
         .cta-btn:hover {
@@ -157,7 +143,7 @@
 
         .section-header h2 {
             font-family: var(--font-display);
-            font-size: 2.2rem;
+            font-size: 2rem;
             font-weight: 400;
         }
 
@@ -172,6 +158,8 @@
             display: flex;
             flex-direction: column;
             cursor: pointer;
+            text-decoration: none;
+            color: inherit;
         }
 
         .image-placeholder {
@@ -185,7 +173,10 @@
             justify-content: center;
             color: var(--text-muted);
             font-size: 0.9rem;
+            text-align: center;
+            padding: 1rem;
             transition: opacity 0.2s;
+            font-family: var(--font-display);
         }
 
         .item-card:hover .image-placeholder {
@@ -201,26 +192,31 @@
 
         .item-title {
             font-family: var(--font-display);
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             font-weight: 600;
         }
 
         .item-tag {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--accent-green);
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .item-tag.pending {
+            color: #A3704C;
         }
 
         .item-location {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--text-muted);
         }
 
         @media (max-width: 768px) {
-            header { padding: 1.5rem; }
+            header { padding: 1rem 1.5rem; }
             nav { display: none; }
-            h1 { font-size: 3rem; }
+            h1 { font-size: 2.5rem; }
             .feed-section { padding: 0 1.5rem; }
         }
     </style>
@@ -228,58 +224,57 @@
 <body>
 
     <header>
-        <div class="logo-container">
-            <div class="logo-icon"></div>
-            <div class="logo-text">Conifer</div>
-        </div>
+        <a href="#" class="logo-link">
+            <img src="https://flomath.space/conifer/conifer.png" alt="Conifer Logo" class="logo-img">
+        </a>
         <nav>
-            <a href="#">Browse</a>
-            <a href="#">Our Philosophy</a>
-            <a href="#">Give an Item</a>
+            <a href="#">Գտնել իրեր</a>
+            <a href="#">Մեր գաղափարախոսությունը</a>
+            <a href="#">Նվիրել</a>
         </nav>
     </header>
 
     <main>
         <section class="hero">
-            <span class="badge">Moderated Community Exchange</span>
-            <h1>Give beautifully.<br>Take <em>responsibly</em>.</h1>
-            <p>Yerevan’s curated, zero-cost architecture for passing down things that still have stories to tell.</p>
-            <a href="#" class="cta-btn">Explore Listings</a>
+            <span class="badge">Վերահսկվող համայնքային փոխանակում</span>
+            <h1>Նվիրե՛ք գեղեցիկ։<br>Վերցրե՛ք պատասխանատու։</h1>
+            <p>Երևանի համադրված, անվճար հարթակը՝ այն իրերը փոխանցելու համար, որոնք դեռ պատմություններ ունեն պատմելու։</p>
+            <a href="#" class="cta-btn">Տեսնել բոլոր հայտարարությունները</a>
         </section>
 
         <section class="feed-section">
             <div class="section-header">
-                <h2>Approved Today</h2>
-                <span style="font-size: 0.9rem; color: var(--text-muted);">Yerevan, AM</span>
+                <h2>Այսօր հաստատվածները</h2>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Երևան, Հայաստան</span>
             </div>
             
             <div class="grid">
-                <div class="item-card">
-                    <div class="image-placeholder">Solid Oak Chair (Matured)</div>
+                <a href="#" class="item-card">
+                    <div class="image-placeholder">Փայտե հնաոճ աթոռ (կաղնուց)</div>
                     <div class="item-meta">
-                        <span class="item-title">Wooden Dining Chair</span>
-                        <span class="item-tag">Available</span>
+                        <span class="item-title">Ճաշասեղանի աթոռ</span>
+                        <span class="item-tag">Ազատ է</span>
                     </div>
-                    <span class="item-location">Arabkir, Yerevan</span>
-                </div>
+                    <span class="item-location">Արաբկիր, Երևան</span>
+                </a>
 
-                <div class="item-card">
-                    <div class="image-placeholder">Hardcover Art Monographs</div>
+                <a href="#" class="item-card">
+                    <div class="image-placeholder">Արվեստի պատմության պատկերագրքեր</div>
                     <div class="item-meta">
-                        <span class="item-title">Art History Books</span>
-                        <span class="item-tag">Available</span>
+                        <span class="item-title">Գեղարվեստական գրքեր</span>
+                        <span class="item-tag">Ազատ է</span>
                     </div>
-                    <span class="item-location">Kentron, Yerevan</span>
-                </div>
+                    <span class="item-location">Կենտրոն, Երևան</span>
+                </a>
 
-                <div class="item-card">
-                    <div class="image-placeholder">Analog Film Camera (No lens)</div>
+                <a href="#" class="item-card">
+                    <div class="image-placeholder">Zenit TTL ֆոտոխցիկ (առանց օբյեկտիվի)</div>
                     <div class="item-meta">
-                        <span class="item-title">Zenit TTL Body</span>
-                        <span class="item-tag">Pending Pickup</span>
+                        <span class="item-title">Անալոգային ֆոտոխցիկ</span>
+                        <span class="item-tag pending">Ամրագրված է</span>
                     </div>
-                    <span class="item-location">Nork Marash, Yerevan</span>
-                </div>
+                    <span class="item-location">Նորք Մարաշ, Երևան</span>
+                </a>
             </div>
         </section>
     </main>
