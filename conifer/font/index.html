@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GlyphForge Studio Pro — Unified Grid Engine</title>
+    <title>GlyphForge Outline Studio — Vector Framework Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
@@ -20,12 +20,12 @@
         <div class="flex items-center space-x-3">
             <div class="bg-indigo-600 text-white p-2 rounded-lg font-mono font-bold text-xs">Հ</div>
             <div>
-                <h1 class="text-sm font-bold text-slate-200">GlyphForge Grid Studio</h1>
-                <p class="text-[10px] text-slate-500 font-mono">Unified Vector Mapping System (1000x1000 Max)</p>
+                <h1 class="text-sm font-bold text-slate-200">GlyphForge Outline Studio</h1>
+                <p class="text-[10px] text-slate-500 font-mono">Pure Boundary &amp; Paint Bucket Pipeline</p>
             </div>
         </div>
         <div class="flex items-center space-x-4">
-            <input id="fontName" type="text" value="UnifiedScriptFont" class="bg-[#02040a] border border-slate-800 px-3 py-1.5 rounded text-xs text-indigo-400 focus:outline-none w-44">
+            <input id="fontName" type="text" value="OutlineScriptFont" class="bg-[#02040a] border border-slate-800 px-3 py-1.5 rounded text-xs text-indigo-400 focus:outline-none w-44">
             <button onclick="exportFont()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded shadow transition-all">
                 Export Font (.ttf)
             </button>
@@ -41,13 +41,13 @@
             </div>
             
             <textarea id="codeConsole" class="flex-1 bg-[#04070d] text-indigo-300 p-5 text-xs font-mono focus:outline-none leading-6 tracking-wide overflow-y-auto select-text" 
-                      placeholder="// Tap grid points or write script commands here directly..." spellcheck="false"></textarea>
+                      placeholder="// Click grid intersections to draw framework paths..." spellcheck="false"></textarea>
             
             <div class="h-32 bg-[#020408] border-t border-slate-900 p-3 text-[11px] text-slate-500 overflow-y-auto leading-5">
-                <span class="text-slate-300 font-bold uppercase block text-[10px] mb-1">Interactive Script Guide:</span>
-                • <b class="text-indigo-400">COLOR (x1,y1 : x2,y2 : ...)</b> — Continuous closed multi-point geometry fill.<br>
-                • <b class="text-indigo-400">CURVE (x1,y1 : x2,y2 : x3,y3)</b> — Quadratic curve arcing through 3 coordinate keys.<br>
-                • <b class="text-indigo-400">BUCKET (x1,y1)</b> — Fires lightning-fast safe raster flood fill bounds.
+                <span class="text-slate-300 font-bold uppercase block text-[10px] mb-1">Outline Commands:</span>
+                • <b class="text-indigo-400">LINE (x1,y1 : x2,y2 : ...)</b> — Draws connected skeletal wireframe lines.<br>
+                • <b class="text-indigo-400">CURVE (x1,y1 : x2,y2 : x3,y3)</b> — Plots custom 3-point arced strokes.<br>
+                • <b class="text-indigo-400">BUCKET (x1,y1)</b> — Flood-fills inside enclosed vector outlines.
             </div>
         </main>
 
@@ -55,7 +55,7 @@
             
             <div class="bg-[#060a12] px-6 py-2 border-b border-slate-900 flex items-center justify-between text-xs shrink-0">
                 <div class="flex items-center space-x-2">
-                    <button id="btn-color" onclick="setActiveUiTool('COLOR')" class="px-3 py-1 rounded text-[11px] font-bold bg-indigo-600 text-white transition">Tool: COLOR</button>
+                    <button id="btn-line" onclick="setActiveUiTool('LINE')" class="px-3 py-1 rounded text-[11px] font-bold bg-indigo-600 text-white transition">Tool: LINE</button>
                     <button id="btn-curve" onclick="setActiveUiTool('CURVE')" class="px-3 py-1 rounded text-[11px] font-bold bg-slate-900 text-slate-400 hover:text-white transition">Tool: CURVE</button>
                     <button id="btn-bucket" onclick="setActiveUiTool('BUCKET')" class="px-3 py-1 rounded text-[11px] font-bold bg-slate-900 text-slate-400 hover:text-white transition">Tool: BUCKET</button>
                 </div>
@@ -88,7 +88,7 @@
         const canvasTooltip = document.getElementById('canvasTooltip');
 
         const PLANE_MAX = 1000;
-        const GRID_STEP = 25; // 25 unit high density metric snapping engine 
+        const GRID_STEP = 25; // High-density 25-unit tracking step configuration
         const CANVAS_PADDING = 50;
 
         const armenianGlyphs = [];
@@ -98,44 +98,34 @@
         let fontScriptCache = {};
         let currentUnicode = armenianGlyphs[0].unicode;
         
-        let currentUiTool = 'COLOR'; 
+        let currentUiTool = 'LINE'; 
         let intermediatePointsStack = [];
 
         function seedDatabase() {
-            const cache = localStorage.getItem('glyphforge_unified_v5');
+            const cache = localStorage.getItem('glyphforge_outlines_v1');
             if (cache) {
                 fontScriptCache = JSON.parse(cache);
             } else {
                 armenianGlyphs.forEach((g, idx) => {
                     if (idx === 0) { 
-                        fontScriptCache[g.unicode] = `// Armenian Blended Typography Design\nCOLOR (125,100 : 225,100 : 225,750 : 125,750)\nCOLOR (225,650 : 500,650 : 500,750 : 225,750)\nCURVE (225,450 : 550,300 : 225,150)\nBUCKET (175,400)`;
+                        // Default template mapping structural wireframe outlines + inner manual bucket fill
+                        fontScriptCache[g.unicode] = `// Armenian Outline Blueprint Layout\nLINE (125,100 : 225,100 : 225,750 : 125,750)\nLINE (225,650 : 500,650 : 500,750 : 225,750)\nCURVE (225,450 : 550,300 : 225,150)\nBUCKET (175,400)`;
                     } else {
-                        fontScriptCache[g.unicode] = `// New Glyph Workspace Space\n// Spacing Grid Distance resolution locked to 25 intervals`;
+                        fontScriptCache[g.unicode] = `// Empty Outline Workspace Layer\n// Dot intervals mapped to exactly 25 units`;
                     }
                 });
             }
         }
 
-        function toScreenX(fontX) {
-            return CANVAS_PADDING + (fontX / PLANE_MAX) * (canvas.width - 2 * CANVAS_PADDING);
-        }
-
-        function toScreenY(fontY) {
-            return (canvas.height - CANVAS_PADDING) - (fontY / PLANE_MAX) * (canvas.height - 2 * CANVAS_PADDING);
-        }
-
-        function toFontX(screenX) {
-            return ((screenX - CANVAS_PADDING) / (canvas.width - 2 * CANVAS_PADDING)) * PLANE_MAX;
-        }
-
-        function toFontY(screenY) {
-            return (((canvas.height - CANVAS_PADDING) - screenY) / (canvas.height - 2 * CANVAS_PADDING)) * PLANE_MAX;
-        }
+        function toScreenX(fontX) { return CANVAS_PADDING + (fontX / PLANE_MAX) * (canvas.width - 2 * CANVAS_PADDING); }
+        function toScreenY(fontY) { return (canvas.height - CANVAS_PADDING) - (fontY / PLANE_MAX) * (canvas.height - 2 * CANVAS_PADDING); }
+        function toFontX(screenX) { return ((screenX - CANVAS_PADDING) / (canvas.width - 2 * CANVAS_PADDING)) * PLANE_MAX; }
+        function toFontY(screenY) { return (((canvas.height - CANVAS_PADDING) - screenY) / (canvas.height - 2 * CANVAS_PADDING)) * PLANE_MAX; }
 
         function setActiveUiTool(toolName) {
             currentUiTool = toolName;
             intermediatePointsStack = []; 
-            ['COLOR', 'CURVE', 'BUCKET'].forEach(t => {
+            ['LINE', 'CURVE', 'BUCKET'].forEach(t => {
                 const btn = document.getElementById(`btn-${t.toLowerCase()}`);
                 btn.className = (t === toolName) ? 
                     "px-3 py-1 rounded text-[11px] font-bold bg-indigo-600 text-white transition shadow-lg shadow-indigo-900/40" : 
@@ -145,7 +135,7 @@
         }
 
         function clearCurrentScript() {
-            codeConsole.value = `// Clean Workspace Canvas Plane Block`;
+            codeConsole.value = `// Clean Workspace Wireframe Layout`;
             intermediatePointsStack = [];
             runUnifiedCompiler();
         }
@@ -159,7 +149,7 @@
             });
         }
 
-        // Live Coordinate Matrix Tracker and Visual Hover Line Pointer Listener
+        // Mouse Motion Interceptor for Grid Snapping
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             const rawFX = toFontX(e.clientX - rect.left);
@@ -187,7 +177,7 @@
             runUnifiedCompiler();
         });
 
-        // Click-To-Code Generation Handler Engine
+        // Click Capture Grid Plotting Engine
         canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
             const fx = toFontX(e.clientX - rect.left);
@@ -209,9 +199,10 @@
                     intermediatePointsStack = []; 
                 }
             } 
-            else if (currentUiTool === 'COLOR') {
-                if (intermediatePointsStack.length >= 3 && Math.abs(intermediatePointsStack[0].x - snapX) < 5 && Math.abs(intermediatePointsStack[0].y - snapY) < 5) {
-                    finalizeColorPolygonLoop();
+            else if (currentUiTool === 'LINE') {
+                // Clicking back near original start node closes current loop framework sequence
+                if (intermediatePointsStack.length >= 2 && Math.abs(intermediatePointsStack[0].x - snapX) < 5 && Math.abs(intermediatePointsStack[0].y - snapY) < 5) {
+                    finalizeLineLoop();
                 } else {
                     intermediatePointsStack.push({ x: snapX, y: snapY });
                 }
@@ -219,9 +210,9 @@
             runUnifiedCompiler();
         });
 
-        function finalizeColorPolygonLoop() {
-            if (intermediatePointsStack.length < 3) return;
-            const commandString = `COLOR (` + intermediatePointsStack.map(p => `${p.x},${p.y}`).join(' : ') + `)`;
+        function finalizeLineLoop() {
+            if (intermediatePointsStack.length < 2) return;
+            const commandString = `LINE (` + intermediatePointsStack.map(p => `${p.x},${p.y}`).join(' : ') + `)`;
             appendGeneratedCommand(commandString);
             intermediatePointsStack = [];
         }
@@ -230,22 +221,22 @@
             let currentContent = codeConsole.value.trim();
             codeConsole.value = currentContent + `\n` + cmdStr;
             fontScriptCache[currentUnicode] = codeConsole.value;
-            localStorage.setItem('glyphforge_unified_v5', JSON.stringify(fontScriptCache));
+            localStorage.setItem('glyphforge_outlines_v1', JSON.stringify(fontScriptCache));
         }
 
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && currentUiTool === 'COLOR' && intermediatePointsStack.length >= 3) {
+            if (e.key === 'Enter' && currentUiTool === 'LINE' && intermediatePointsStack.length >= 2) {
                 e.preventDefault();
-                finalizeColorPolygonLoop();
+                finalizeLineLoop();
                 runUnifiedCompiler();
             }
         });
 
-        // Unified Compositing Drawing Loop Engine 
+        // Split-Pass Pure Outline Compiler Engine
         function runUnifiedCompiler(hoverX = null, hoverY = null) {
             const code = codeConsole.value;
             fontScriptCache[currentUnicode] = code;
-            localStorage.setItem('glyphforge_unified_v5', JSON.stringify(fontScriptCache));
+            localStorage.setItem('glyphforge_outlines_v1', JSON.stringify(fontScriptCache));
 
             ctx.fillStyle = '#020306';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -254,42 +245,44 @@
             const lines = code.split('\n');
             let maxBoundsRecordedX = 0;
 
-            ctx.fillStyle = 'rgba(99, 102, 241, 0.7)';
+            // Set up stroke options — NO auto filling allowed here
             ctx.strokeStyle = '#818cf8';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
 
-            // Pass 1: Blending accumulation phase 
-            ctx.beginPath();
+            // Pass 1: Draw vector wireframe boundaries lines only
             lines.forEach(lineStr => {
                 let line = lineStr.trim();
                 if (!line || line.startsWith('//')) return;
 
                 const token = line.split(/[ \(]/)[0].toUpperCase();
 
-                if (token === 'COLOR') {
+                if (token === 'LINE') {
                     const pts = parseExactPoints(line);
-                    if (pts.length >= 3) {
+                    if (pts.length >= 2) {
+                        ctx.beginPath();
                         ctx.moveTo(toScreenX(pts[0].x), toScreenY(pts[0].y));
                         pts.forEach(p => {
                             ctx.lineTo(toScreenX(p.x), toScreenY(p.y));
                             if (p.x > maxBoundsRecordedX) maxBoundsRecordedX = p.x;
                         });
-                        ctx.lineTo(toScreenX(pts[0].x), toScreenY(pts[0].y)); 
+                        ctx.stroke();
                     }
                 } 
                 else if (token === 'CURVE') {
                     const pts = parseExactPoints(line);
                     if (pts.length === 3) {
+                        ctx.beginPath();
                         ctx.moveTo(toScreenX(pts[0].x), toScreenY(pts[0].y));
                         ctx.quadraticCurveTo(toScreenX(pts[1].x), toScreenY(pts[1].y), toScreenX(pts[2].x), toScreenY(pts[2].y));
+                        ctx.stroke();
                         pts.forEach(p => { if (p.x > maxBoundsRecordedX) maxBoundsRecordedX = p.x; });
                     }
                 }
             });
-            ctx.fill();
-            ctx.stroke();
 
-            // Pass 2: Secure Bitmask-Isolated Flood Fill Engine
+            // Pass 2: Execute Bitmask-Isolated Flood Fill based on BUCKET directives
             lines.forEach(lineStr => {
                 let line = lineStr.trim();
                 if (!line.toUpperCase().startsWith('BUCKET')) return;
@@ -302,16 +295,37 @@
                 }
             });
 
-            // Live click preview tracking layer overlays
+            // Pass 3: Re-stroke outlines to overlay them perfectly over filled areas
+            lines.forEach(lineStr => {
+                let line = lineStr.trim();
+                if (!line || line.startsWith('//')) return;
+                const token = line.split(/[ \(]/)[0].toUpperCase();
+                if (token === 'LINE') {
+                    const pts = parseExactPoints(line);
+                    if (pts.length >= 2) {
+                        ctx.beginPath(); ctx.moveTo(toScreenX(pts[0].x), toScreenY(pts[0].y));
+                        pts.forEach(p => ctx.lineTo(toScreenX(p.x), toScreenY(p.y)));
+                        ctx.stroke();
+                    }
+                } else if (token === 'CURVE') {
+                    const pts = parseExactPoints(line);
+                    if (pts.length === 3) {
+                        ctx.beginPath(); ctx.moveTo(toScreenX(pts[0].x), toScreenY(pts[0].y));
+                        ctx.quadraticCurveTo(toScreenX(pts[1].x), toScreenY(pts[1].y), toScreenX(pts[2].x), toScreenY(pts[2].y));
+                        ctx.stroke();
+                    }
+                }
+            });
+
+            // Live visual layout drawing previews
             if (intermediatePointsStack.length > 0) {
                 ctx.strokeStyle = '#f43f5e';
-                ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(toScreenX(intermediatePointsStack[0].x), toScreenY(intermediatePointsStack[0].y));
                 intermediatePointsStack.forEach(p => ctx.lineTo(toScreenX(p.x), toScreenY(p.y)));
                 
-                if (hoverX !== null && hoverY !== null) {
+                if (hoverX !== null && hoverY !== null && currentUiTool === 'LINE') {
                     ctx.lineTo(toScreenX(hoverX), toScreenY(hoverY));
                 }
                 ctx.stroke();
@@ -322,10 +336,10 @@
                 });
             }
 
-            // Automated dynamic boundary calculation rules
+            // Automatic cropping margin calculation matrix
             const paddingOffset = 75;
             const autoCroppedWidth = maxBoundsRecordedX > 0 ? Math.min(PLANE_MAX, Math.round(maxBoundsRecordedX + paddingOffset)) : 600;
-            cropWidthVal.innerText = `${autoCroppedWidth} units`;
+            cropWidthVal.innerText = `${autoCroppedWidth} em units`;
 
             ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
             ctx.lineWidth = 1;
@@ -347,19 +361,20 @@
             ctx.beginPath(); ctx.moveTo(0, toScreenY(750)); ctx.lineTo(canvas.width, toScreenY(750)); ctx.stroke(); 
         }
 
-        // Guaranteed Safe Bitmask Flood Fill Processing Matrix Engine (0% Hazard Loop risk)
+        // Ultra-Stable Bitmask Flood Fill Processing Matrix Engine
         function executeSecureFloodFill(startX, startY, fillColor) {
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
-            const width = imgData.width;
-            const height = imgData.height;
+            const width = imgData.width, height = imgData.height;
 
             if (startX < 0 || startX >= width || startY < 0 || startY >= height) return;
 
             const targetIdx = (startY * width + startX) * 4;
             const targetR = data[targetIdx], targetG = data[targetIdx+1], targetB = data[targetIdx+2];
 
-            // Allocation matrix array blocks visited tracking elements structures
+            // If starting pixel is already on or very close to the fill color, skip to avoid loop issues
+            if (Math.abs(targetR - fillColor[0]) < 10 && Math.abs(targetG - fillColor[1]) < 10 && Math.abs(targetB - fillColor[2]) < 10) return;
+
             const visited = new Uint8Array(width * height);
             const queue = [startX, startY];
             
@@ -370,24 +385,22 @@
                 const cx = queue.pop();
                 const idx = (cy * width + cx) * 4;
 
-                // Evaluate standard color boundary parameters limits match ratios
-                if (Math.abs(data[idx] - targetR) < 55 && Math.abs(data[idx+1] - targetG) < 55 && Math.abs(data[idx+2] - targetB) < 55) {
+                // Stop expanding when colliding with boundary line colors
+                if (Math.abs(data[idx] - targetR) < 60 && Math.abs(data[idx+1] - targetG) < 60 && Math.abs(data[idx+2] - targetB) < 60) {
                     
                     data[idx] = fillColor[0]; 
                     data[idx+1] = fillColor[1]; 
                     data[idx+2] = fillColor[2]; 
                     data[idx+3] = fillColor[3];
 
-                    const neighbors = [
-                        [cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]
-                    ];
+                    const neighbors = [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]];
 
                     for (let i = 0; i < neighbors.length; i++) {
                         const [nx, ny] = neighbors[i];
                         if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                             const vIdx = ny * width + nx;
                             if (visited[vIdx] === 0) {
-                                visited[vIdx] = 1; // Mark immediately to close vector bounds loop traps
+                                visited[vIdx] = 1; 
                                 queue.push(nx, ny);
                             }
                         }
@@ -420,8 +433,9 @@
             });
         }
 
+        // TrueType Native Exporter Bridge Engine
         function exportFont() {
-            const fontName = document.getElementById('fontName').value.replace(/\s+/g, '') || 'DynamicFontPro';
+            const fontName = document.getElementById('fontName').value.replace(/\s+/g, '') || 'OutlineFontPro';
             const notdefPath = new opentype.Path();
             notdefPath.moveTo(50, 0); notdefPath.lineTo(50, 700); notdefPath.lineTo(450, 700); notdefPath.lineTo(450, 0); notdefPath.closePath();
             const compiledGlyphs = [new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 500, path: notdefPath })];
@@ -436,12 +450,12 @@
                     if (!line || line.startsWith('//')) return;
 
                     const token = line.split(/[ \(]/)[0].toUpperCase();
-                    if (token === 'COLOR') {
+                    if (token === 'LINE') {
                         const pts = parseExactPoints(line);
-                        if(pts.length >= 3) {
+                        if(pts.length >= 2) {
                             path.moveTo(pts[0].x, pts[0].y);
                             pts.forEach(p => { path.lineTo(p.x, p.y); if(p.x > maxBoundsX) maxBoundsX = p.x; });
-                            path.closePath();
+                            path.closePath(); // Solidify outlines to structural closed contours for TrueType compatibility
                         }
                     } 
                     else if (token === 'CURVE') {
