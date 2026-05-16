@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Անահիտ Բ. (@anahit_b) — Conifer.am</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Armenian:wght@400;700;900&family=Noto+Serif+Armenian:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Stark Minimalist UI Token Variables */
+        :root {
+            --bg-color: #FFFFFF;       
+            --black-pure: #000000;     
+            --black-deep: #111111;     
+            --black-shade: #222222;    
+            --gray-muted: #888888;     
+            --gray-light: #F2F2F2;     
+            --border-thick: 2px solid #000000;
+            --border-thin: 1px solid #E5E5E5;
+            --font-display: 'Noto Serif Armenian', serif;
+            --font-sans: 'Noto Sans Armenian', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--black-pure);
+            font-family: var(--font-sans);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Navigation Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 3rem;
+            border-bottom: var(--border-thick);
+            background: var(--bg-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-link img {
+            height: 42px; 
+            width: auto;
+            object-fit: contain;
+            filter: grayscale(100%) brightness(0); 
+        }
+
+        nav a {
+            color: var(--black-pure);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: 2rem;
+            transition: color 0.15s ease;
+        }
+
+        nav a:hover {
+            color: var(--gray-muted);
+        }
+
+        /* Profile Block Layout (Stark & Bold) */
+        .profile-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 6rem 3rem 4rem 3rem;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 4rem;
+            border-bottom: var(--border-thin);
+        }
+
+        /* The Avatar can be any photo or aesthetic image */
+        .profile-avatar {
+            width: 300px;
+            height: 300px;
+            background-color: var(--gray-light);
+            border: var(--border-thick);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Profile Text Info */
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .profile-meta {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
+            color: var(--gray-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: -1px;
+            color: var(--black-deep);
+            margin-bottom: 1.5rem;
+        }
+
+        .profile-bio {
+            font-size: 1.1rem;
+            color: var(--black-shade);
+            max-width: 650px;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        /* Minimalist Instagram Connection Badge */
+        .instagram-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--black-pure);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid var(--black-pure);
+            padding: 0.5rem 1.25rem;
+            width: fit-content;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .instagram-link:hover {
+            background-color: var(--black-pure);
+            color: var(--bg-color);
+        }
+
+        /* User Stats Summary Counter */
+        .profile-stats {
+            display: flex;
+            gap: 3rem;
+            margin-top: 2.5rem;
+            padding-top: 1.5rem;
+            border-top: var(--border-thin);
+        }
+
+        .stat-box {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-value {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--gray-muted);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Personal Wardrobe Collection Display */
+        .wardrobe-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 4rem 3rem 6rem 3rem;
+        }
+
+        .wardrobe-title {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            margin-bottom: 3rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 3.5rem 2rem;
+        }
+
+        .item-card {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-frame {
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            background-color: var(--gray-light);
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid transparent;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+            padding: 2rem;
+        }
+
+        .image-frame span.item-type {
+            font-family: var(--font-display);
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--black-deep);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .image-frame span.item-desc {
+            font-size: 0.8rem;
+            color: var(--gray-muted);
+            text-transform: uppercase;
+        }
+
+        .item-card:hover .image-frame {
+            border-color: var(--black-pure);
+            background-color: #FAFAFA;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.4rem;
+        }
+
+        .item-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border: 1px solid var(--black-pure);
+            padding: 2px 8px;
+        }
+
+        .status-badge.claimed {
+            background-color: var(--gray-light);
+            color: var(--gray-muted);
+            border-color: var(--gray-light);
+            text-decoration: line-through;
+        }
+
+        .item-specs {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--gray-muted);
+            font-weight: 500;
+        }
+
+        /* Responsive Mobile Layout Shift */
+        @media (max-width: 850px) {
+            .profile-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+                padding: 4rem 1.5rem;
+            }
+            .profile-avatar {
+                width: 100%;
+                max-width: 300px;
+                height: 300px;
+            }
+            h1 { font-size: 2.8rem; }
+            .wardrobe-section { padding: 3rem 1.5rem; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="logo-link">
+            <img src="https://flomath.space/conifer/conifer.png" alt="Conifer">
+        </a>
+        <nav>
+            <a href="#">Հավաքածու</a>
+            <a href="#">Հայեցակարգ</a>
+            <a href="#">Տեղադրել հագուստ</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="profile-container">
+            <div class="profile-avatar">
+                <div style="width: 80%; height: 80%; background-color: var(--black-pure);"></div>
+            </div>
+            
+            <div class="profile-info">
+                <div class="profile-meta">Երևան, Արաբկիր // Անդամ 2026-ից</div>
+                <h1>Անահիտ Բ.</h1>
+                <p class="profile-bio">Սիրում եմ 90-ականների մինիմալիզմը, oversized վերարկուներ և ծանր ջինսեր։ Իրերիս մեծ մասը բերված են արտերկրի թրիֆթերից կամ տեղական հավաքածուներից։ Ազատվում եմ այն ամենից, ինչ այլևս չեմ կրում։</p>
+                
+                <a href="https://instagram.com" target="_blank" class="instagram-link">
+                    ↗ IG: @anahit_b
+                </a>
+
+                <div class="profile-stats">
+                    <div class="stat-box">
+                        <span class="stat-value">12</span>
+                        <span class="stat-label">Նվիրած իրեր</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value">2</span>
+                        <span class="stat-label">Ակտիվ ֆիդում</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="wardrobe-section">
+            <h2 class="wardrobe-title">Անահիտի զգեստապահարանը</h2>
+            
+            <div class="grid">
+                <a href="#" class="item-card">
+                    <div class="image-frame">
+                        <span class="item-type">Բլեյզեր</span>
+                        <span class="item-desc">Oversized / Մուգ Մոխրագույն</span>
+                    </div>
+                    <div class="item-row">
+                        <span class="item-name">Բրդյա Կառուցվածքային Ժակետ</span>
+                        <span class="status-badge">Ազատ է</span>
+                    </div>
+                    <div class="item-specs">
+                        <span>Չափս: L</span>
+                        <span>Արաբկիր</span>
+                    </div>
+                </a>
+
+                <a href="#" class="item-card">
+                    <div class="image-frame">
+                        <span class="item-type">Շարֆ</span>
+                        <span class="item-desc">Acne Studios Style / Կանաչ</span>
+                    </div>
+                    <div class="item-row">
+                        <span class="item-name">Հաստ Գործվածքով Շարֆ</span>
+                        <span class="status-badge">Ազատ է</span>
+                    </div>
+                    <div class="item-specs">
+                        <span>Չափս: One Size</span>
+                        <span>Արաբկիր</span>
+                    </div>
+                </a>
+
+                <div class="item-card" style="opacity: 0.5; cursor: default;">
+                    <div class="image-frame" style="background-color: #FAFAFA;">
+                        <span class="item-type" style="color: var(--gray-muted);">Կոշիկ</span>
+                        <span class="item-desc">Retro Sneaker / Կաշի</span>
+                    </div>
+                    <div class="item-row">
+                        <span class="item-name" style="color: var(--gray-muted);">Classic Բոթասներ</span>
+                        <span class="status-badge claimed">Տրված է</span>
+                    </div>
+                    <div class="item-specs">
+                        <span>Չափս: 39</span>
+                        <span>Կենտրոն</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>
