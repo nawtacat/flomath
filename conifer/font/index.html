@@ -3,363 +3,424 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GlyphForge Code Pro — Scriptable Font Engine</title>
+    <title>GlyphForge IDE Pro — Scriptable Typography Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #020617; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        textarea { resize: none; font-family: 'Fira Code', 'Courier New', monospace; }
+        body { font-family: 'Fira Code', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        .canvas-container { border-image: linear-gradient(to bottom, #312e81, #0f172a) 1; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
+<body class="bg-[#030712] text-slate-100 min-h-screen flex flex-col overflow-hidden select-none">
 
-    <!-- Header navigation -->
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shrink-0">
-        <div class="flex items-center space-x-3">
-            <div class="bg-indigo-600 text-white p-2 rounded-lg font-mono font-black text-xl">&gt;_</div>
+    <!-- Top Navigation Ribbon -->
+    <header class="bg-[#090d16] border-b border-slate-900 px-6 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-4">
+            <div class="bg-gradient-to-tr from-indigo-600 to-violet-500 text-white px-3 py-1.5 rounded-lg font-black tracking-wider text-sm shadow-md">
+                IDE // PRO
+            </div>
             <div>
-                <h1 class="text-lg font-bold tracking-tight">GlyphForge Code Pro</h1>
-                <p class="text-xs text-slate-400 font-mono">Coordinate Geometry Typography Workbench</p>
+                <h1 class="text-sm font-bold tracking-tight text-slate-200">GlyphForge Script Terminal</h1>
+                <p class="text-[10px] text-slate-500 font-mono">1000x1000 Em Cartesian Design System</p>
             </div>
         </div>
-        <div class="flex items-center space-x-4">
-            <div>
-                <label class="block text-[10px] font-mono text-slate-400 uppercase">Font Name</label>
-                <input id="fontName" type="text" value="ScriptedArmenian" class="bg-slate-950 border border-slate-700 px-3 py-1 rounded text-sm text-indigo-400 focus:outline-none focus:border-indigo-500 font-mono w-44">
+
+        <div class="flex items-center space-x-6">
+            <div class="flex items-center space-x-2">
+                <span class="text-[11px] text-slate-400 uppercase tracking-wider">Font Family:</span>
+                <input id="fontName" type="text" value="CodeScriptArmenian" class="bg-[#02040a] border border-slate-800 px-3 py-1 rounded-md text-xs text-indigo-400 focus:outline-none focus:border-indigo-500 font-mono w-48">
             </div>
-            <button onclick="exportFont()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-4 py-2 rounded shadow transition-all mt-3">
-                Export Font (.ttf)
+            <button onclick="exportFont()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded-md shadow-lg shadow-indigo-900/30 transition-all duration-150">
+                Compile & Export Font (.ttf)
             </button>
         </div>
     </header>
 
-    <!-- Main Studio Split Panel -->
+    <!-- Main Workspace Split Window -->
     <div class="flex flex-1 overflow-hidden">
         
-        <!-- Sidebar: Unicode Navigator -->
-        <aside class="w-60 bg-slate-900 border-r border-slate-800 flex flex-col">
-            <div class="p-3 bg-slate-950/50 border-b border-slate-800 text-xs font-mono text-slate-400 uppercase tracking-wider">
-                Armenian Range
+        <!-- Code Studio Console (Left 45%) -->
+        <main class="w-[45%] bg-[#060a12] border-r border-slate-900 flex flex-col relative h-full">
+            <div class="bg-[#090d16]/80 px-4 py-2.5 border-b border-slate-900 flex items-center justify-between shrink-0">
+                <div class="flex items-center space-x-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                    <span>Source Code Editor</span>
+                </div>
+                <div id="compilerStatus" class="text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono">
+                    Success
+                </div>
             </div>
-            <div id="glyphList" class="flex-1 overflow-y-auto p-2 grid grid-cols-1 gap-1 content-start">
-                <!-- Script injected characters -->
-            </div>
-        </aside>
 
-        <!-- Center Stage: The Live Scripting Console -->
-        <main class="w-96 bg-slate-900 border-r border-slate-800 flex flex-col p-4 space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-xs font-mono text-slate-400 uppercase tracking-wider">Glyph Geometry Script</h2>
-                <span id="syntaxStatus" class="text-[11px] font-mono text-emerald-400">Ready</span>
+            <!-- Enhanced IDE Code Input Area -->
+            <div class="flex-1 flex overflow-hidden relative group">
+                <!-- Simple Line Counter Graphic Column -->
+                <div class="w-12 bg-[#04070d] py-4 flex flex-col text-right pr-3 select-none text-slate-700 text-xs font-mono border-r border-slate-900/50 leading-6">
+                    <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div><div>15</div>
+                </div>
+                <textarea id="codeConsole" class="flex-1 bg-[#04070d]/40 text-indigo-300 p-4 text-xs font-mono focus:outline-none leading-6 tracking-wide overflow-y-auto" 
+                          placeholder="// Build custom typeface primitives natively via Cartesian coordinates..." spellcheck="false"></textarea>
             </div>
-            
-            <textarea id="codeConsole" class="flex-1 bg-slate-950 text-indigo-300 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:border-indigo-500 shadow-inner" 
-                      placeholder="Write layout logic here..." spellcheck="false"></textarea>
-            
-            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 text-[11px] font-mono text-slate-400 space-y-2">
-                <div class="text-slate-200 font-bold uppercase mb-1">DSL API Reference</div>
-                <div><b class="text-indigo-400">COLOR (x1, y1, x2, y2)</b> <br><span class="opacity-70">Draws filled vector bounding rectangle</span></div>
-                <div><b class="text-indigo-400">LINE (x1, y1, x2, y2)</b> <br><span class="opacity-70">Draws straight baseline coordinate stroke</span></div>
-                <div><b class="text-indigo-400">CURVE (x1, x2, yMax)</b> <br><span class="opacity-70">Calculates parabolic arch peaking at yMax</span></div>
-                <div><b class="text-indigo-400">BUCKET (x, y)</b> <br><span class="opacity-70">Triggers raster fill bounding constraints</span></div>
+
+            <!-- Scripting Console Console Output Window -->
+            <div class="h-44 bg-[#020408] border-t border-slate-900 flex flex-col overflow-hidden">
+                <div class="bg-[#050910] px-4 py-1.5 text-[10px] uppercase font-mono tracking-widest text-slate-500 border-b border-slate-900">
+                    Console Logs / Parser Matrix
+                </div>
+                <div id="terminalLog" class="p-3 text-[11px] text-slate-400 font-mono space-y-1 overflow-y-auto flex-1 selection:bg-indigo-900/50">
+                    <!-- Dynamic Parser diagnostic logging reports output here -->
+                </div>
             </div>
         </main>
 
-        <!-- Right Stage: The Coordinate Plane Space -->
-        <section class="flex-1 bg-slate-950 flex flex-col items-center justify-center p-6 relative">
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl relative">
-                <canvas id="vectorPlane" width="600" height="600" class="rounded-lg bg-slate-950"></canvas>
+        <!-- Graphic Visualization Plane & Controls (Right 55%) -->
+        <section class="flex-1 bg-[#020408] flex flex-col h-full overflow-hidden">
+            
+            <!-- Context Control Bar -->
+            <div class="bg-[#060a12] px-6 py-2 border-b border-slate-900 flex items-center justify-between shrink-0 text-xs">
+                <div class="flex items-center space-x-6">
+                    <div>Glyph: <span id="statusChar" class="text-indigo-400 font-bold text-sm">Ա</span></div>
+                    <div class="text-slate-500">Unicode: <span id="statusUnicode" class="text-slate-300 font-mono">U+0531</span></div>
+                </div>
+                <div class="flex items-center space-x-3 text-[11px] font-mono text-slate-400">
+                    <span>Hover Pos:</span>
+                    <span id="coordTrack" class="text-indigo-400 font-bold w-24">[X: 0, Y: 0]</span>
+                </div>
             </div>
 
-            <!-- Plane Status Meta tracking -->
-            <div class="mt-4 flex space-x-8 text-xs font-mono text-slate-400 bg-slate-900/50 px-4 py-2 rounded-lg border border-slate-800/60">
-                <div>Character: <span id="statusChar" class="text-indigo-400 font-bold text-sm">Ա</span></div>
-                <div>Unicode: <span id="statusUnicode" class="text-slate-200">U+0531</span></div>
-                <div>Plane Limit: <span class="text-slate-200">1000x1000 em</span></div>
+            <!-- Center Viewport Canvas Workspace Grid Space -->
+            <div class="flex-1 flex items-center justify-center p-6 bg-[#04060a] relative overflow-hidden">
+                <div class="p-4 bg-[#060a12] border border-slate-800 rounded-xl shadow-2xl relative">
+                    <canvas id="vectorPlane" width="680" height="680" class="bg-[#020306] rounded cursor-crosshair"></canvas>
+                </div>
             </div>
+
+            <!-- Lower Global Armenian Dictionary Keyboard Overlay Array -->
+            <footer class="h-28 bg-[#060a12] border-t border-slate-900 p-3 flex flex-col shrink-0 overflow-hidden">
+                <div class="text-[10px] uppercase font-mono tracking-widest text-slate-500 mb-1.5 px-1">
+                    Select Armenian Glyph Layer To Modify
+                </div>
+                <div id="glyphGrid" class="flex-1 overflow-x-auto overflow-y-hidden flex items-center space-x-1.5 pb-1">
+                    <!-- Dynamic JS Generation Layout UI -->
+                </div>
+            </footer>
         </section>
     </div>
 
+    <!-- Scripting Execution & Engine Core Codebase -->
     <script>
         const canvas = document.getElementById('vectorPlane');
         const ctx = canvas.getContext('2d');
         const codeConsole = document.getElementById('codeConsole');
+        const terminalLog = document.getElementById('terminalLog');
+        const coordTrack = document.getElementById('coordTrack');
 
-        // Coordinate Mapping Configuration
+        // Layout Metric Settings Mapping Vector Spaces
         const PLANE_SIZE = 1000;
-        const PADDING = 100; // Screen boundary padding inside canvas
+        const CANVAS_PADDING = 80;
         
-        // Generate Armenian Glyph Dataset Array
+        // Generate dataset loops
         const armenianGlyphs = [];
         for(let u = 0x0531; u <= 0x0556; u++) { armenianGlyphs.push({ char: String.fromCharCode(u), unicode: u }); }
         for(let u = 0x0561; u <= 0x0586; u++) { armenianGlyphs.push({ char: String.fromCharCode(u), unicode: u }); }
 
-        // Local Memory Script Engine state
-        let scriptStore = {};
+        let fontScriptCache = {};
         let currentUnicode = armenianGlyphs[0].unicode;
 
-        // Default layout sample script generation inside local cache
-        function initScripts() {
-            const cache = localStorage.getItem('glyphforge_scripts');
+        function seedDefaultDatabase() {
+            const cache = localStorage.getItem('glyphforge_ide_v2');
             if (cache) {
-                scriptStore = JSON.parse(cache);
+                fontScriptCache = JSON.parse(cache);
             } else {
-                armenianGlyphs.forEach(g => {
-                    scriptStore[g.unicode] = `// Armenian Font Generator Language\n// Grid space mapping: 0 to 1000\n\nCOLOR (150, 0, 270, 750)\nCOLOR (270, 600, 550, 750)\nCURVE (270, 650, 450)\nBUCKET (350, 300)`;
+                // Pre-populate with standard template geometry layouts using new commands
+                armenianGlyphs.forEach((g, idx) => {
+                    if (idx < 26) { // Uppercase sample templates style config
+                        fontScriptCache[g.unicode] = `// Armenian Uppercase Design Script\nWIDTH 650\n\n// Left Main Pillar Stem (4 Points / 8 Coordinates)\nPOLY (100, 0, 180, 0, 180, 750, 100, 750)\n\n// Upper structural bar component horizontal path stroke\nRECT (180, 650, 300, 100)\n\n// Custom smooth loop arc corner profiling calculation\nMOVE (480, 650)\nCURVE (550, 650, 550, 450)\nCURVE (550, 250, 350, 250)\nLINE (180, 250)\nLINE (180, 350)\nLINE (350, 350)\nCURVE (450, 350, 450, 450)\nCURVE (450, 550, 380, 550)\nLINE (180, 550)\nCLOSE`;
+                    } else {
+                        fontScriptCache[g.unicode] = `// Armenian Lowercase Template\nWIDTH 550\nRECT (120, 0, 70, 500)\nRECT (190, 420, 200, 80)\nRECT (390, 150, 70, 350)\nRECT (190, 150, 200, 80)\nCLOSE`;
+                    }
                 });
             }
         }
 
-        // Mathematical Scaling Maps: Font Unit space directly to screen matrix vectors
+        // Space matrix transformation utilities
         function toScreenX(fontX) {
-            return PADDING + (fontX / PLANE_SIZE) * (canvas.width - 2 * PADDING);
+            return CANVAS_PADDING + (fontX / PLANE_SIZE) * (canvas.width - 2 * CANVAS_PADDING);
         }
 
         function toScreenY(fontY) {
-            // Inverting Y space so higher numeric inputs climb higher vertically on display metrics
-            return (canvas.height - PADDING) - (fontY / PLANE_SIZE) * (canvas.height - 2 * PADDING);
+            // Em ranges from -200 up to 800 standard layouts. Normalized to 0-1000 coordinate scope matrix limits
+            return (canvas.height - CANVAS_PADDING) - (fontY / PLANE_SIZE) * (canvas.height - 2 * CANVAS_PADDING);
         }
 
-        function parseCoordinates(line) {
-            const matches = line.match(/\(([^)]+)\)/);
-            if (!matches) return null;
-            return matches[1].split(',').map(v => parseFloat(v.trim()));
+        function toFontX(screenX) {
+            return Math.round(((screenX - CANVAS_PADDING) / (canvas.width - 2 * CANVAS_PADDING)) * PLANE_SIZE);
         }
 
-        // Core Drawing/Interpretation Loop Engine
-        function executePlaneScript() {
-            const scriptText = codeConsole.value;
-            scriptStore[currentUnicode] = scriptText;
-            localStorage.setItem('glyphforge_scripts', JSON.stringify(scriptStore));
+        function toFontY(screenY) {
+            return Math.round((((canvas.height - CANVAS_PADDING) - screenY) / (canvas.height - 2 * CANVAS_PADDING)) * PLANE_SIZE);
+        }
 
-            // Reset workspace matrix bounds
-            ctx.fillStyle = '#020617';
+        // Live Grid Tooltip Position Track Mouse Listener
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const fx = toFontX(e.clientX - rect.left);
+            const fy = toFontY(e.clientY - rect.top);
+            if (fx >= -200 && fx <= 1200 && fy >= -200 && fy <= 1200) {
+                coordTrack.innerText = `[X: ${fx}, Y: ${fy}]`;
+            }
+        });
+
+        // Parser Tokenizer Logic Engine Core
+        function runLiveCompiler() {
+            const code = codeConsole.value;
+            fontScriptCache[currentUnicode] = code;
+            localStorage.setItem('glyphforge_ide_v2', JSON.stringify(fontScriptCache));
+
+            // Clean background space context
+            ctx.fillStyle = '#020306';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            drawCartesianGrid();
+            renderMetricsGrid();
 
-            const lines = scriptText.split('\n');
-            ctx.lineWidth = 3;
-            
-            // First Path Generation Pass (Drawing structural vector strokes and boxes)
-            lines.forEach(line => {
-                const cleanLine = line.trim().toUpperCase();
-                if (cleanLine.startsWith('//') || !cleanLine) return;
+            const lines = code.split('\n');
+            let currentGlyphWidth = 600; 
+            let logs = [];
+            let errorsFound = false;
 
-                const args = parseCoordinates(cleanLine);
-                if (!args) return;
+            // Execution internal rendering pipeline data storage cache arrays structures
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.65)';
+            ctx.strokeStyle = '#818cf8';
+            ctx.lineWidth = 2.5;
 
-                if (cleanLine.startsWith('COLOR')) {
-                    // Interpreted directly as an explicitly drawn solid tracking bounding rectangle
-                    const [x1, y1, x2, y2] = args;
-                    ctx.fillStyle = 'rgba(99, 102, 241, 0.4)';
-                    ctx.strokeStyle = '#818cf8';
-                    const sx = toScreenX(x1);
-                    const sy = toScreenY(y2);
-                    const sw = toScreenX(x2) - sx;
-                    const sh = toScreenY(y1) - sy;
-                    ctx.fillRect(sx, sy, sw, sh);
-                    ctx.strokeRect(sx, sy, sw, sh);
-                } 
-                else if (cleanLine.startsWith('LINE')) {
-                    const [x1, y1, x2, y2] = args;
-                    ctx.strokeStyle = '#f43f5e';
-                    ctx.beginPath();
-                    ctx.moveTo(toScreenX(x1), toScreenY(y1));
-                    ctx.lineTo(toScreenX(x2), toScreenY(y2));
-                    ctx.stroke();
-                } 
-                else if (cleanLine.startsWith('CURVE')) {
-                    const [x1, x2, yMax] = args;
-                    ctx.strokeStyle = '#10b981';
-                    ctx.beginPath();
-                    ctx.moveTo(toScreenX(x1), toScreenY(0));
-                    
-                    // Parabolic midpoint control mapping calculation parameters
-                    const midX = (x1 + x2) / 2;
-                    const ctrlY = yMax * 2; 
-                    
-                    ctx.quadraticCurveTo(toScreenX(midX), toScreenY(ctrlY), toScreenX(x2), toScreenY(0));
-                    ctx.stroke();
+            let pathOpen = false;
+
+            lines.forEach((lineStr, lineIndex) => {
+                let line = lineStr.trim();
+                if (!line || line.startsWith('//')) return;
+
+                // Match parameters within brackets cleanly
+                const cmdMatch = line.match(/^([A-Z0-9_]+)/i);
+                if (!cmdMatch) return;
+                const command = cmdMatch[1].toUpperCase();
+
+                const paramMatch = line.match(/\(([^)]+)\)/);
+                let args = [];
+                if (paramMatch) {
+                    args = paramMatch[1].split(',').map(v => parseFloat(v.trim()));
+                } else {
+                    // Fallback configuration processing space separation matching systems for single dimensions values (WIDTH)
+                    const parts = line.split(/\s+/);
+                    if (parts.length > 1) args = parts.slice(1).map(v => parseFloat(v));
                 }
-            });
 
-            // Second Raster Pass Engine: Executes processing stack-based mathematical boundary flood fills
-            lines.forEach(line => {
-                const cleanLine = line.trim().toUpperCase();
-                if (cleanLine.startsWith('BUCKET')) {
-                    const args = parseCoordinates(cleanLine);
-                    if (args && args.length === 2) {
-                        const [bx, by] = args;
-                        canvasFloodFill(Math.round(toScreenX(bx)), Math.round(toScreenY(by)), [99, 102, 241, 255]);
+                try {
+                    switch (command) {
+                        case 'WIDTH':
+                            currentGlyphWidth = args[0] || 600;
+                            logs.push(`Line ${lineIndex+1}: Set glyph advance width to ${currentGlyphWidth}`);
+                            break;
+
+                        case 'RECT':
+                            // Smart macro translation expands (x, y, w, h) instantly to 4 corners
+                            if (args.length < 4) throw new Error("RECT requires 4 parameters: (x, y, width, height)");
+                            const [rx, ry, rw, rh] = args;
+                            ctx.beginPath();
+                            ctx.rect(toScreenX(rx), toScreenY(ry + rh), rw * (canvas.width - 2 * CANVAS_PADDING)/PLANE_SIZE, rh * (canvas.height - 2 * CANVAS_PADDING)/PLANE_SIZE);
+                            ctx.fill(); ctx.stroke();
+                            logs.push(`Line ${lineIndex+1}: Extrapolated RECT boundaries to 4-point vertex matrix`);
+                            break;
+
+                        case 'POLY':
+                            // Flexible continuous N-Vertex evaluation architecture loops pairs
+                            if (args.length < 6 || args.length % 2 !== 0) throw new Error("POLY requires matching XY pairs (minimum 3 coordinates, 6 numbers)");
+                            ctx.beginPath();
+                            ctx.moveTo(toScreenX(args[0]), toScreenY(args[1]));
+                            for (let i = 2; i < args.length; i += 2) {
+                                ctx.lineTo(toScreenX(args[i]), toScreenY(args[i+1]));
+                            }
+                            ctx.closePath();
+                            ctx.fill(); ctx.stroke();
+                            logs.push(`Line ${lineIndex+1}: Rendered custom closed multi-vertex polygon wrapper [Vertices: ${args.length / 2}]`);
+                            break;
+
+                        case 'MOVE':
+                            if (args.length < 2) throw new Error("MOVE requires (X, Y) layout parameters");
+                            if (!pathOpen) { ctx.beginPath(); pathOpen = true; }
+                            ctx.moveTo(toScreenX(args[0]), toScreenY(args[1]));
+                            break;
+
+                        case 'LINE':
+                            if (args.length < 2) throw new Error("LINE requires (X, Y) target vectors");
+                            if (!pathOpen) { ctx.beginPath(); pathOpen = true; }
+                            ctx.lineTo(toScreenX(args[0]), toScreenY(args[1]));
+                            break;
+
+                        case 'CURVE':
+                            if (args.length < 4) throw new Error("CURVE requires 4 numbers: (controlX, controlY, targetX, targetY)");
+                            if (!pathOpen) { ctx.beginPath(); pathOpen = true; }
+                            ctx.quadraticCurveTo(toScreenX(args[0]), toScreenY(args[1]), toScreenX(args[2]), toScreenY(args[3]));
+                            break;
+
+                        case 'CLOSE':
+                            if (pathOpen) {
+                                ctx.closePath();
+                                ctx.fill(); ctx.stroke();
+                                pathOpen = false;
+                                logs.push(`Line ${lineIndex+1}: Boundary outline sequence loop closed successfully`);
+                            }
+                            break;
+
+                        default:
+                            throw new Error(`Unknown structural token parameter context instruction command: "${command}"`);
                     }
+                } catch (err) {
+                    errorsFound = true;
+                    logs.push(`<span class="text-rose-500 font-bold">Error (Line ${lineIndex+1}): ${err.message}</span>`);
                 }
             });
+
+            // If a path sequence wasn't terminated explicitly, force close visually
+            if (pathOpen) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
+
+            // Render live customizable dynamic active glyph side-bearing border guides 
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.moveTo(toScreenX(currentGlyphWidth), 0); ctx.lineTo(toScreenX(currentGlyphWidth), canvas.height); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+            ctx.font = '10px monospace';
+            ctx.fillText(`Advance Width Limit (${currentGlyphWidth})`, toScreenX(currentGlyphWidth) - 130, 25);
+
+            // Update Diagnostic Interface Terminal Output Panels logs container state
+            terminalLog.innerHTML = logs.length > 0 ? logs.join('<br>') : "No instructions executed. System idling inside clean loop state grid context.";
+            const statusEl = document.getElementById('compilerStatus');
+            if (errorsFound) {
+                statusEl.className = "text-[11px] px-2 py-0.5 rounded bg-rose-950 text-rose-400 font-mono";
+                statusEl.innerText = "Syntax Error";
+            } else {
+                statusEl.className = "text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono";
+                statusEl.innerText = "Compilation Success";
+            }
         }
 
-        // Renders standard baseline alignment parameters on view matrix grid
-        function drawCartesianGrid() {
-            ctx.strokeStyle = 'rgba(51, 65, 85, 0.3)';
+        function renderMetricsGrid() {
+            ctx.strokeStyle = '#111827';
             ctx.lineWidth = 1;
             
-            // Draw regular vertical and horizontal intervals
-            for(let i = 0; i <= 1000; i += 100) {
-                ctx.beginPath(); ctx.moveTo(toScreenX(i), toScreenY(0)); ctx.lineTo(toScreenX(i), toScreenY(1000)); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(toScreenX(0), toScreenY(i)); ctx.lineTo(toScreenX(1000), toScreenY(i)); ctx.stroke();
+            // Draw regular 100-unit coordinate increments lines safely
+            for (let i = 0; i <= PLANE_SIZE; i += 100) {
+                ctx.beginPath(); ctx.moveTo(toScreenX(i), toScreenY(-200)); ctx.lineTo(toScreenX(i), toScreenY(1000)); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(toScreenX(-200), toScreenY(i)); ctx.lineTo(toScreenX(1200), toScreenY(i)); ctx.stroke();
             }
 
-            // Draw structural metric baselines
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
-            ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(toScreenX(0), toScreenY(0)); ctx.lineTo(toScreenX(1000), toScreenY(0)); ctx.stroke(); // Baseline
-            ctx.beginPath(); ctx.moveTo(toScreenX(0), toScreenY(750)); ctx.lineTo(toScreenX(1000), toScreenY(750)); ctx.stroke(); // Cap-Height
+            // Typography Baseline Matrix Metrics Specifications Layout mapping structures
+            const guidelines = [
+                { y: 750, color: 'rgba(239, 68, 68, 0.35)', txt: 'CAP-HEIGHT (750)' },
+                { y: 480, color: 'rgba(245, 158, 11, 0.25)', txt: 'X-HEIGHT (480)' },
+                { y: 0, color: 'rgba(99, 102, 241, 0.7)', txt: 'BASELINE (0.0)' },
+                { y: -150, color: 'rgba(225, 29, 72, 0.35)', txt: 'DESCENDER (-150)' }
+            ];
+
+            guidelines.forEach(g => {
+                ctx.strokeStyle = g.color;
+                ctx.lineWidth = g.y === 0 ? 2 : 1;
+                if (g.y !== 0) ctx.setLineDash([4, 4]);
+                ctx.beginPath(); ctx.moveTo(0, toScreenY(g.y)); ctx.lineTo(canvas.width, toScreenY(g.y)); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = g.color;
+                ctx.font = '10px monospace';
+                ctx.fillText(g.txt, 15, toScreenY(g.y) - 5);
+            });
         }
 
-        // Stack-Based 4-Way Boundary Flood Fill Processing Engine (Pure Canvas Logic)
-        function canvasFloodFill(startX, startY, fillColor) {
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-            const width = imgData.width;
-            const height = imgData.height;
-
-            const targetIdx = (startY * width + startX) * 4;
-            const targetR = data[targetIdx];
-            const targetG = data[targetIdx+1];
-            const targetB = data[targetIdx+2];
-            const targetA = data[targetIdx+3];
-
-            // Don't fill if color already matches to avoid infinite loop crashes
-            if (Math.abs(targetR - fillColor[0]) < 5 && Math.abs(targetG - fillColor[1]) < 5) return;
-
-            const pixelStack = [[startX, startY]];
-
-            while (pixelStack.length > 0) {
-                const pair = pixelStack.pop();
-                const x = pair[0];
-                let y = pair[1];
-
-                let curIdx = (y * width + x) * 4;
-                while (y >= 0 && matchColor(curIdx)) {
-                    y--;
-                    curIdx -= width * 4;
-                }
-                y++;
-                curIdx += width * 4;
-
-                let reachLeft = false;
-                let reachRight = false;
-
-                while (y < height && matchColor(curIdx)) {
-                    colorPixel(curIdx);
-
-                    if (x > 0) {
-                        if (matchColor(curIdx - 4)) {
-                            if (!reachLeft) { pixelStack.push([x - 1, y]); reachLeft = true; }
-                        } else if (reachLeft) { reachLeft = false; }
-                    }
-
-                    if (x < width - 1) {
-                        if (matchColor(curIdx + 4)) {
-                            if (!reachRight) { pixelStack.push([x + 1, y]); reachRight = true; }
-                        } else if (reachRight) { reachRight = false; }
-                    }
-
-                    y++;
-                    curIdx += width * 4;
-                }
-            }
-
-            ctx.putImageData(imgData, 0, 0);
-
-            function matchColor(idx) {
-                return Math.abs(data[idx] - targetR) < 40 && Math.abs(data[idx+1] - targetG) < 40 && Math.abs(data[idx+2] - targetB) < 40;
-            }
-
-            function colorPixel(idx) {
-                data[idx] = fillColor[0]; data[idx+1] = fillColor[1]; data[idx+2] = fillColor[2]; data[idx+3] = fillColor[3];
-            }
-        }
-
-        // Navigation Controllers
+        // Project Directory Navigation Operations
         function selectGlyph(unicode) {
             currentUnicode = unicode;
-            let g = armenianGlyphs.find(x => x.unicode === unicode);
-            document.getElementById('statusChar').innerText = g.char;
+            let targetObj = armenianGlyphs.find(x => x.unicode === unicode);
+            document.getElementById('statusChar').innerText = targetObj.char;
             document.getElementById('statusUnicode').innerText = `U+0${unicode.toString(16).toUpperCase()}`;
-            codeConsole.value = scriptStore[unicode];
-            updateSidebar();
-            executePlaneScript();
+            codeConsole.value = fontScriptCache[unicode];
+            renderSidebarKeyboard();
+            runLiveCompiler();
         }
 
-        function updateSidebar() {
-            const listContainer = document.getElementById('glyphList');
-            listContainer.innerHTML = '';
+        function renderSidebarKeyboard() {
+            const container = document.getElementById('glyphGrid');
+            container.innerHTML = '';
             armenianGlyphs.forEach(g => {
                 const btn = document.createElement('button');
                 const isSelected = g.unicode === currentUnicode;
-                btn.className = `flex items-center space-x-3 p-2 rounded-lg text-left transition ${isSelected ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950/40 hover:bg-slate-800 text-slate-300'}`;
+                btn.className = `shrink-0 w-11 h-14 flex flex-col items-center justify-center rounded-md transition font-sans text-sm font-medium ${isSelected ? 'bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-900/40 border border-indigo-400/30' : 'bg-[#0b111e] text-slate-400 hover:bg-slate-800 border border-slate-900'}`;
                 btn.onclick = () => selectGlyph(g.unicode);
-                btn.innerHTML = `<span class="text-lg w-5 text-center">${g.char}</span><span class="text-[9px] font-mono opacity-50">U+0${g.unicode.toString(16).toUpperCase()}</span>`;
-                listContainer.appendChild(btn);
+                btn.innerHTML = `<span class="text-base font-serif">${g.char}</span><span class="text-[8px] opacity-40 font-mono mt-0.5">0${g.unicode.toString(16).toUpperCase()}</span>`;
+                container.appendChild(btn);
             });
         }
 
-        // Opentype Binary Font Construction Compilation Pipeline Block
+        // OpenType Compilation Engine Integration Pipeline
         function exportFont() {
-            const fontName = document.getElementById('fontName').value.replace(/\s+/g, '') || 'CustomScriptFont';
+            const fontName = document.getElementById('fontName').value.replace(/\s+/g, '') || 'ScriptFontPro';
             
             const notdefPath = new opentype.Path();
-            notdefPath.moveTo(100, 0); notdefPath.lineTo(100, 700); notdefPath.lineTo(500, 700); notdefPath.lineTo(500, 0); notdefPath.closePath();
-            const compiledGlyphs = [new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 600, path: notdefPath })];
+            notdefPath.moveTo(50, 0); notdefPath.lineTo(50, 700); notdefPath.lineTo(450, 700); notdefPath.lineTo(450, 0); notdefPath.closePath();
+            const compiledGlyphs = [new opentype.Glyph({ name: '.notdef', unicode: 0, advanceWidth: 500, path: notdefPath })];
 
             armenianGlyphs.forEach(g => {
-                const scriptText = scriptStore[g.unicode] || '';
-                const lines = scriptText.split('\n');
-                const outPath = new opentype.Path();
+                const lines = (fontScriptCache[g.unicode] || '').split('\n');
+                const path = new opentype.Path();
+                let glyphWidth = 600;
 
-                lines.forEach(line => {
-                    const cleanLine = line.trim().toUpperCase();
-                    if (cleanLine.startsWith('//') || !cleanLine) return;
-                    const args = parseCoordinates(cleanLine);
-                    if (!args) return;
+                lines.forEach(lineStr => {
+                    let line = lineStr.trim();
+                    if (!line || line.startsWith('//')) return;
+                    
+                    const cmdMatch = line.match(/^([A-Z0-9_]+)/i);
+                    if (!cmdMatch) return;
+                    const command = cmdMatch[1].toUpperCase();
 
-                    if (cleanLine.startsWith('COLOR')) {
-                        const [x1, y1, x2, y2] = args;
-                        outPath.moveTo(x1, y1); outPath.lineTo(x2, y1); outPath.lineTo(x2, y2); outPath.lineTo(x1, y2); outPath.closePath();
-                    } 
-                    else if (cleanLine.startsWith('LINE')) {
-                        const [x1, y1, x2, y2] = args;
-                        outPath.moveTo(x1, y1); outPath.lineTo(x2, y2);
-                    } 
-                    else if (cleanLine.startsWith('CURVE')) {
-                        const [x1, x2, yMax] = args;
-                        const midX = (x1 + x2) / 2;
-                        const ctrlY = yMax * 2;
-                        outPath.moveTo(x1, 0);
-                        outPath.quadraticCurveTo(midX, ctrlY, x2, 0);
-                    }
+                    const paramMatch = line.match(/\(([^)]+)\)/);
+                    let args = [];
+                    if (paramMatch) { args = paramMatch[1].split(',').map(v => parseFloat(v.trim())); }
+                    else { const parts = line.split(/\s+/); if(parts.length > 1) args = parts.slice(1).map(v => parseFloat(v)); }
+
+                    try {
+                        if (command === 'WIDTH') { glyphWidth = args[0] || 600; }
+                        else if (command === 'RECT') {
+                            const [x, y, w, h] = args;
+                            path.moveTo(x, y); path.lineTo(x + w, y); path.lineTo(x + w, y + h); path.lineTo(x, y + h); path.closePath();
+                        }
+                        else if (command === 'POLY') {
+                            path.moveTo(args[0], args[1]);
+                            for (let i = 2; i < args.length; i += 2) { path.lineTo(args[i], args[i+1]); }
+                            path.closePath();
+                        }
+                        else if (command === 'MOVE') { path.moveTo(args[0], args[1]); }
+                        else if (command === 'LINE') { path.lineTo(args[0], args[1]); }
+                        else if (command === 'CURVE') { path.quadraticCurveTo(args[0], args[1], args[2], args[3]); }
+                        else if (command === 'CLOSE') { path.closePath(); }
+                    } catch(e) {}
                 });
 
                 compiledGlyphs.push(new opentype.Glyph({
-                    name: 'arm_' + g.unicode,
-                    unicode: g.unicode,
-                    advanceWidth: 700,
-                    path: outPath
+                    name: 'arm_' + g.unicode, unicode: g.unicode, advanceWidth: glyphWidth, path: path
                 }));
             });
 
             const font = new opentype.Font({
-                familyName: fontName, styleName: 'Regular', unitsPerEm: 1000, ascender: 800, descender: -200, glyphs: compiledGlyphs
+                familyName: fontName, styleName: 'Regular', unitsPerEm: 1000, ascender: 750, descender: -150, glyphs: compiledGlyphs
             });
             font.download();
         }
 
-        // Live Compiler Event Listeners
-        codeConsole.addEventListener('input', executePlaneScript);
+        // Live Event Triggers Binding Interceptors
+        codeConsole.addEventListener('input', runLiveCompiler);
 
-        // Application bootstrap initialize
-        initScripts();
+        // App Boot initialization sequence
+        seedDefaultDatabase();
         selectGlyph(armenianGlyphs[0].unicode);
     </script>
 </body>
