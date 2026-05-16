@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GlyphForge Studio — Exact Command Engine</title>
+    <title>GlyphForge Studio Pro — Unified Grid Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
@@ -16,66 +16,65 @@
 </head>
 <body class="bg-[#030712] text-slate-100 min-h-screen flex flex-col overflow-hidden select-none">
 
-    <!-- Navbar Container -->
-    <header class="bg-[#090d16] border-b border-slate-900 px-6 py-4 flex items-center justify-between shrink-0">
+    <header class="bg-[#090d16] border-b border-slate-900 px-6 py-3 flex items-center justify-between shrink-0">
         <div class="flex items-center space-x-3">
-            <div class="bg-indigo-600 text-white p-2 rounded-lg font-mono font-bold text-sm">&gt;_</div>
+            <div class="bg-indigo-600 text-white p-2 rounded-lg font-mono font-bold text-xs">Հ</div>
             <div>
-                <h1 class="text-sm font-bold text-slate-200">GlyphForge Script Studio</h1>
-                <p class="text-[10px] text-slate-500 font-mono">Max Core Boundaries: 1000x1000 Plane</p>
+                <h1 class="text-sm font-bold text-slate-200">GlyphForge Grid Studio</h1>
+                <p class="text-[10px] text-slate-500 font-mono">Unified Vector Mapping System (1000x1000 Max)</p>
             </div>
         </div>
         <div class="flex items-center space-x-4">
-            <input id="fontName" type="text" value="CustomScriptFont" class="bg-[#02040a] border border-slate-800 px-3 py-1.5 rounded text-xs text-indigo-400 focus:outline-none w-44">
+            <input id="fontName" type="text" value="UnifiedScriptFont" class="bg-[#02040a] border border-slate-800 px-3 py-1.5 rounded text-xs text-indigo-400 focus:outline-none w-44">
             <button onclick="exportFont()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs px-4 py-2 rounded shadow transition-all">
                 Export Font (.ttf)
             </button>
         </div>
     </header>
 
-    <!-- Main Workspace Split Interface -->
     <div class="flex flex-1 overflow-hidden">
         
-        <!-- Left Code Workspace Console Panel -->
-        <main class="w-[45%] bg-[#060a12] border-r border-slate-900 flex flex-col h-full">
-            <div class="bg-[#090d16]/80 px-4 py-2.5 border-b border-slate-900 flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Compiler Editor</span>
-                <span id="syntaxStatus" class="text-[11px] text-emerald-400 font-mono">Active</span>
+        <main class="w-[40%] bg-[#060a12] border-r border-slate-900 flex flex-col h-full">
+            <div class="bg-[#090d16]/80 px-4 py-2 border-b border-slate-900 flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Source Code Output</span>
+                <button onclick="clearCurrentScript()" class="text-[10px] text-rose-400 hover:underline bg-transparent border-none cursor-pointer">Clear Canvas</button>
             </div>
             
-            <textarea id="codeConsole" class="flex-1 bg-[#04070d] text-indigo-300 p-5 text-xs font-mono focus:outline-none leading-6 tracking-wide overflow-y-auto" 
-                      placeholder="// Input commands using exact requested syntax specifications..." spellcheck="false"></textarea>
+            <textarea id="codeConsole" class="flex-1 bg-[#04070d] text-indigo-300 p-5 text-xs font-mono focus:outline-none leading-6 tracking-wide overflow-y-auto select-text" 
+                      placeholder="// Tap grid points or write script commands here directly..." spellcheck="false"></textarea>
             
-            <!-- Lower Diagnostic Terminal Panel -->
-            <div class="h-40 bg-[#020408] border-t border-slate-900 flex flex-col">
-                <div class="bg-[#050910] px-4 py-1.5 text-[10px] uppercase font-mono tracking-widest text-slate-500 border-b border-slate-900">
-                    Console Crop Matrix Outputs
-                </div>
-                <div id="terminalLog" class="p-3 text-[11px] text-slate-400 font-mono space-y-1 overflow-y-auto flex-1">
-                    <!-- Live tracking readouts dump here -->
-                </div>
+            <div class="h-32 bg-[#020408] border-t border-slate-900 p-3 text-[11px] text-slate-500 overflow-y-auto leading-5">
+                <span class="text-slate-300 font-bold uppercase block text-[10px] mb-1">Interactive Script Guide:</span>
+                • <b class="text-indigo-400">COLOR (x1,y1 : x2,y2 : ...)</b> — Continuous multi-point bounding geometry contour loop.<br>
+                • <b class="text-indigo-400">CURVE (x1,y1 : x2,y2 : x3,y3)</b> — Quadratic curve arcing through 3 coordinate locations.<br>
+                • <b class="text-indigo-400">BUCKET (x1,y1)</b> — Triggers paint raster fill inside boundary perimeters.
             </div>
         </main>
 
-        <!-- Right Visualizer Viewport Stage -->
         <section class="flex-1 bg-[#020408] flex flex-col h-full overflow-hidden">
-            <div class="bg-[#060a12] px-6 py-2 border-b border-slate-900 flex items-center justify-between text-xs">
-                <div>Character Layer: <span id="statusChar" class="text-indigo-400 font-bold text-sm">Ա</span></div>
-                <div class="text-slate-400 font-mono">Calculated Crop Width: <span id="cropWidthVal" class="text-emerald-400 font-bold">0</span> units</div>
-            </div>
-
-            <!-- Main Display Matrix Grid Canvas -->
-            <div class="flex-1 flex items-center justify-center p-6 bg-[#04060a]">
-                <div class="p-4 bg-[#060a12] border border-slate-800 rounded-xl shadow-2xl">
-                    <canvas id="vectorPlane" width="600" height="600" class="bg-[#020306] rounded"></canvas>
+            
+            <div class="bg-[#060a12] px-6 py-2 border-b border-slate-900 flex items-center justify-between text-xs shrink-0">
+                <div class="flex items-center space-x-2">
+                    <button id="btn-color" onclick="setActiveUiTool('COLOR')" class="px-3 py-1 rounded text-[11px] font-bold bg-indigo-600 text-white transition">Tool: COLOR</button>
+                    <button id="btn-curve" onclick="setActiveUiTool('CURVE')" class="px-3 py-1 rounded text-[11px] font-bold bg-slate-900 text-slate-400 hover:text-white transition">Tool: CURVE</button>
+                    <button id="btn-bucket" onclick="setActiveUiTool('BUCKET')" class="px-3 py-1 rounded text-[11px] font-bold bg-slate-900 text-slate-400 hover:text-white transition">Tool: BUCKET</button>
+                </div>
+                <div class="flex items-center space-x-6 font-mono text-[11px]">
+                    <div class="text-slate-400">Grid Snap: <span id="coordTrack" class="text-indigo-400 font-bold">[X: 0, Y: 0]</span></div>
+                    <div class="text-slate-400">Crop Width: <span id="cropWidthVal" class="text-emerald-400 font-bold">0</span></div>
                 </div>
             </div>
 
-            <!-- Lower Armenian Selector Strip Overlay -->
-            <footer class="h-24 bg-[#060a12] border-t border-slate-900 p-3 flex flex-col shrink-0">
+            <div class="flex-1 flex items-center justify-center p-4 bg-[#04060a] relative">
+                <div class="p-4 bg-[#060a12] border border-slate-800 rounded-xl relative shadow-2xl">
+                    <canvas id="vectorPlane" width="650" height="650" class="bg-[#020306] rounded cursor-crosshair"></canvas>
+                </div>
+                <div id="canvasTooltip" class="absolute hidden bg-indigo-950 text-indigo-300 border border-indigo-500 px-2 py-1 rounded font-mono text-[10px] pointer-events-none shadow-xl z-50"></div>
+            </div>
+
+            <footer class="h-20 bg-[#060a12] border-t border-slate-900 p-2.5 flex flex-col shrink-0">
                 <div id="glyphGrid" class="flex-1 overflow-x-auto flex items-center space-x-1.5 pb-1">
-                    <!-- Generated on-the-fly -->
-                </div>
+                    </div>
             </footer>
         </section>
     </div>
@@ -84,11 +83,13 @@
         const canvas = document.getElementById('vectorPlane');
         const ctx = canvas.getContext('2d');
         const codeConsole = document.getElementById('codeConsole');
-        const terminalLog = document.getElementById('terminalLog');
+        const coordTrack = document.getElementById('coordTrack');
         const cropWidthVal = document.getElementById('cropWidthVal');
+        const canvasTooltip = document.getElementById('canvasTooltip');
 
         const PLANE_MAX = 1000;
-        const CANVAS_PADDING = 60;
+        const GRID_STEP = 25; // Requested high-density dot grid spacing increment metric
+        const CANVAS_PADDING = 50;
 
         const armenianGlyphs = [];
         for(let u = 0x0531; u <= 0x0556; u++) { armenianGlyphs.push({ char: String.fromCharCode(u), unicode: u }); }
@@ -96,33 +97,65 @@
 
         let fontScriptCache = {};
         let currentUnicode = armenianGlyphs[0].unicode;
+        
+        // Interactive UI Click State Management Tracker vars
+        let currentUiTool = 'COLOR'; // Options layout tracks: COLOR, CURVE, BUCKET
+        let intermediatePointsStack = [];
 
         function seedDatabase() {
-            const cache = localStorage.getItem('glyphforge_exact_v3');
+            const cache = localStorage.getItem('glyphforge_unified_v4');
             if (cache) {
                 fontScriptCache = JSON.parse(cache);
             } else {
                 armenianGlyphs.forEach((g, idx) => {
-                    if (idx < 26) {
-                        fontScriptCache[g.unicode] = `// Exact Syntax Blueprint\nCOLOR (100, 100 : 200, 100 : 200, 700 : 100, 700)\nCOLOR (200, 600 : 500, 600 : 500, 700 : 200, 700)\nCURVE (200, 400 : 550, 250 : 200, 100)\nBUCKET (150, 300)`;
+                    if (idx === 0) { // Default bootstrap sample layout demo sequence for first glyph layer (Ա)
+                        fontScriptCache[g.unicode] = `// Armenian Blended Typography Design\nCOLOR (125,100 : 225,100 : 225,750 : 125,750)\nCOLOR (225,650 : 500,650 : 500,750 : 225,750)\nCURVE (225,450 : 550,300 : 225,150)\nBUCKET (175,400)`;
                     } else {
-                        fontScriptCache[g.unicode] = `// Lowercase Blueprint\nCOLOR (150, 100 : 250, 100 : 250, 500 : 150, 500)\nCOLOR (250, 400 : 450, 400 : 450, 500 : 250, 500)\nCOLOR (450, 100 : 550, 100 : 550, 500 : 450, 500)`;
+                        fontScriptCache[g.unicode] = `// New Glyph Workspace Space\n// Spacing Grid Distance resolution locked to 25 intervals`;
                     }
                 });
             }
         }
 
-        // Coordinate projection matrix utilities (Max space locked to 1000x1000)
+        // Coordinate projection matrix translation conversions
         function toScreenX(fontX) {
             return CANVAS_PADDING + (fontX / PLANE_MAX) * (canvas.width - 2 * CANVAS_PADDING);
         }
 
         function toScreenY(fontY) {
-            // Mapping Cartesian plane inversely to screens: 0 is baseline floor, 1000 is apex limit top
             return (canvas.height - CANVAS_PADDING) - (fontY / PLANE_MAX) * (canvas.height - 2 * CANVAS_PADDING);
         }
 
-        // Helper: Parses point sequences separated explicitly by colons, handles coordinate commas safely
+        function toFontX(screenX) {
+            return ((screenX - CANVAS_PADDING) / (canvas.width - 2 * CANVAS_PADDING)) * PLANE_MAX;
+        }
+
+        function toFontY(screenY) {
+            return (((canvas.height - CANVAS_PADDING) - screenY) / (canvas.height - 2 * CANVAS_PADDING)) * PLANE_MAX;
+        }
+
+        // Standardized Interface UI mode state router
+        function setActiveUiTool(toolName) {
+            currentUiTool = toolName;
+            intermediatePointsStack = []; // Reset transient draw tracking buffer fields
+            ['COLOR', 'CURVE', 'BUCKET'].forEach(t => {
+                const btn = document.getElementById(`btn-${t.toLowerCase()}`);
+                if (t === toolName) {
+                    btn.className = "px-3 py-1 rounded text-[11px] font-bold bg-indigo-600 text-white transition shadow-lg shadow-indigo-900/40";
+                } else {
+                    btn.className = "px-3 py-1 rounded text-[11px] font-bold bg-slate-900 text-slate-400 hover:text-white transition";
+                }
+            });
+            runUnifiedCompiler();
+        }
+
+        function clearCurrentScript() {
+            codeConsole.value = `// Clean Workspace Canvas Plane Block`;
+            intermediatePointsStack = [];
+            runUnifiedCompiler();
+        }
+
+        // Helper: Extracts coordinate point matrices split explicitly by internal colons
         function parseExactPoints(str) {
             const matches = str.match(/\(([^)]+)\)/);
             if (!matches) return [];
@@ -132,57 +165,147 @@
             });
         }
 
-        function runExactCompiler() {
+        // Live Coordinate Matrix Tracker and Visual Hover Line Pointer Listener
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const rawFX = toFontX(e.clientX - rect.left);
+            const rawFY = toFontY(e.clientY - rect.top);
+
+            // Compute math snap tracking relative to 25-unit grid matrices parameters requested
+            const snappedFX = Math.round(rawFX / GRID_STEP) * GRID_STEP;
+            const snappedFY = Math.round(rawFY / GRID_STEP) * GRID_STEP;
+
+            if (snappedFX >= 0 && snappedFX <= PLANE_MAX && snappedFY >= 0 && snappedFY <= PLANE_MAX) {
+                coordTrack.innerText = `[X: ${snappedFX}, Y: ${snappedFY}]`;
+                
+                // Position custom viewport contextual floating tooltip element graphic box
+                canvasTooltip.style.left = `${e.clientX + 15}px`;
+                canvasTooltip.style.top = `${e.clientY + 12}px`;
+                canvasTooltip.classList.remove('hidden');
+                canvasTooltip.innerText = `X:${snappedFX}\nY:${snappedFY}`;
+            } else {
+                canvasTooltip.classList.add('hidden');
+            }
+            
+            // Re-render plane elements dynamically to trace active tracking crosshairs overlay metrics lines
+            runUnifiedCompiler(snappedFX, snappedFY);
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            canvasTooltip.classList.add('hidden');
+            runUnifiedCompiler();
+        });
+
+        // Tap Grid Interface Point Assignment Event Listener
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const fx = toFontX(e.clientX - rect.left);
+            const fy = toFontY(e.clientY - rect.top);
+            
+            const snapX = Math.round(fx / GRID_STEP) * GRID_STEP;
+            const snapY = Math.round(fy / GRID_STEP) * GRID_STEP;
+
+            if (snapX < 0 || snapX > PLANE_MAX || snapY < 0 || snapY > PLANE_MAX) return;
+
+            if (currentUiTool === 'BUCKET') {
+                // Instantly append BUCKET script row context command macro instructions parameter string
+                appendGeneratedCommand(`BUCKET (${snapX},${snapY})`);
+            } 
+            else if (currentUiTool === 'CURVE') {
+                intermediatePointsStack.push({ x: snapX, y: snapY });
+                if (intermediatePointsStack.length === 3) {
+                    const [p1, p2, p3] = intermediatePointsStack;
+                    appendGeneratedCommand(`CURVE (${p1.x},p1.y : ${p2.x},p2.y : ${p3.x},p3.y)`);
+                    intermediatePointsStack = []; // Flush tracking queue parameters layer storage structures
+                }
+            } 
+            else if (currentUiTool === 'COLOR') {
+                // If user clicks close to or onto the first original starter node point location, treat as a path completion trigger
+                if (intermediatePointsStack.length >= 3 && Math.abs(intermediatePointsStack[0].x - snapX) < 5 && Math.abs(intermediatePointsStack[0].y - snapY) < 5) {
+                    finalizeColorPolygonLoop();
+                } else {
+                    intermediatePointsStack.push({ x: snapX, y: snapY });
+                }
+            }
+            runUnifiedCompiler();
+        });
+
+        function finalizeColorPolygonLoop() {
+            if (intermediatePointsStack.length < 3) return;
+            const commandString = `COLOR (` + intermediatePointsStack.map(p => `${p.x},${p.y}`).join(' : ') + `)`;
+            appendGeneratedCommand(commandString);
+            intermediatePointsStack = [];
+        }
+
+        function appendGeneratedCommand(cmdStr) {
+            let currentContent = codeConsole.value.trim();
+            codeConsole.value = currentContent + `\n` + cmdStr;
+            fontScriptCache[currentUnicode] = codeConsole.value;
+            localStorage.setItem('glyphforge_unified_v4', JSON.stringify(fontScriptCache));
+        }
+
+        // Global Key Routing Event Listener (Enter seals active COLOR loop block sequence maps parameters)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && currentUiTool === 'COLOR' && intermediatePointsStack.length >= 3) {
+                e.preventDefault();
+                finalizeColorPolygonLoop();
+                runUnifiedCompiler();
+            }
+        });
+
+        // Unified Pass Rendering Engine Compiler Core Execution Block
+        function runUnifiedCompiler(hoverX = null, hoverY = null) {
             const code = codeConsole.value;
             fontScriptCache[currentUnicode] = code;
-            localStorage.setItem('glyphforge_exact_v3', JSON.stringify(fontScriptCache));
+            localStorage.setItem('glyphforge_unified_v4', JSON.stringify(fontScriptCache));
 
             ctx.fillStyle = '#020306';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            renderWorkspaceGrid();
+            renderHighDensityGridDots();
 
             const lines = code.split('\n');
-            let logs = [];
-            let maxRecordedX = 0;
+            let maxBoundsRecordedX = 0;
 
-            ctx.fillStyle = 'rgba(99, 102, 241, 0.65)';
+            // Instantiating clean global master drawing execution path matrix context layer setup
+            ctx.fillStyle = 'rgba(99, 102, 241, 0.7)';
             ctx.strokeStyle = '#818cf8';
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 3;
 
-            lines.forEach((lineStr, idx) => {
+            // Unified Path accumulation phase block instructions structure
+            ctx.beginPath();
+
+            lines.forEach(lineStr => {
                 let line = lineStr.trim();
                 if (!line || line.startsWith('//')) return;
 
-                const commandToken = line.split(/[ \(]/)[0].toUpperCase();
+                const token = line.split(/[ \(]/)[0].toUpperCase();
 
-                if (commandToken === 'COLOR') {
+                if (token === 'COLOR') {
                     const pts = parseExactPoints(line);
                     if (pts.length >= 3) {
-                        ctx.beginPath();
                         ctx.moveTo(toScreenX(pts[0].x), toScreenY(pts[0].y));
                         pts.forEach(p => {
                             ctx.lineTo(toScreenX(p.x), toScreenY(p.y));
-                            if (p.x > maxRecordedX) maxRecordedX = p.x;
+                            if (p.x > maxBoundsRecordedX) maxBoundsRecordedX = p.x;
                         });
-                        ctx.closePath();
-                        ctx.fill(); ctx.stroke();
-                        logs.push(`Line ${idx+1}: Processed COLOR connective polygon containing [Points: ${pts.length}]`);
+                        ctx.lineTo(toScreenX(pts[0].x), toScreenY(pts[0].y)); // Seal perimeter
                     }
                 } 
-                else if (commandToken === 'CURVE') {
+                else if (token === 'CURVE') {
                     const pts = parseExactPoints(line);
                     if (pts.length === 3) {
-                        ctx.beginPath();
                         ctx.moveTo(toScreenX(pts[0].x), toScreenY(pts[0].y));
                         ctx.quadraticCurveTo(toScreenX(pts[1].x), toScreenY(pts[1].y), toScreenX(pts[2].x), toScreenY(pts[2].y));
-                        ctx.stroke();
-                        pts.forEach(p => { if(p.x > maxRecordedX) maxRecordedX = p.x; });
-                        logs.push(`Line ${idx+1}: Computed 3-Point Quadratic Spline curve window segment bounds`);
+                        pts.forEach(p => { if (p.x > maxBoundsRecordedX) maxBoundsRecordedX = p.x; });
                     }
                 }
             });
 
-            // Second pass dedicated strictly to raster processing operations layout executions
+            // Single unified pass execution call flushes overlaps cleanly without intermediate crossline strokes fighting
+            ctx.fill();
+            ctx.stroke();
+
+            // Isolated secondary raster processing phase loop processing block for flood fills bounds execution
             lines.forEach(lineStr => {
                 let line = lineStr.trim();
                 if (!line.toUpperCase().startsWith('BUCKET')) return;
@@ -195,39 +318,62 @@
                 }
             });
 
-            // Handle the automated auto-crop calculations logic boundary updates
-            const autoCroppedWidth = maxRecordedX > 0 ? Math.min(1000, Math.round(maxRecordedX + 60)) : 600;
-            cropWidthVal.innerText = autoCroppedWidth;
+            // Render live temporary geometric outlines for active, un-finalized mouse clicking actions sequences
+            if (intermediatePointsStack.length > 0) {
+                ctx.strokeStyle = '#f43f5e';
+                ctx.fillStyle = 'rgba(244, 63, 94, 0.2)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(toScreenX(intermediatePointsStack[0].x), toScreenY(intermediatePointsStack[0].y));
+                intermediatePointsStack.forEach(p => ctx.lineTo(toScreenX(p.x), toScreenY(p.y)));
+                
+                if (hoverX !== null && hoverY !== null) {
+                    ctx.lineTo(toScreenX(hoverX), toScreenY(hoverY));
+                }
+                ctx.stroke();
 
-            // Draw visual indicator representing active auto-cropped width limits bounding line parameters
-            ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+                // Draw tiny anchor handle dots marking placement positions
+                intermediatePointsStack.forEach(p => {
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.beginPath(); ctx.arc(toScreenX(p.x), toScreenY(p.y), 4, 0, Math.PI * 2); ctx.fill();
+                });
+            }
+
+            // Automated layout canvas cropping width parameter bounds modifier updates logic computations rules
+            const paddingOffset = 75;
+            const autoCroppedWidth = maxBoundsRecordedX > 0 ? Math.min(PLANE_MAX, Math.round(maxBoundsRecordedX + paddingOffset)) : 600;
+            cropWidthVal.innerText = `${autoCroppedWidth} em units`;
+
+            // Draw clean vertical layout bounds guideline representing computed auto-cropped tracking parameter limit
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+            ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
             ctx.beginPath(); ctx.moveTo(toScreenX(autoCroppedWidth), 0); ctx.lineTo(toScreenX(autoCroppedWidth), canvas.height); ctx.stroke();
             ctx.setLineDash([]);
-
-            terminalLog.innerHTML = logs.length > 0 ? logs.join('<br>') : "Ready. Standard grid bounds operating strictly at max 1000 layout coordinates limit.";
         }
 
-        function renderWorkspaceGrid() {
-            ctx.strokeStyle = '#111827';
-            ctx.lineWidth = 1;
-            for (let i = 0; i <= PLANE_MAX; i += 100) {
-                ctx.beginPath(); ctx.moveTo(toScreenX(i), toScreenY(0)); ctx.lineTo(toScreenX(i), toScreenY(1000)); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(toScreenX(0), toScreenY(i)); ctx.lineTo(toScreenX(1000), toScreenY(i)); ctx.stroke();
+        // High-Density 25-Unit Dot Grid Field Renderer Component block
+        function renderHighDensityGridDots() {
+            ctx.fillStyle = '#111827';
+            for (let x = 0; x <= PLANE_MAX; x += GRID_STEP) {
+                for (let y = 0; y <= PLANE_MAX; y += GRID_STEP) {
+                    // Render layout grid intersections as discrete structural point dots instead of grid lines arrays
+                    ctx.fillRect(toScreenX(x) - 0.5, toScreenY(y) - 0.5, 1.5, 1.5);
+                }
             }
 
-            // Direct metric indicator baselines mapping alignments boundaries configurations
-            ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+            // Primary structural typography alignment floor baselines metrics overlays boundaries configurations
+            ctx.strokeStyle = 'rgba(99, 102, 241, 0.35)';
             ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.moveTo(0, toScreenY(0)); ctx.lineTo(canvas.width, toScreenY(0)); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, toScreenY(800)); ctx.lineTo(canvas.width, toScreenY(800)); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, toScreenY(0)); ctx.lineTo(canvas.width, toScreenY(0)); ctx.stroke(); // Core Baseline
+            ctx.beginPath(); ctx.moveTo(0, toScreenY(750)); ctx.lineTo(canvas.width, toScreenY(750)); ctx.stroke(); // Cap Height Apex Floor
         }
 
+        // Stack-Based Vector Outline-Aware Color Area Flood Filler Engine 
         function executeRasterFloodFill(startX, startY, fillColor) {
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imgData.data;
-            const width = imgData.width;
-            const height = imgData.height;
+            const width = imgData.width, height = imgData.height;
 
             const targetIdx = (startY * width + startX) * 4;
             const targetR = data[targetIdx], targetG = data[targetIdx+1], targetB = data[targetIdx+2];
@@ -239,7 +385,7 @@
                 const [cx, cy] = queue.pop();
                 let idx = (cy * width + cx) * 4;
 
-                if (cx >= 0 && cx < width && cy >= 0 && cy < height && Math.abs(data[idx] - targetR) < 35 && Math.abs(data[idx+1] - targetG) < 35) {
+                if (cx >= 0 && cx < width && cy >= 0 && cy < height && Math.abs(data[idx] - targetR) < 45 && Math.abs(data[idx+1] - targetG) < 45) {
                     data[idx] = fillColor[0]; data[idx+1] = fillColor[1]; data[idx+2] = fillColor[2]; data[idx+3] = fillColor[3];
                     queue.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
                 }
@@ -247,12 +393,14 @@
             ctx.putImageData(imgData, 0, 0);
         }
 
+        // System Workspace Layer Directory Navigation Controls
         function selectGlyph(unicode) {
             currentUnicode = unicode;
             let targetObj = armenianGlyphs.find(x => x.unicode === unicode);
-            document.getElementById('statusChar').innerText = targetObj.char;
+            intermediatePointsStack = [];
+            codeConsole.value = fontScriptCache[unicode];
             renderKeyboardStrip();
-            runExactCompiler();
+            runUnifiedCompiler();
         }
 
         function renderKeyboardStrip() {
@@ -261,16 +409,16 @@
             armenianGlyphs.forEach(g => {
                 const isSelected = g.unicode === currentUnicode;
                 const btn = document.createElement('button');
-                btn.className = `shrink-0 w-10 h-12 flex flex-col items-center justify-center rounded transition font-sans text-xs ${isSelected ? 'bg-indigo-600 text-white font-bold border border-indigo-400/30' : 'bg-[#0b111e] text-slate-400 hover:bg-slate-800'}`;
+                btn.className = `shrink-0 w-10 h-11 flex flex-col items-center justify-center rounded transition font-sans text-xs ${isSelected ? 'bg-indigo-600 text-white font-bold border border-indigo-400/30 shadow' : 'bg-[#0b111e] text-slate-400 hover:bg-slate-800'}`;
                 btn.onclick = () => selectGlyph(g.unicode);
                 btn.innerHTML = `<span>${g.char}</span>`;
                 container.appendChild(btn);
             });
         }
 
-        // OpenType Vector Generation Compiler Output Pipeline Implementation
+        // Opentype Binary Vector Generation Asset Compilation Output Pipeline Execution Engine
         function exportFont() {
-            const fontName = document.getElementById('fontName').value.replace(/\s+/g, '') || 'ScriptFont';
+            const fontName = document.getElementById('fontName').value.replace(/\s+/g, '') || 'DynamicFontPro';
             
             const notdefPath = new opentype.Path();
             notdefPath.moveTo(50, 0); notdefPath.lineTo(50, 700); notdefPath.lineTo(450, 700); notdefPath.lineTo(450, 0); notdefPath.closePath();
@@ -304,13 +452,11 @@
                     }
                 });
 
-                const dynamicAdvanceWidth = maxBoundsX > 0 ? Math.min(1000, Math.round(maxBoundsX + 60)) : 600;
+                // Automated font advance width calculation metrics compilation setup bounds rule tracking 
+                const dynamicAdvanceWidth = maxBoundsX > 0 ? Math.min(PLANE_MAX, Math.round(maxBoundsX + 75)) : 600;
 
                 compiledGlyphs.push(new opentype.Glyph({
-                    name: 'arm_' + g.unicode,
-                    unicode: g.unicode,
-                    advanceWidth: dynamicAdvanceWidth,
-                    path: path
+                    name: 'arm_' + g.unicode, unicode: g.unicode, advanceWidth: dynamicAdvanceWidth, path: path
                 }));
             });
 
@@ -320,7 +466,10 @@
             font.download();
         }
 
-        codeConsole.addEventListener('input', runExactCompiler);
+        // Bind compiler evaluation events tracking update updates hooks engine systems
+        codeConsole.addEventListener('input', () => runUnifiedCompiler());
+        
+        // System initialization startup triggers sequence bootstrapping execution
         seedDatabase();
         selectGlyph(armenianGlyphs[0].unicode);
     </script>
