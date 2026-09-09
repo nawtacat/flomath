@@ -62,7 +62,7 @@
     <!-- Right Column: Live Preview -->
     <div class="lg:col-span-7 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col min-h-[600px]">
       <div class="bg-slate-900 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
-        <span class="text-sm font-medium text-slate-300">Live Preview (First Grid)</span>
+        <span class="text-sm font-medium text-slate-300">Live Preview (First 5 Grids)</span>
         <div id="previewSpinner" class="hidden animate-spin h-4 w-4 border-2 border-indigo-400 border-t-transparent rounded-full"></div>
       </div>
       <iframe id="pdfPreview" class="w-full flex-grow bg-slate-700/30" src=""></iframe>
@@ -155,8 +155,8 @@
         { x: quadW, y: 0     }  // 4: BR
       ];
 
-      // Limit preview to just the first processed sheet
-      const limit = isPreview ? startIndex + 4 : totalPages;
+      // Limit preview to the first 5 grids (20 pages)
+      const limit = isPreview ? Math.min(startIndex + 20, totalPages) : totalPages;
 
       for (let i = startIndex; i < limit; i += 4) {
         const canvasPage = outDoc.addPage([A4_WIDTH, A4_HEIGHT]);
