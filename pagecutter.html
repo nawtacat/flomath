@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>4-Up PDF Reformatter - Pro</title>
+  <title>4-Up PDF Reformatter - Studio Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
@@ -14,7 +14,7 @@
     <!-- Left Column: Controls -->
     <div class="lg:col-span-5 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-8 flex flex-col h-fit">
       <h1 class="text-3xl font-bold tracking-tight text-white mb-2">4-Up PDF Studio</h1>
-      <p class="text-slate-400 text-sm mb-6">Compress 4 pages per sheet with live layout adjustments.</p>
+      <p class="text-slate-400 text-sm mb-6">Compress 4 pages per sheet with precision layout controls.</p>
 
       <!-- Drop Zone -->
       <div id="dropZone" class="border-2 border-dashed border-slate-600 hover:border-indigo-500 transition-colors rounded-xl p-6 text-center cursor-pointer bg-slate-800/50 mb-6">
@@ -27,7 +27,7 @@
       </div>
 
       <!-- Settings -->
-      <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 mb-6 space-y-6 flex-grow">
+      <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 mb-6 space-y-5 flex-grow">
         
         <label class="flex items-center space-x-3 cursor-pointer">
           <input type="checkbox" id="hasCover" class="w-5 h-5 text-indigo-600 bg-slate-800 border-slate-600 rounded" />
@@ -36,24 +36,35 @@
 
         <hr class="border-slate-700" />
 
+        <!-- Horizontal Crop Slider -->
         <div>
           <label class="flex justify-between text-sm font-medium text-slate-200 mb-2">
-            <span>Remove Margins (Zoom Text)</span>
-            <span id="cropDisplay" class="text-indigo-400">10%</span>
+            <span>Crop Side Margins (Left / Right)</span>
+            <span id="cropXDisplay" class="text-indigo-400">15%</span>
           </label>
-          <input type="range" id="cropMargin" min="0" max="40" value="10" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+          <input type="range" id="cropMarginX" min="0" max="40" value="15" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
         </div>
 
+        <!-- Vertical Crop Slider -->
+        <div>
+          <label class="flex justify-between text-sm font-medium text-slate-200 mb-2">
+            <span>Crop Vertical Margins (Top / Bottom)</span>
+            <span id="cropYDisplay" class="text-indigo-400">3%</span>
+          </label>
+          <input type="range" id="cropMarginY" min="0" max="30" value="3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+        </div>
+
+        <!-- Center Pull Slider -->
         <div>
           <label class="flex justify-between text-sm font-medium text-slate-200 mb-2">
             <span>Center Pull (Reduce Gap)</span>
-            <span id="pullDisplay" class="text-indigo-400">15 pt</span>
+            <span id="pullDisplay" class="text-indigo-400">10 pt</span>
           </label>
-          <input type="range" id="centerPull" min="0" max="50" value="15" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+          <input type="range" id="centerPull" min="0" max="40" value="10" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
         </div>
       </div>
 
-      <!-- Export -->
+      <!-- Export Button -->
       <button id="processBtn" disabled class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium rounded-xl transition shadow-lg">
         Download PDF
       </button>
@@ -76,8 +87,10 @@
       drop: document.getElementById('dropZone'),
       fileDisplay: document.getElementById('fileName'),
       cover: document.getElementById('hasCover'),
-      crop: document.getElementById('cropMargin'),
-      cropText: document.getElementById('cropDisplay'),
+      cropX: document.getElementById('cropMarginX'),
+      cropXText: document.getElementById('cropXDisplay'),
+      cropY: document.getElementById('cropMarginY'),
+      cropYText: document.getElementById('cropYDisplay'),
       pull: document.getElementById('centerPull'),
       pullText: document.getElementById('pullDisplay'),
       btn: document.getElementById('processBtn'),
@@ -91,7 +104,8 @@
     let previewUrl = null;
 
     // UI Listeners
-    ui.crop.addEventListener('input', (e) => { ui.cropText.textContent = `${e.target.value}%`; queueRender(true); });
+    ui.cropX.addEventListener('input', (e) => { ui.cropXText.textContent = `${e.target.value}%`; queueRender(true); });
+    ui.cropY.addEventListener('input', (e) => { ui.cropYText.textContent = `${e.target.value}%`; queueRender(true); });
     ui.pull.addEventListener('input', (e) => { ui.pullText.textContent = `${e.target.value} pt`; queueRender(true); });
     ui.cover.addEventListener('change', () => queueRender(true));
 
@@ -122,14 +136,16 @@
       if (!globalSrcDoc) return;
       clearTimeout(renderTimeout);
       if (isPreview) ui.spinner.classList.remove('hidden');
-      renderTimeout = setTimeout(() => executeRender(isPreview), isPreview ? 400 : 0);
+      renderTimeout = setTimeout(() => executeRender(isPreview), isPreview ? 350 : 0);
     }
 
     async function executeRender(isPreview) {
       const outDoc = await PDFLib.PDFDocument.create();
       const totalPages = globalSrcDoc.getPageCount();
       const hasCover = ui.cover.checked;
-      const cropPercent = parseInt(ui.crop.value, 10) / 100;
+      
+      const cropPercentX = parseInt(ui.cropX.value, 10) / 100;
+      const cropPercentY = parseInt(ui.cropY.value, 10) / 100;
       const pullPt = parseInt(ui.pull.value, 10);
       
       let startIndex = 0;
@@ -144,18 +160,18 @@
       const A4_HEIGHT = PDFLib.PageSizes.A4[1];
       const quadW = A4_WIDTH / 2;
       const quadH = A4_HEIGHT / 2;
-      const PADDING = 15;
+      const PADDING = 10; // Outer margin padding
       const availW = quadW - (PADDING * 2);
       const availH = quadH - (PADDING * 2);
 
       const basePositions = [
-        { x: 0,     y: quadH }, // 1: TL
-        { x: 0,     y: 0     }, // 2: BL
-        { x: quadW, y: quadH }, // 3: TR
-        { x: quadW, y: 0     }  // 4: BR
+        { x: 0,     y: quadH }, // 1: Top-Left
+        { x: 0,     y: 0     }, // 2: Bottom-Left
+        { x: quadW, y: quadH }, // 3: Top-Right
+        { x: quadW, y: 0     }  // 4: Bottom-Right
       ];
 
-      // Limit preview to the first 5 grids (20 pages)
+      // Process up to 5 grids for live preview, or all pages for full download
       const limit = isPreview ? Math.min(startIndex + 20, totalPages) : totalPages;
 
       for (let i = startIndex; i < limit; i += 4) {
@@ -167,8 +183,10 @@
 
           const srcPage = globalSrcDoc.getPage(pageIndex);
           const box = srcPage.getCropBox() || srcPage.getMediaBox();
-          const cropX = box.width * cropPercent;
-          const cropY = box.height * cropPercent;
+          
+          // Independent horizontal and vertical cropping
+          const cropX = box.width * cropPercentX;
+          const cropY = box.height * cropPercentY;
 
           const embeddedPage = await outDoc.embedPage(srcPage, {
             left: box.x + cropX,
@@ -182,15 +200,19 @@
           const scaledW = embeddedPage.width * scale;
           const scaledH = embeddedPage.height * scale;
 
-          // Center pull logic (vector shift towards middle)
+          // Shift pages towards center grid
           let shiftX = 0, shiftY = 0;
           if (slot === 0) { shiftX = pullPt; shiftY = -pullPt; }
           else if (slot === 1) { shiftX = pullPt; shiftY = pullPt; }
           else if (slot === 2) { shiftX = -pullPt; shiftY = -pullPt; }
           else if (slot === 3) { shiftX = -pullPt; shiftY = pullPt; }
 
-          const offsetX = pos.x + PADDING + (availW - scaledW) / 2 + shiftX;
-          const offsetY = pos.y + PADDING + (availH - scaledH) / 2 + shiftY;
+          let offsetX = pos.x + PADDING + (availW - scaledW) / 2 + shiftX;
+          let offsetY = pos.y + PADDING + (availH - scaledH) / 2 + shiftY;
+
+          // Safety clamp to prevent rendering off sheet edges
+          offsetX = Math.max(0, Math.min(A4_WIDTH - scaledW, offsetX));
+          offsetY = Math.max(0, Math.min(A4_HEIGHT - scaledH, offsetY));
 
           canvasPage.drawPage(embeddedPage, {
             x: offsetX,
@@ -213,7 +235,7 @@
         const downloadUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `pro_reformatted_${selectedFilename}`;
+        a.download = `reformatted_${selectedFilename}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
