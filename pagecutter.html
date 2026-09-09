@@ -15,7 +15,7 @@
     <div class="text-center mb-8">
       <h1 class="text-3xl font-bold tracking-tight text-white mb-2">4-Up PDF Reformatter</h1>
       <p class="text-slate-400 text-sm">
-        Compresses 4 pages per sheet in column-major newspaper order (Top-Left → Bottom-Left → Top-Right → Bottom-Right).
+        Compresses 4 pages per sheet in column-major newspaper order.
       </p>
     </div>
 
@@ -37,8 +37,10 @@
       </div>
     </div>
 
-    <!-- Options -->
-    <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 mb-6">
+    <!-- Options Menu -->
+    <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 mb-6 space-y-5">
+      
+      <!-- Cover Checkbox -->
       <label class="flex items-center space-x-3 cursor-pointer">
         <input 
           type="checkbox" 
@@ -47,9 +49,29 @@
         />
         <div>
           <span class="text-sm font-medium text-slate-200">First page is a Book Cover</span>
-          <p class="text-xs text-slate-400">Keeps page 1 as a full-size page, then applies 4-up grid to the rest.</p>
+          <p class="text-xs text-slate-400 mt-0.5">Keeps page 1 as a full-size page, starts grid on page 2.</p>
         </div>
       </label>
+
+      <hr class="border-slate-700" />
+
+      <!-- Margin Crop Slider -->
+      <div>
+        <label class="flex justify-between text-sm font-medium text-slate-200 mb-2">
+          <span>Remove Empty Margins (Zoom Text)</span>
+          <span id="cropValueDisplay" class="text-indigo-400">15%</span>
+        </label>
+        <input 
+          type="range" 
+          id="cropMargin" 
+          min="0" max="40" value="15" 
+          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+        >
+        <p class="text-xs text-slate-400 mt-2">
+          Shaves off the white borders before assembling the grid, scaling up the text.
+        </p>
+      </div>
+
     </div>
 
     <!-- Action Button -->
@@ -67,12 +89,21 @@
     const pdfInput = document.getElementById('pdfInput');
     const dropZone = document.getElementById('dropZone');
     const fileNameDisplay = document.getElementById('fileName');
+    
     const hasCoverCheckbox = document.getElementById('hasCover');
+    const cropMarginInput = document.getElementById('cropMargin');
+    const cropValueDisplay = document.getElementById('cropValueDisplay');
+    
     const processBtn = document.getElementById('processBtn');
     const btnText = document.getElementById('btnText');
     const spinner = document.getElementById('spinner');
 
     let selectedFile = null;
+
+    // Update Slider Display
+    cropMarginInput.addEventListener('input', (e) => {
+      cropValueDisplay.textContent = `${e.target.value}%`;
+    });
 
     // File Drag & Drop handlers
     dropZone.addEventListener('click', () => pdfInput.click());
@@ -101,7 +132,6 @@
     processBtn.addEventListener('click', async () => {
       if (!selectedFile) return;
 
-      // Set UI to loading state
       processBtn.disabled = true;
       btnText.textContent = "Processing...";
       spinner.classList.remove('hidden');
@@ -113,26 +143,30 @@
 
         const totalPages = srcDoc.getPageCount();
         const hasCover = hasCoverCheckbox.checked;
+        const cropPercent = parseInt(cropMarginInput.value, 10) / 100;
 
         let startIndex = 0;
 
-        // Step 1: If cover option is checked, copy Page 1 as full page
+        // Step 1: Handle Book Cover
         if (hasCover && totalPages > 0) {
           const [coverPage] = await outDoc.copyPages(srcDoc, [0]);
           outDoc.addPage(coverPage);
           startIndex = 1;
         }
 
-        // Standard A4 Dimensions in PDF points (595.28 x 841.89)
         const A4_WIDTH = PDFLib.PageSizes.A4[0];
         const A4_HEIGHT = PDFLib.PageSizes.A4[1];
 
-        // Quadrant Dimensions (2x2 Grid)
+        // 2x2 Grid setup
         const quadW = A4_WIDTH / 2;
         const quadH = A4_HEIGHT / 2;
+        
+        // Print margin safety padding (points)
+        const PADDING = 15; 
+        const availW = quadW - (PADDING * 2);
+        const availH = quadH - (PADDING * 2);
 
-        // Grid offset positions (Column-Major Newspaper Layout)
-        // [x, y] coordinates from PDF bottom-left origin
+        // Column-Major coordinates
         const gridPositions = [
           { x: 0,     y: quadH }, // 1: Top-Left
           { x: 0,     y: 0     }, // 2: Bottom-Left
@@ -140,7 +174,7 @@
           { x: quadW, y: 0     }  // 4: Bottom-Right
         ];
 
-        // Step 2: Process remaining pages in chunks of 4
+        // Step 2: Crop and Embed pages
         for (let i = startIndex; i < totalPages; i += 4) {
           const canvasPage = outDoc.addPage([A4_WIDTH, A4_HEIGHT]);
 
@@ -148,22 +182,35 @@
             const pageIndex = i + slot;
             if (pageIndex >= totalPages) break;
 
-            // Embed original page into new document
-            const [embeddedPage] = await outDoc.embedPdf(srcDoc, [pageIndex]);
+            const srcPage = srcDoc.getPage(pageIndex);
+            
+            // Calculate cropping boundaries
+            const box = srcPage.getCropBox() || srcPage.getMediaBox();
+            const cropX = box.width * cropPercent;
+            const cropY = box.height * cropPercent;
+
+            // Embed only the cropped interior of the source page
+            const embeddedPage = await outDoc.embedPage(srcPage, {
+              left: box.x + cropX,
+              bottom: box.y + cropY,
+              right: box.x + box.width - cropX,
+              top: box.y + box.height - cropY,
+            });
+
             const pos = gridPositions[slot];
 
-            // Calculate scale factor to preserve aspect ratio within quadrant
+            // Scale up the now-cropped bounding box to fill the quadrant
             const scale = Math.min(
-              quadW / embeddedPage.width,
-              quadH / embeddedPage.height
+              availW / embeddedPage.width,
+              availH / embeddedPage.height
             );
 
             const scaledW = embeddedPage.width * scale;
             const scaledH = embeddedPage.height * scale;
 
-            // Center within quadrant cell
-            const offsetX = pos.x + (quadW - scaledW) / 2;
-            const offsetY = pos.y + (quadH - scaledH) / 2;
+            // Center inside the quadrant (respecting printer padding)
+            const offsetX = pos.x + PADDING + (availW - scaledW) / 2;
+            const offsetY = pos.y + PADDING + (availH - scaledH) / 2;
 
             canvasPage.drawPage(embeddedPage, {
               x: offsetX,
@@ -174,14 +221,14 @@
           }
         }
 
-        // Step 3: Export and trigger download
+        // Step 3: Export
         const pdfBytes = await outDoc.save();
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
         const downloadUrl = URL.createObjectURL(blob);
         
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `reformatted_${selectedFile.name}`;
+        a.download = `cropped_reformatted_${selectedFile.name}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -191,7 +238,6 @@
         console.error(err);
         alert('An error occurred while processing the PDF.');
       } finally {
-        // Reset UI state
         processBtn.disabled = false;
         btnText.textContent = "Convert PDF";
         spinner.classList.add('hidden');
