@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>4-Up PDF Reformatter - Studio Pro</title>
+  <title>4-Up PDF Studio Pro - Advanced Zoom & Layout</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
@@ -11,10 +11,10 @@
 
   <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
     
-    <!-- Left Column: Precision Controls -->
+    <!-- Controls Column -->
     <div class="lg:col-span-5 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 flex flex-col h-fit">
       <h1 class="text-2xl font-bold tracking-tight text-white mb-1">4-Up PDF Studio Pro</h1>
-      <p class="text-slate-400 text-xs mb-5">Fine-tune individual page margins with live preview.</p>
+      <p class="text-slate-400 text-xs mb-5">Independent zoom, position nudge, and margin cropping.</p>
 
       <!-- Drop Zone -->
       <div id="dropZone" class="border-2 border-dashed border-slate-600 hover:border-indigo-500 transition-colors rounded-xl p-4 text-center cursor-pointer bg-slate-800/50 mb-5">
@@ -29,7 +29,7 @@
       <!-- Settings Panel -->
       <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 mb-5 space-y-4 text-xs">
         
-        <!-- Toggles -->
+        <!-- Document Toggles -->
         <div class="space-y-2">
           <label class="flex items-center space-x-3 cursor-pointer">
             <input type="checkbox" id="hasCover" class="w-4 h-4 text-indigo-600 bg-slate-800 border-slate-600 rounded" />
@@ -44,53 +44,85 @@
 
         <hr class="border-slate-700/60" />
 
-        <!-- 4-Axis Crop Controls -->
+        <!-- Dedicated Zoom & Alignment Controls -->
         <div class="space-y-3">
-          <p class="font-semibold text-indigo-300 uppercase tracking-wider text-[10px]">Crop Margins Per Side</p>
+          <p class="font-semibold text-emerald-400 uppercase tracking-wider text-[10px]">Text Zoom & Positioning</p>
 
-          <!-- Left Crop -->
+          <!-- Zoom Slider -->
           <div>
             <div class="flex justify-between font-medium text-slate-200 mb-1">
-              <span>Left Margin Crop</span>
-              <span id="cropLDisplay" class="text-indigo-400">2%</span>
+              <span>Text Zoom Multiplier</span>
+              <span id="zoomDisplay" class="text-emerald-400 font-bold">125%</span>
             </div>
-            <input type="range" id="cropLeft" min="0" max="35" value="2" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            <input type="range" id="zoomFactor" min="100" max="170" value="125" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
           </div>
 
-          <!-- Right Crop -->
+          <!-- Horizontal Nudge -->
           <div>
             <div class="flex justify-between font-medium text-slate-200 mb-1">
-              <span>Right Margin Crop</span>
-              <span id="cropRDisplay" class="text-indigo-400">18%</span>
+              <span>Horizontal Nudge (Shift Left/Right)</span>
+              <span id="shiftXDisplay" class="text-emerald-400">0 pt</span>
             </div>
-            <input type="range" id="cropRight" min="0" max="35" value="18" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            <input type="range" id="shiftX" min="-60" max="60" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
           </div>
 
-          <!-- Top Crop -->
+          <!-- Vertical Nudge -->
           <div>
             <div class="flex justify-between font-medium text-slate-200 mb-1">
-              <span>Top Margin Crop</span>
-              <span id="cropTDisplay" class="text-indigo-400">3%</span>
+              <span>Vertical Nudge (Shift Up/Down)</span>
+              <span id="shiftYDisplay" class="text-emerald-400">0 pt</span>
             </div>
-            <input type="range" id="cropTop" min="0" max="25" value="3" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
-          </div>
-
-          <!-- Bottom Crop -->
-          <div>
-            <div class="flex justify-between font-medium text-slate-200 mb-1">
-              <span>Bottom Margin Crop</span>
-              <span id="cropBDisplay" class="text-indigo-400">3%</span>
-            </div>
-            <input type="range" id="cropBottom" min="0" max="25" value="3" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            <input type="range" id="shiftY" min="-60" max="60" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500">
           </div>
         </div>
 
         <hr class="border-slate-700/60" />
 
-        <!-- Center Pull -->
+        <!-- Margin Crop Controls -->
+        <div class="space-y-3">
+          <p class="font-semibold text-indigo-300 uppercase tracking-wider text-[10px]">Margin Trimming (Crop Whitespace)</p>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="flex justify-between font-medium text-slate-200 mb-1">
+                <span>Left Crop</span>
+                <span id="cropLDisplay" class="text-indigo-400">0%</span>
+              </div>
+              <input type="range" id="cropLeft" min="0" max="30" value="0" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+
+            <div>
+              <div class="flex justify-between font-medium text-slate-200 mb-1">
+                <span>Right Crop</span>
+                <span id="cropRDisplay" class="text-indigo-400">15%</span>
+              </div>
+              <input type="range" id="cropRight" min="0" max="35" value="15" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+
+            <div>
+              <div class="flex justify-between font-medium text-slate-200 mb-1">
+                <span>Top Crop</span>
+                <span id="cropTDisplay" class="text-indigo-400">3%</span>
+              </div>
+              <input type="range" id="cropTop" min="0" max="25" value="3" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+
+            <div>
+              <div class="flex justify-between font-medium text-slate-200 mb-1">
+                <span>Bottom Crop</span>
+                <span id="cropBDisplay" class="text-indigo-400">3%</span>
+              </div>
+              <input type="range" id="cropBottom" min="0" max="25" value="3" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            </div>
+          </div>
+        </div>
+
+        <hr class="border-slate-700/60" />
+
+        <!-- Center Gap Pull -->
         <div>
           <div class="flex justify-between font-medium text-slate-200 mb-1">
-            <span>Center Pull (Reduce Middle Gap)</span>
+            <span>Center Gap Reduction (Pull to Middle)</span>
             <span id="pullDisplay" class="text-indigo-400">10 pt</span>
           </div>
           <input type="range" id="centerPull" min="0" max="40" value="10" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
@@ -104,7 +136,7 @@
       </button>
     </div>
 
-    <!-- Right Column: Live Preview -->
+    <!-- Live Preview -->
     <div class="lg:col-span-7 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col min-h-[650px]">
       <div class="bg-slate-900 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
         <span class="text-xs font-medium text-slate-300">Live Preview (First 5 Grids)</span>
@@ -123,6 +155,13 @@
       cover: document.getElementById('hasCover'),
       mirror: document.getElementById('mirrorGutter'),
       
+      zoom: document.getElementById('zoomFactor'),
+      zoomText: document.getElementById('zoomDisplay'),
+      shiftX: document.getElementById('shiftX'),
+      shiftXText: document.getElementById('shiftXDisplay'),
+      shiftY: document.getElementById('shiftY'),
+      shiftYText: document.getElementById('shiftYDisplay'),
+
       cropL: document.getElementById('cropLeft'),
       cropLText: document.getElementById('cropLDisplay'),
       cropR: document.getElementById('cropRight'),
@@ -144,7 +183,6 @@
     let renderTimeout = null;
     let previewUrl = null;
 
-    // UI Sliders Listener Binding
     const bindSlider = (elem, textElem, unit = '%') => {
       elem.addEventListener('input', (e) => {
         textElem.textContent = `${e.target.value}${unit}`;
@@ -152,6 +190,9 @@
       });
     };
 
+    bindSlider(ui.zoom, ui.zoomText);
+    bindSlider(ui.shiftX, ui.shiftXText, ' pt');
+    bindSlider(ui.shiftY, ui.shiftYText, ' pt');
     bindSlider(ui.cropL, ui.cropLText);
     bindSlider(ui.cropR, ui.cropRText);
     bindSlider(ui.cropT, ui.cropTText);
@@ -188,7 +229,7 @@
       if (!globalSrcDoc) return;
       clearTimeout(renderTimeout);
       if (isPreview) ui.spinner.classList.remove('hidden');
-      renderTimeout = setTimeout(() => executeRender(isPreview), isPreview ? 350 : 0);
+      renderTimeout = setTimeout(() => executeRender(isPreview), isPreview ? 300 : 0);
     }
 
     async function executeRender(isPreview) {
@@ -196,6 +237,10 @@
       const totalPages = globalSrcDoc.getPageCount();
       const hasCover = ui.cover.checked;
       const mirrorEven = ui.mirror.checked;
+
+      const zoomMult = parseInt(ui.zoom.value, 10) / 100;
+      const nudgeX = parseInt(ui.shiftX.value, 10);
+      const nudgeY = parseInt(ui.shiftY.value, 10);
 
       const valCropL = parseInt(ui.cropL.value, 10) / 100;
       const valCropR = parseInt(ui.cropR.value, 10) / 100;
@@ -215,7 +260,7 @@
       const A4_HEIGHT = PDFLib.PageSizes.A4[1];
       const quadW = A4_WIDTH / 2;
       const quadH = A4_HEIGHT / 2;
-      const PADDING = 10;
+      const PADDING = 8;
       const availW = quadW - (PADDING * 2);
       const availH = quadH - (PADDING * 2);
 
@@ -243,7 +288,6 @@
           const bW = box.width || srcPage.getWidth();
           const bH = box.height || srcPage.getHeight();
 
-          // Handle page mirroring for book gutters
           const isEven = (pageIndex + 1) % 2 === 0;
           const cropL = (mirrorEven && isEven) ? valCropR : valCropL;
           const cropR = (mirrorEven && isEven) ? valCropL : valCropR;
@@ -261,23 +305,23 @@
           });
 
           const pos = basePositions[slot];
-          const scale = Math.min(availW / embeddedPage.width, availH / embeddedPage.height);
+          
+          // Apply scale with Zoom Multiplier
+          const baseScale = Math.min(availW / embeddedPage.width, availH / embeddedPage.height);
+          const scale = baseScale * zoomMult;
           const scaledW = embeddedPage.width * scale;
           const scaledH = embeddedPage.height * scale;
 
-          // Center pull vector shift
+          // Pull shift
           let shiftX = 0, shiftY = 0;
           if (slot === 0) { shiftX = pullPt; shiftY = -pullPt; }
           else if (slot === 1) { shiftX = pullPt; shiftY = pullPt; }
           else if (slot === 2) { shiftX = -pullPt; shiftY = -pullPt; }
           else if (slot === 3) { shiftX = -pullPt; shiftY = pullPt; }
 
-          let offsetX = pos.x + PADDING + (availW - scaledW) / 2 + shiftX;
-          let offsetY = pos.y + PADDING + (availH - scaledH) / 2 + shiftY;
-
-          // Boundary clamp
-          offsetX = Math.max(0, Math.min(A4_WIDTH - scaledW, offsetX));
-          offsetY = Math.max(0, Math.min(A4_HEIGHT - scaledH, offsetY));
+          // Add Horizontal and Vertical Nudges
+          const offsetX = pos.x + PADDING + (availW - scaledW) / 2 + shiftX + nudgeX;
+          const offsetY = pos.y + PADDING + (availH - scaledH) / 2 + shiftY + nudgeY;
 
           canvasPage.drawPage(embeddedPage, {
             x: offsetX,
@@ -300,7 +344,7 @@
         const downloadUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `pro_reformatted_${selectedFilename}`;
+        a.download = `zoomed_reformatted_${selectedFilename}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
