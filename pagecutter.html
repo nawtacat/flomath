@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4-Up Newspaper PDF Converter</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- pdf-lib Library CDN -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-6">
+
+  <div class="max-w-xl w-full bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-8">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold tracking-tight text-white mb-2">4-Up PDF Reformatter</h1>
+      <p class="text-slate-400 text-sm">
+        Compresses 4 pages per sheet in column-major newspaper order (Top-Left → Bottom-Left → Top-Right → Bottom-Right).
+      </p>
+    </div>
+
+    <!-- Drop Zone / File Input -->
+    <div 
+      id="dropZone"
+      class="border-2 border-dashed border-slate-600 hover:border-indigo-500 transition-colors rounded-xl p-8 text-center cursor-pointer bg-slate-800/50 mb-6"
+    >
+      <input type="file" id="pdfInput" accept="application/pdf" class="hidden" />
+      <div id="uploadPrompt" class="space-y-2">
+        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+          <path d="M28 8H12a4 4 0 00-4 4v20a4 4 0 004 4h24a4 4 0 004-4V20L28 8z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M28 8v12h12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="text-sm font-medium text-slate-200">
+          Click to upload or drag & drop a PDF
+        </p>
+        <p id="fileName" class="text-xs text-indigo-400 font-semibold mt-2 hidden"></p>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50 mb-6">
+      <label class="flex items-center space-x-3 cursor-pointer">
+        <input 
+          type="checkbox" 
+          id="hasCover" 
+          class="w-5 h-5 text-indigo-600 bg-slate-800 border-slate-600 rounded focus:ring-indigo-500 focus:ring-2"
+        />
+        <div>
+          <span class="text-sm font-medium text-slate-200">First page is a Book Cover</span>
+          <p class="text-xs text-slate-400">Keeps page 1 as a full-size page, then applies 4-up grid to the rest.</p>
+        </div>
+      </label>
+    </div>
+
+    <!-- Action Button -->
+    <button
+      id="processBtn"
+      disabled
+      class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium rounded-xl transition shadow-lg flex items-center justify-center space-x-2"
+    >
+      <span id="btnText">Convert PDF</span>
+      <div id="spinner" class="hidden animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+    </button>
+  </div>
+
+  <script>
+    const pdfInput = document.getElementById('pdfInput');
+    const dropZone = document.getElementById('dropZone');
+    const fileNameDisplay = document.getElementById('fileName');
+    const hasCoverCheckbox = document.getElementById('hasCover');
+    const processBtn = document.getElementById('processBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+
+    let selectedFile = null;
+
+    // File Drag & Drop handlers
+    dropZone.addEventListener('click', () => pdfInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-indigo-500'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-indigo-500');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    pdfInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      if (file.type !== 'application/pdf') {
+        alert('Please upload a valid PDF file.');
+        return;
+      }
+      selectedFile = file;
+      fileNameDisplay.textContent = `Selected: ${file.name}`;
+      fileNameDisplay.classList.remove('hidden');
+      processBtn.disabled = false;
+    }
+
+    processBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      // Set UI to loading state
+      processBtn.disabled = true;
+      btnText.textContent = "Processing...";
+      spinner.classList.remove('hidden');
+
+      try {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const srcDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        const outDoc = await PDFLib.PDFDocument.create();
+
+        const totalPages = srcDoc.getPageCount();
+        const hasCover = hasCoverCheckbox.checked;
+
+        let startIndex = 0;
+
+        // Step 1: If cover option is checked, copy Page 1 as full page
+        if (hasCover && totalPages > 0) {
+          const [coverPage] = await outDoc.copyPages(srcDoc, [0]);
+          outDoc.addPage(coverPage);
+          startIndex = 1;
+        }
+
+        // Standard A4 Dimensions in PDF points (595.28 x 841.89)
+        const A4_WIDTH = PDFLib.PageSizes.A4[0];
+        const A4_HEIGHT = PDFLib.PageSizes.A4[1];
+
+        // Quadrant Dimensions (2x2 Grid)
+        const quadW = A4_WIDTH / 2;
+        const quadH = A4_HEIGHT / 2;
+
+        // Grid offset positions (Column-Major Newspaper Layout)
+        // [x, y] coordinates from PDF bottom-left origin
+        const gridPositions = [
+          { x: 0,     y: quadH }, // 1: Top-Left
+          { x: 0,     y: 0     }, // 2: Bottom-Left
+          { x: quadW, y: quadH }, // 3: Top-Right
+          { x: quadW, y: 0     }  // 4: Bottom-Right
+        ];
+
+        // Step 2: Process remaining pages in chunks of 4
+        for (let i = startIndex; i < totalPages; i += 4) {
+          const canvasPage = outDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+
+          for (let slot = 0; slot < 4; slot++) {
+            const pageIndex = i + slot;
+            if (pageIndex >= totalPages) break;
+
+            // Embed original page into new document
+            const [embeddedPage] = await outDoc.embedPdf(srcDoc, [pageIndex]);
+            const pos = gridPositions[slot];
+
+            // Calculate scale factor to preserve aspect ratio within quadrant
+            const scale = Math.min(
+              quadW / embeddedPage.width,
+              quadH / embeddedPage.height
+            );
+
+            const scaledW = embeddedPage.width * scale;
+            const scaledH = embeddedPage.height * scale;
+
+            // Center within quadrant cell
+            const offsetX = pos.x + (quadW - scaledW) / 2;
+            const offsetY = pos.y + (quadH - scaledH) / 2;
+
+            canvasPage.drawPage(embeddedPage, {
+              x: offsetX,
+              y: offsetY,
+              width: scaledW,
+              height: scaledH,
+            });
+          }
+        }
+
+        // Step 3: Export and trigger download
+        const pdfBytes = await outDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const downloadUrl = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `reformatted_${selectedFile.name}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+
+      } catch (err) {
+        console.error(err);
+        alert('An error occurred while processing the PDF.');
+      } finally {
+        // Reset UI state
+        processBtn.disabled = false;
+        btnText.textContent = "Convert PDF";
+        spinner.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
