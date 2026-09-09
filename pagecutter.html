@@ -3,246 +3,225 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>4-Up Newspaper PDF Converter</title>
-  <!-- Tailwind CSS CDN -->
+  <title>4-Up PDF Reformatter - Pro</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- pdf-lib Library CDN -->
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-6">
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
 
-  <div class="max-w-xl w-full bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-8">
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold tracking-tight text-white mb-2">4-Up PDF Reformatter</h1>
-      <p class="text-slate-400 text-sm">
-        Compresses 4 pages per sheet in column-major newspaper order.
-      </p>
-    </div>
+  <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+    
+    <!-- Left Column: Controls -->
+    <div class="lg:col-span-5 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-8 flex flex-col h-fit">
+      <h1 class="text-3xl font-bold tracking-tight text-white mb-2">4-Up PDF Studio</h1>
+      <p class="text-slate-400 text-sm mb-6">Compress 4 pages per sheet with live layout adjustments.</p>
 
-    <!-- Drop Zone / File Input -->
-    <div 
-      id="dropZone"
-      class="border-2 border-dashed border-slate-600 hover:border-indigo-500 transition-colors rounded-xl p-8 text-center cursor-pointer bg-slate-800/50 mb-6"
-    >
-      <input type="file" id="pdfInput" accept="application/pdf" class="hidden" />
-      <div id="uploadPrompt" class="space-y-2">
-        <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+      <!-- Drop Zone -->
+      <div id="dropZone" class="border-2 border-dashed border-slate-600 hover:border-indigo-500 transition-colors rounded-xl p-6 text-center cursor-pointer bg-slate-800/50 mb-6">
+        <input type="file" id="pdfInput" accept="application/pdf" class="hidden" />
+        <svg class="mx-auto h-8 w-8 text-slate-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
           <path d="M28 8H12a4 4 0 00-4 4v20a4 4 0 004 4h24a4 4 0 004-4V20L28 8z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M28 8v12h12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <p class="text-sm font-medium text-slate-200">
-          Click to upload or drag & drop a PDF
-        </p>
-        <p id="fileName" class="text-xs text-indigo-400 font-semibold mt-2 hidden"></p>
+        <p class="text-sm font-medium text-slate-200" id="fileName">Upload PDF</p>
       </div>
-    </div>
 
-    <!-- Options Menu -->
-    <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 mb-6 space-y-5">
-      
-      <!-- Cover Checkbox -->
-      <label class="flex items-center space-x-3 cursor-pointer">
-        <input 
-          type="checkbox" 
-          id="hasCover" 
-          class="w-5 h-5 text-indigo-600 bg-slate-800 border-slate-600 rounded focus:ring-indigo-500 focus:ring-2"
-        />
-        <div>
+      <!-- Settings -->
+      <div class="bg-slate-900/60 p-5 rounded-xl border border-slate-700/50 mb-6 space-y-6 flex-grow">
+        
+        <label class="flex items-center space-x-3 cursor-pointer">
+          <input type="checkbox" id="hasCover" class="w-5 h-5 text-indigo-600 bg-slate-800 border-slate-600 rounded" />
           <span class="text-sm font-medium text-slate-200">First page is a Book Cover</span>
-          <p class="text-xs text-slate-400 mt-0.5">Keeps page 1 as a full-size page, starts grid on page 2.</p>
-        </div>
-      </label>
-
-      <hr class="border-slate-700" />
-
-      <!-- Margin Crop Slider -->
-      <div>
-        <label class="flex justify-between text-sm font-medium text-slate-200 mb-2">
-          <span>Remove Empty Margins (Zoom Text)</span>
-          <span id="cropValueDisplay" class="text-indigo-400">15%</span>
         </label>
-        <input 
-          type="range" 
-          id="cropMargin" 
-          min="0" max="40" value="15" 
-          class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-        >
-        <p class="text-xs text-slate-400 mt-2">
-          Shaves off the white borders before assembling the grid, scaling up the text.
-        </p>
+
+        <hr class="border-slate-700" />
+
+        <div>
+          <label class="flex justify-between text-sm font-medium text-slate-200 mb-2">
+            <span>Remove Margins (Zoom Text)</span>
+            <span id="cropDisplay" class="text-indigo-400">10%</span>
+          </label>
+          <input type="range" id="cropMargin" min="0" max="40" value="10" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+        </div>
+
+        <div>
+          <label class="flex justify-between text-sm font-medium text-slate-200 mb-2">
+            <span>Center Pull (Reduce Gap)</span>
+            <span id="pullDisplay" class="text-indigo-400">15 pt</span>
+          </label>
+          <input type="range" id="centerPull" min="0" max="50" value="15" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+        </div>
       </div>
 
+      <!-- Export -->
+      <button id="processBtn" disabled class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium rounded-xl transition shadow-lg">
+        Download PDF
+      </button>
     </div>
 
-    <!-- Action Button -->
-    <button
-      id="processBtn"
-      disabled
-      class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-medium rounded-xl transition shadow-lg flex items-center justify-center space-x-2"
-    >
-      <span id="btnText">Convert PDF</span>
-      <div id="spinner" class="hidden animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-    </button>
+    <!-- Right Column: Live Preview -->
+    <div class="lg:col-span-7 bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 overflow-hidden flex flex-col min-h-[600px]">
+      <div class="bg-slate-900 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+        <span class="text-sm font-medium text-slate-300">Live Preview (First Grid)</span>
+        <div id="previewSpinner" class="hidden animate-spin h-4 w-4 border-2 border-indigo-400 border-t-transparent rounded-full"></div>
+      </div>
+      <iframe id="pdfPreview" class="w-full flex-grow bg-slate-700/30" src=""></iframe>
+    </div>
+
   </div>
 
   <script>
-    const pdfInput = document.getElementById('pdfInput');
-    const dropZone = document.getElementById('dropZone');
-    const fileNameDisplay = document.getElementById('fileName');
-    
-    const hasCoverCheckbox = document.getElementById('hasCover');
-    const cropMarginInput = document.getElementById('cropMargin');
-    const cropValueDisplay = document.getElementById('cropValueDisplay');
-    
-    const processBtn = document.getElementById('processBtn');
-    const btnText = document.getElementById('btnText');
-    const spinner = document.getElementById('spinner');
+    const ui = {
+      input: document.getElementById('pdfInput'),
+      drop: document.getElementById('dropZone'),
+      fileDisplay: document.getElementById('fileName'),
+      cover: document.getElementById('hasCover'),
+      crop: document.getElementById('cropMargin'),
+      cropText: document.getElementById('cropDisplay'),
+      pull: document.getElementById('centerPull'),
+      pullText: document.getElementById('pullDisplay'),
+      btn: document.getElementById('processBtn'),
+      preview: document.getElementById('pdfPreview'),
+      spinner: document.getElementById('previewSpinner')
+    };
 
-    let selectedFile = null;
+    let globalSrcDoc = null;
+    let selectedFilename = "document.pdf";
+    let renderTimeout = null;
+    let previewUrl = null;
 
-    // Update Slider Display
-    cropMarginInput.addEventListener('input', (e) => {
-      cropValueDisplay.textContent = `${e.target.value}%`;
-    });
+    // UI Listeners
+    ui.crop.addEventListener('input', (e) => { ui.cropText.textContent = `${e.target.value}%`; queueRender(true); });
+    ui.pull.addEventListener('input', (e) => { ui.pullText.textContent = `${e.target.value} pt`; queueRender(true); });
+    ui.cover.addEventListener('change', () => queueRender(true));
 
-    // File Drag & Drop handlers
-    dropZone.addEventListener('click', () => pdfInput.click());
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-indigo-500'));
-    dropZone.addEventListener('drop', (e) => {
+    ui.drop.addEventListener('click', () => ui.input.click());
+    ui.drop.addEventListener('dragover', (e) => { e.preventDefault(); ui.drop.classList.add('border-indigo-500'); });
+    ui.drop.addEventListener('dragleave', () => ui.drop.classList.remove('border-indigo-500'));
+    ui.drop.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropZone.classList.remove('border-indigo-500');
+      ui.drop.classList.remove('border-indigo-500');
       if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
-    pdfInput.addEventListener('change', (e) => {
+    ui.input.addEventListener('change', (e) => {
       if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
-    function handleFile(file) {
-      if (file.type !== 'application/pdf') {
-        alert('Please upload a valid PDF file.');
-        return;
-      }
-      selectedFile = file;
-      fileNameDisplay.textContent = `Selected: ${file.name}`;
-      fileNameDisplay.classList.remove('hidden');
-      processBtn.disabled = false;
+    async function handleFile(file) {
+      if (file.type !== 'application/pdf') return alert('Please upload a PDF.');
+      selectedFilename = file.name;
+      ui.fileDisplay.textContent = file.name;
+      ui.btn.disabled = false;
+      
+      const arrayBuffer = await file.arrayBuffer();
+      globalSrcDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+      queueRender(true);
     }
 
-    processBtn.addEventListener('click', async () => {
-      if (!selectedFile) return;
+    function queueRender(isPreview) {
+      if (!globalSrcDoc) return;
+      clearTimeout(renderTimeout);
+      if (isPreview) ui.spinner.classList.remove('hidden');
+      renderTimeout = setTimeout(() => executeRender(isPreview), isPreview ? 400 : 0);
+    }
 
-      processBtn.disabled = true;
-      btnText.textContent = "Processing...";
-      spinner.classList.remove('hidden');
+    async function executeRender(isPreview) {
+      const outDoc = await PDFLib.PDFDocument.create();
+      const totalPages = globalSrcDoc.getPageCount();
+      const hasCover = ui.cover.checked;
+      const cropPercent = parseInt(ui.crop.value, 10) / 100;
+      const pullPt = parseInt(ui.pull.value, 10);
+      
+      let startIndex = 0;
 
-      try {
-        const arrayBuffer = await selectedFile.arrayBuffer();
-        const srcDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-        const outDoc = await PDFLib.PDFDocument.create();
+      if (hasCover && totalPages > 0) {
+        const [coverPage] = await outDoc.copyPages(globalSrcDoc, [0]);
+        outDoc.addPage(coverPage);
+        startIndex = 1;
+      }
 
-        const totalPages = srcDoc.getPageCount();
-        const hasCover = hasCoverCheckbox.checked;
-        const cropPercent = parseInt(cropMarginInput.value, 10) / 100;
+      const A4_WIDTH = PDFLib.PageSizes.A4[0];
+      const A4_HEIGHT = PDFLib.PageSizes.A4[1];
+      const quadW = A4_WIDTH / 2;
+      const quadH = A4_HEIGHT / 2;
+      const PADDING = 15;
+      const availW = quadW - (PADDING * 2);
+      const availH = quadH - (PADDING * 2);
 
-        let startIndex = 0;
+      const basePositions = [
+        { x: 0,     y: quadH }, // 1: TL
+        { x: 0,     y: 0     }, // 2: BL
+        { x: quadW, y: quadH }, // 3: TR
+        { x: quadW, y: 0     }  // 4: BR
+      ];
 
-        // Step 1: Handle Book Cover
-        if (hasCover && totalPages > 0) {
-          const [coverPage] = await outDoc.copyPages(srcDoc, [0]);
-          outDoc.addPage(coverPage);
-          startIndex = 1;
+      // Limit preview to just the first processed sheet
+      const limit = isPreview ? startIndex + 4 : totalPages;
+
+      for (let i = startIndex; i < limit; i += 4) {
+        const canvasPage = outDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+
+        for (let slot = 0; slot < 4; slot++) {
+          const pageIndex = i + slot;
+          if (pageIndex >= totalPages) break;
+
+          const srcPage = globalSrcDoc.getPage(pageIndex);
+          const box = srcPage.getCropBox() || srcPage.getMediaBox();
+          const cropX = box.width * cropPercent;
+          const cropY = box.height * cropPercent;
+
+          const embeddedPage = await outDoc.embedPage(srcPage, {
+            left: box.x + cropX,
+            bottom: box.y + cropY,
+            right: box.x + box.width - cropX,
+            top: box.y + box.height - cropY,
+          });
+
+          const pos = basePositions[slot];
+          const scale = Math.min(availW / embeddedPage.width, availH / embeddedPage.height);
+          const scaledW = embeddedPage.width * scale;
+          const scaledH = embeddedPage.height * scale;
+
+          // Center pull logic (vector shift towards middle)
+          let shiftX = 0, shiftY = 0;
+          if (slot === 0) { shiftX = pullPt; shiftY = -pullPt; }
+          else if (slot === 1) { shiftX = pullPt; shiftY = pullPt; }
+          else if (slot === 2) { shiftX = -pullPt; shiftY = -pullPt; }
+          else if (slot === 3) { shiftX = -pullPt; shiftY = pullPt; }
+
+          const offsetX = pos.x + PADDING + (availW - scaledW) / 2 + shiftX;
+          const offsetY = pos.y + PADDING + (availH - scaledH) / 2 + shiftY;
+
+          canvasPage.drawPage(embeddedPage, {
+            x: offsetX,
+            y: offsetY,
+            width: scaledW,
+            height: scaledH,
+          });
         }
+      }
 
-        const A4_WIDTH = PDFLib.PageSizes.A4[0];
-        const A4_HEIGHT = PDFLib.PageSizes.A4[1];
+      const pdfBytes = await outDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
-        // 2x2 Grid setup
-        const quadW = A4_WIDTH / 2;
-        const quadH = A4_HEIGHT / 2;
-        
-        // Print margin safety padding (points)
-        const PADDING = 15; 
-        const availW = quadW - (PADDING * 2);
-        const availH = quadH - (PADDING * 2);
-
-        // Column-Major coordinates
-        const gridPositions = [
-          { x: 0,     y: quadH }, // 1: Top-Left
-          { x: 0,     y: 0     }, // 2: Bottom-Left
-          { x: quadW, y: quadH }, // 3: Top-Right
-          { x: quadW, y: 0     }  // 4: Bottom-Right
-        ];
-
-        // Step 2: Crop and Embed pages
-        for (let i = startIndex; i < totalPages; i += 4) {
-          const canvasPage = outDoc.addPage([A4_WIDTH, A4_HEIGHT]);
-
-          for (let slot = 0; slot < 4; slot++) {
-            const pageIndex = i + slot;
-            if (pageIndex >= totalPages) break;
-
-            const srcPage = srcDoc.getPage(pageIndex);
-            
-            // Calculate cropping boundaries
-            const box = srcPage.getCropBox() || srcPage.getMediaBox();
-            const cropX = box.width * cropPercent;
-            const cropY = box.height * cropPercent;
-
-            // Embed only the cropped interior of the source page
-            const embeddedPage = await outDoc.embedPage(srcPage, {
-              left: box.x + cropX,
-              bottom: box.y + cropY,
-              right: box.x + box.width - cropX,
-              top: box.y + box.height - cropY,
-            });
-
-            const pos = gridPositions[slot];
-
-            // Scale up the now-cropped bounding box to fill the quadrant
-            const scale = Math.min(
-              availW / embeddedPage.width,
-              availH / embeddedPage.height
-            );
-
-            const scaledW = embeddedPage.width * scale;
-            const scaledH = embeddedPage.height * scale;
-
-            // Center inside the quadrant (respecting printer padding)
-            const offsetX = pos.x + PADDING + (availW - scaledW) / 2;
-            const offsetY = pos.y + PADDING + (availH - scaledH) / 2;
-
-            canvasPage.drawPage(embeddedPage, {
-              x: offsetX,
-              y: offsetY,
-              width: scaledW,
-              height: scaledH,
-            });
-          }
-        }
-
-        // Step 3: Export
-        const pdfBytes = await outDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      if (isPreview) {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(blob);
+        ui.preview.src = previewUrl;
+        ui.spinner.classList.add('hidden');
+      } else {
         const downloadUrl = URL.createObjectURL(blob);
-        
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `cropped_reformatted_${selectedFile.name}`;
+        a.download = `pro_reformatted_${selectedFilename}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(downloadUrl);
-
-      } catch (err) {
-        console.error(err);
-        alert('An error occurred while processing the PDF.');
-      } finally {
-        processBtn.disabled = false;
-        btnText.textContent = "Convert PDF";
-        spinner.classList.add('hidden');
       }
-    });
+    }
+
+    ui.btn.addEventListener('click', () => queueRender(false));
   </script>
 </body>
 </html>
