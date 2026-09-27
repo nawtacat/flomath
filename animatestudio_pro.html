@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnimateStudio Pro - Frame-by-Frame Motion Animation Editor</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        studio: {
+                            base: '#0f0f13',
+                            panel: '#18181f',
+                            card: '#22222c',
+                            border: '#2e2e3a',
+                            hover: '#383847',
+                            accent: '#6366f1',
+                            accentHover: '#4f46e5',
+                            prevTint: '#ff2d55',
+                            nextTint: '#00e5ff'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #18181f;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2e2e3a;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #48485a;
+        }
+        /* Canvas Checkerboard background */
+        .checkerboard {
+            background-color: #121217;
+            background-image: 
+                linear-gradient(45deg, #1c1c24 25%, transparent 25%), 
+                linear-gradient(-45deg, #1c1c24 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1c1c24 75%), 
+                linear-gradient(-45deg, transparent 75%, #1c1c24 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        /* Custom range slider styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #2e2e3a;
+            border-radius: 4px;
+            height: 6px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+        /* Tooltip styling */
+        [data-tooltip] {
+            position: relative;
+        }
+        [data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 8px;
+            background: rgba(15, 15, 19, 0.95);
+            border: 1px solid #2e2e3a;
+            color: #fff;
+            font-size: 11px;
+            border-radius: 4px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .right-tooltip[data-tooltip]:hover::after {
+            bottom: auto;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%) translateX(8px);
+        }
+        /* Color input override */
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="h-full bg-studio-base text-gray-200 flex flex-col overflow-hidden">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="h-14 bg-studio-panel border-b border-studio-border flex items-center justify-between px-4 z-20 shrink-0">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-600/30">
+                    <i class="fa-solid fa-film"></i>
+                </div>
+                <span class="font-bold text-base tracking-wide text-white">Animate<span class="text-indigo-400">Studio</span> <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-normal">PRO</span></span>
+            </div>
+
+            <div class="h-5 w-px bg-studio-border"></div>
+
+            <!-- Project Info & Settings -->
+            <div class="flex items-center space-x-3 text-xs">
+                <input id="project-title" type="text" value="My Animation" class="bg-transparent border border-transparent hover:border-studio-border focus:border-indigo-500 focus:bg-studio-card px-2 py-1 rounded text-gray-200 font-medium focus:outline-none transition" />
+                <button id="btn-resize-canvas" class="flex items-center space-x-1 text-gray-400 hover:text-white bg-studio-card hover:bg-studio-hover border border-studio-border px-2.5 py-1 rounded transition" data-tooltip="Resize Canvas Resolution">
+                    <i class="fa-solid fa-expand text-xs"></i>
+                    <span id="res-display" class="font-mono">1920x1080</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Center Controls: Undo/Redo & Quick Stats -->
+        <div class="flex items-center space-x-2">
+            <button id="btn-undo" class="w-8 h-8 rounded bg-studio-card hover:bg-studio-hover border border-studio-border flex items-center justify-center text-gray-300 hover:text-white disabled:opacity-40 transition" data-tooltip="Undo (Ctrl+Z)">
+                <i class="fa-solid fa-rotate-left text-xs"></i>
+            </button>
+            <button id="btn-redo" class="w-8 h-8 rounded bg-studio-card hover:bg-studio-hover border border-studio-border flex items-center justify-center text-gray-300 hover:text-white disabled:opacity-40 transition" data-tooltip="Redo (Ctrl+Y)">
+                <i class="fa-solid fa-rotate-right text-xs"></i>
+            </button>
+
+            <div class="h-5 w-px bg-studio-border mx-1"></div>
+
+            <div id="playhead-counter" class="font-mono text-xs text-indigo-300 bg-indigo-950/40 border border-indigo-500/30 px-3 py-1 rounded">
+                FRAME <span id="current-frame-num" class="text-white font-bold">1</span> / <span id="total-frames-num">1</span>
+            </div>
+        </div>
+
+        <!-- Actions: Import/Export/Help -->
+        <div class="flex items-center space-x-2">
+            <button id="btn-clear-canvas" class="px-3 py-1.5 rounded bg-studio-card hover:bg-red-900/30 hover:text-red-300 border border-studio-border text-xs text-gray-300 transition flex items-center space-x-1.5" data-tooltip="Clear Current Layer Frame">
+                <i class="fa-solid fa-trash-can"></i>
+                <span class="hidden md:inline">Clear Frame</span>
+            </button>
+            <button id="btn-open-modal-export" class="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-lg shadow-indigo-600/20 transition flex items-center space-x-1.5">
+                <i class="fa-solid fa-file-export"></i>
+                <span>Export</span>
+            </button>
+            <button id="btn-import-project" class="px-3 py-1.5 rounded bg-studio-card hover:bg-studio-hover border border-studio-border text-xs text-gray-300 transition flex items-center space-x-1.5" data-tooltip="Import Project JSON">
+                <i class="fa-solid fa-folder-open"></i>
+                <span class="hidden md:inline">Open</span>
+            </button>
+            <button id="btn-open-help" class="w-8 h-8 rounded bg-studio-card hover:bg-studio-hover border border-studio-border text-gray-400 hover:text-white flex items-center justify-center transition" data-tooltip="Shortcuts & Instructions">
+                <i class="fa-solid fa-circle-question"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE CONTAINER -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- LEFT DRAWING TOOLBAR -->
+        <aside class="w-14 bg-studio-panel border-r border-studio-border flex flex-col items-center py-3 space-y-2 z-10 shrink-0">
+            <button class="tool-btn right-tooltip active w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="brush" data-tooltip="Brush (B)">
+                <i class="fa-solid fa-paint-brush"></i>
+            </button>
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="pencil" data-tooltip="Pencil (Crisp)">
+                <i class="fa-solid fa-pencil"></i>
+            </button>
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="eraser" data-tooltip="Eraser (E)">
+                <i class="fa-solid fa-eraser"></i>
+            </button>
+
+            <div class="w-8 h-px bg-studio-border my-1"></div>
+
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="line" data-tooltip="Line Tool (L)">
+                <i class="fa-solid fa-slash"></i>
+            </button>
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="rect" data-tooltip="Rectangle (R)">
+                <i class="fa-regular fa-square"></i>
+            </button>
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="circle" data-tooltip="Circle / Ellipse (C)">
+                <i class="fa-regular fa-circle"></i>
+            </button>
+
+            <div class="w-8 h-px bg-studio-border my-1"></div>
+
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="fill" data-tooltip="Fill Bucket (G)">
+                <i class="fa-solid fa-fill-drip"></i>
+            </button>
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="eyedropper" data-tooltip="Eyedropper (I)">
+                <i class="fa-solid fa-eye-dropper"></i>
+            </button>
+            <button class="tool-btn right-tooltip w-10 h-10 rounded-lg flex items-center justify-center text-gray-300 hover:bg-studio-hover transition" data-tool="pan" data-tooltip="Pan Canvas (Space / Hand)">
+                <i class="fa-solid fa-hand"></i>
+            </button>
+
+            <div class="mt-auto flex flex-col items-center space-y-2">
+                <!-- Quick Active Color Circle -->
+                <div class="relative group cursor-pointer">
+                    <input id="quick-color-picker" type="color" value="#ffffff" class="absolute opacity-0 inset-0 w-full h-full cursor-pointer z-10" />
+                    <div id="quick-color-preview" class="w-8 h-8 rounded-full border-2 border-white/80 shadow-md bg-white"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER CANVAS WORKSPACE -->
+        <main id="viewport-container" class="flex-1 checkerboard relative overflow-hidden flex items-center justify-center cursor-crosshair">
+            
+            <!-- Zoom & Pan Interactive Canvas Wrapper -->
+            <div id="canvas-transform-wrapper" class="relative shadow-2xl transition-transform duration-75 ease-out origin-center" style="width: 1920px; height: 1080px;">
+                <!-- Layer Canvases Stacked -->
+                <canvas id="bg-canvas" width="1920" height="1080" class="absolute inset-0 pointer-events-none bg-white"></canvas>
+                <canvas id="onion-canvas" width="1920" height="1080" class="absolute inset-0 pointer-events-none z-10"></canvas>
+                <div id="layers-container" class="absolute inset-0 z-20"></div>
+                <canvas id="active-draw-canvas" width="1920" height="1080" class="absolute inset-0 z-30 touch-none"></canvas>
+                <canvas id="gizmo-canvas" width="1920" height="1080" class="absolute inset-0 pointer-events-none z-40"></canvas>
+            </div>
+
+            <!-- Floating View Controls (Zoom HUD) -->
+            <div class="absolute bottom-4 left-4 bg-studio-panel/90 backdrop-blur border border-studio-border rounded-lg p-1.5 flex items-center space-x-2 text-xs z-30 shadow-xl">
+                <button id="btn-zoom-out" class="w-7 h-7 rounded hover:bg-studio-hover flex items-center justify-center text-gray-300" data-tooltip="Zoom Out">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <span id="zoom-percent-display" class="font-mono w-12 text-center text-gray-200">100%</span>
+                <button id="btn-zoom-in" class="w-7 h-7 rounded hover:bg-studio-hover flex items-center justify-center text-gray-300" data-tooltip="Zoom In">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+                <div class="h-4 w-px bg-studio-border"></div>
+                <button id="btn-zoom-reset" class="px-2 py-1 rounded hover:bg-studio-hover text-gray-300" data-tooltip="Fit Canvas to Viewport">
+                    Fit Screen
+                </button>
+            </div>
+
+            <!-- Canvas Grid Overlay Toggle HUD -->
+            <div class="absolute top-4 left-4 bg-studio-panel/90 backdrop-blur border border-studio-border rounded-lg px-2 py-1 flex items-center space-x-2 text-xs z-30 shadow-xl">
+                <label class="flex items-center space-x-1.5 cursor-pointer text-gray-300 hover:text-white">
+                    <input id="chk-show-grid" type="checkbox" class="rounded bg-studio-card border-studio-border text-indigo-600 focus:ring-0">
+                    <span>Grid Overlay</span>
+                </label>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR: TOOL PROPERTIES & LAYERS -->
+        <aside class="w-72 bg-studio-panel border-l border-studio-border flex flex-col z-10 shrink-0">
+            <!-- Tabs Header -->
+            <div class="flex border-b border-studio-border text-xs font-medium">
+                <button id="tab-btn-properties" class="flex-1 py-3 text-center border-b-2 border-indigo-500 text-indigo-400 font-semibold bg-studio-card/50">
+                    <i class="fa-solid fa-sliders mr-1.5"></i>Tool Properties
+                </button>
+                <button id="tab-btn-layers" class="flex-1 py-3 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200">
+                    <i class="fa-solid fa-layer-group mr-1.5"></i>Layers
+                </button>
+            </div>
+
+            <!-- TAB 1: TOOL PROPERTIES -->
+            <div id="tab-content-properties" class="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
+                
+                <!-- Tool Header Display -->
+                <div class="flex items-center justify-between border-b border-studio-border pb-3">
+                    <span class="font-bold uppercase tracking-wider text-gray-400 text-[10px]" id="current-tool-title">Brush Tool</span>
+                    <span class="text-indigo-400 text-xs font-mono" id="tool-shortcut-hint">Hotkey: B</span>
+                </div>
+
+                <!-- Size Slider -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>Size</span>
+                        <span id="val-brush-size" class="font-mono font-medium text-indigo-400">10 px</span>
+                    </div>
+                    <input id="slider-brush-size" type="range" min="1" max="150" value="10" class="w-full">
+                </div>
+
+                <!-- Opacity Slider -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>Opacity</span>
+                        <span id="val-brush-opacity" class="font-mono font-medium text-indigo-400">100%</span>
+                    </div>
+                    <input id="slider-brush-opacity" type="range" min="1" max="100" value="100" class="w-full">
+                </div>
+
+                <!-- Smoothness Slider -->
+                <div class="space-y-2" id="group-smoothness">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>Line Smoothing</span>
+                        <span id="val-brush-smooth" class="font-mono font-medium text-indigo-400">50%</span>
+                    </div>
+                    <input id="slider-brush-smooth" type="range" min="0" max="100" value="50" class="w-full">
+                </div>
+
+                <!-- Fill Tolerance Slider (Only for Bucket) -->
+                <div class="space-y-2 hidden" id="group-fill-tolerance">
+                    <div class="flex justify-between items-center text-gray-300">
+                        <span>Fill Tolerance</span>
+                        <span id="val-fill-tolerance" class="font-mono font-medium text-indigo-400">32</span>
+                    </div>
+                    <input id="slider-fill-tolerance" type="range" min="0" max="150" value="32" class="w-full">
+                </div>
+
+                <div class="h-px bg-studio-border my-2"></div>
+
+                <!-- Color Palette & Swatches -->
+                <div class="space-y-3">
+                    <span class="font-bold uppercase tracking-wider text-gray-400 text-[10px]">Color Palette</span>
+                    
+                    <div class="flex items-center space-x-3 bg-studio-card p-2.5 rounded-lg border border-studio-border">
+                        <input id="main-color-picker" type="color" value="#ffffff" class="w-10 h-10 rounded cursor-pointer border-0 bg-transparent">
+                        <div class="flex-1">
+                            <input id="main-hex-input" type="text" value="#FFFFFF" class="w-full bg-studio-panel border border-studio-border rounded px-2 py-1 font-mono text-xs text-gray-200 focus:outline-none focus:border-indigo-500 uppercase">
+                        </div>
+                    </div>
+
+                    <!-- Preset Swatches Grid -->
+                    <div class="space-y-1">
+                        <div class="text-[10px] text-gray-400 flex justify-between items-center">
+                            <span>Swatches</span>
+                            <button id="btn-add-swatch" class="text-indigo-400 hover:text-indigo-300 text-xs">+ Add Current</button>
+                        </div>
+                        <div id="swatches-grid" class="grid grid-cols-6 gap-1.5 pt-1">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: LAYERS -->
+            <div id="tab-content-layers" class="flex-1 overflow-y-auto p-4 space-y-4 text-xs hidden">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold uppercase tracking-wider text-gray-400 text-[10px]">Canvas Layers</span>
+                    <button id="btn-add-layer" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded text-xs font-medium transition flex items-center space-x-1">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                        <span>New Layer</span>
+                    </button>
+                </div>
+
+                <!-- Layers List Container -->
+                <div id="layers-list" class="space-y-2">
+                    <!-- Layer cards dynamically generated -->
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- BOTTOM TIMELINE PANEL -->
+    <footer class="h-44 bg-studio-panel border-t border-studio-border flex flex-col z-20 shrink-0">
+        
+        <!-- Timeline Control Bar -->
+        <div class="h-10 border-b border-studio-border px-4 flex items-center justify-between text-xs bg-studio-card/40">
+            
+            <!-- Playback Controls -->
+            <div class="flex items-center space-x-2">
+                <button id="btn-first-frame" class="w-7 h-7 rounded hover:bg-studio-hover text-gray-300 flex items-center justify-center" data-tooltip="First Frame">
+                    <i class="fa-solid fa-backward-step"></i>
+                </button>
+                <button id="btn-prev-frame" class="w-7 h-7 rounded hover:bg-studio-hover text-gray-300 flex items-center justify-center" data-tooltip="Previous Frame (Left Arrow)">
+                    <i class="fa-solid fa-caret-left text-base"></i>
+                </button>
+                <button id="btn-play-pause" class="w-8 h-8 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md transition" data-tooltip="Play / Pause (Space)">
+                    <i class="fa-solid fa-play ml-0.5 text-xs" id="icon-play-pause"></i>
+                </button>
+                <button id="btn-next-frame" class="w-7 h-7 rounded hover:bg-studio-hover text-gray-300 flex items-center justify-center" data-tooltip="Next Frame (Right Arrow)">
+                    <i class="fa-solid fa-caret-right text-base"></i>
+                </button>
+                <button id="btn-last-frame" class="w-7 h-7 rounded hover:bg-studio-hover text-gray-300 flex items-center justify-center" data-tooltip="Last Frame">
+                    <i class="fa-solid fa-forward-step"></i>
+                </button>
+
+                <div class="h-4 w-px bg-studio-border mx-1"></div>
+
+                <button id="btn-toggle-loop" class="px-2 py-1 rounded bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 transition flex items-center space-x-1" data-tooltip="Toggle Playback Loop">
+                    <i class="fa-solid fa-repeat text-[10px]"></i>
+                    <span class="text-[11px]">Loop</span>
+                </button>
+
+                <div class="h-4 w-px bg-studio-border mx-1"></div>
+
+                <!-- FPS Slider -->
+                <div class="flex items-center space-x-2 bg-studio-card px-2.5 py-1 rounded border border-studio-border">
+                    <span class="text-gray-400">FPS:</span>
+                    <span id="val-fps-display" class="font-mono text-indigo-400 font-bold w-5">12</span>
+                    <input id="slider-fps" type="range" min="1" max="30" value="12" class="w-20">
+                </div>
+            </div>
+
+            <!-- Timeline Actions (Add/Duplicate/Delete Frame) -->
+            <div class="flex items-center space-x-2">
+                <button id="btn-add-frame" class="px-2.5 py-1 rounded bg-studio-card hover:bg-studio-hover border border-studio-border text-gray-200 transition flex items-center space-x-1" data-tooltip="Add New Blank Frame">
+                    <i class="fa-solid fa-plus text-indigo-400"></i>
+                    <span>Add Frame</span>
+                </button>
+                <button id="btn-duplicate-frame" class="px-2.5 py-1 rounded bg-studio-card hover:bg-studio-hover border border-studio-border text-gray-200 transition flex items-center space-x-1" data-tooltip="Duplicate Active Frame">
+                    <i class="fa-regular fa-copy text-indigo-400"></i>
+                    <span>Duplicate</span>
+                </button>
+                <button id="btn-delete-frame" class="px-2 py-1 rounded bg-studio-card hover:bg-red-900/30 text-gray-300 hover:text-red-300 border border-studio-border transition" data-tooltip="Delete Current Frame">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+
+                <div class="h-4 w-px bg-studio-border mx-1"></div>
+
+                <!-- Advanced Onion Skinning Controls Toggle -->
+                <div class="relative flex items-center space-x-1.5 bg-studio-card px-2.5 py-1 rounded border border-studio-border">
+                    <input id="chk-onion-skin" type="checkbox" checked class="rounded bg-studio-panel border-studio-border text-indigo-600 focus:ring-0 cursor-pointer">
+                    <label for="chk-onion-skin" class="text-gray-200 cursor-pointer font-medium">Onion Skin (O)</label>
+                    <button id="btn-onion-settings" class="text-gray-400 hover:text-white ml-1" data-tooltip="Onion Skinning Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scrollable Frames Ribbon -->
+        <div id="timeline-scroll-container" class="flex-1 overflow-x-auto p-3 flex items-center space-x-2 scroll-smooth">
+            <!-- Frame Cards inserted dynamically here -->
+        </div>
+    </footer>
+
+    <!-- ONION SKIN SETTINGS POPUP MODAL -->
+    <div id="modal-onion-settings" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-studio-panel border border-studio-border rounded-xl w-96 p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-studio-border pb-3">
+                <h3 class="font-bold text-sm text-white flex items-center"><i class="fa-solid fa-layer-group text-indigo-400 mr-2"></i>Onion Skinning Settings</h3>
+                <button class="close-modal text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div class="space-y-1">
+                    <div class="flex justify-between text-gray-300">
+                        <span>Previous Frames Depth</span>
+                        <span id="val-onion-prev-depth" class="font-mono text-indigo-400">2 frames</span>
+                    </div>
+                    <input id="slider-onion-prev-depth" type="range" min="0" max="5" value="2" class="w-full">
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex justify-between text-gray-300">
+                        <span>Next Frames Depth</span>
+                        <span id="val-onion-next-depth" class="font-mono text-indigo-400">1 frame</span>
+                    </div>
+                    <input id="slider-onion-next-depth" type="range" min="0" max="5" value="1" class="w-full">
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex justify-between text-gray-300">
+                        <span>Overlay Opacity</span>
+                        <span id="val-onion-opacity" class="font-mono text-indigo-400">35%</span>
+                    </div>
+                    <input id="slider-onion-opacity" type="range" min="5" max="90" value="35" class="w-full">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <div class="bg-studio-card p-2 rounded border border-studio-border">
+                        <label class="block text-[10px] text-gray-400 mb-1">Previous Tint</label>
+                        <div class="flex items-center space-x-2">
+                            <input id="color-onion-prev" type="color" value="#ff2d55" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
+                            <span class="font-mono text-[11px] text-gray-300">Red Overlay</span>
+                        </div>
+                    </div>
+                    <div class="bg-studio-card p-2 rounded border border-studio-border">
+                        <label class="block text-[10px] text-gray-400 mb-1">Next Tint</label>
+                        <div class="flex items-center space-x-2">
+                            <input id="color-onion-next" type="color" value="#00e5ff" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent">
+                            <span class="font-mono text-[11px] text-gray-300">Cyan Overlay</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button class="close-modal w-full py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPORT MODAL -->
+    <div id="modal-export" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-studio-panel border border-studio-border rounded-xl w-[480px] p-6 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between border-b border-studio-border pb-3">
+                <h3 class="font-bold text-base text-white flex items-center"><i class="fa-solid fa-file-export text-indigo-400 mr-2"></i>Export Animation Project</h3>
+                <button class="close-modal text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <button id="opt-export-webm" class="export-type-card active p-3 rounded-lg bg-studio-card border-2 border-indigo-500 text-center space-y-2 hover:bg-studio-hover transition">
+                    <i class="fa-solid fa-file-video text-2xl text-indigo-400"></i>
+                    <div class="font-semibold text-xs text-white">WebM Video</div>
+                    <div class="text-[10px] text-gray-400">Playable video file</div>
+                </button>
+                <button id="opt-export-spritesheet" class="export-type-card p-3 rounded-lg bg-studio-card border-2 border-transparent text-center space-y-2 hover:bg-studio-hover transition">
+                    <i class="fa-solid fa-border-all text-2xl text-emerald-400"></i>
+                    <div class="font-semibold text-xs text-white">Spritesheet</div>
+                    <div class="text-[10px] text-gray-400">PNG Grid of frames</div>
+                </button>
+                <button id="opt-export-json" class="export-type-card p-3 rounded-lg bg-studio-card border-2 border-transparent text-center space-y-2 hover:bg-studio-hover transition">
+                    <i class="fa-solid fa-code text-2xl text-amber-400"></i>
+                    <div class="font-semibold text-xs text-white">Project JSON</div>
+                    <div class="text-[10px] text-gray-400">Editable project data</div>
+                </button>
+            </div>
+
+            <!-- Export Settings Config Box -->
+            <div id="export-config-box" class="bg-studio-card p-4 rounded-lg border border-studio-border text-xs space-y-3">
+                <div id="cfg-webm" class="space-y-2">
+                    <p class="text-gray-300">Renders frame sequence at <span id="export-fps-lbl" class="font-mono text-indigo-400">12 FPS</span> into high quality WebM video format using native MediaRecorder API.</p>
+                </div>
+                <div id="cfg-spritesheet" class="space-y-3 hidden">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-300">Grid Columns Count:</span>
+                        <input id="num-sprite-cols" type="number" min="1" max="20" value="5" class="w-16 bg-studio-panel border border-studio-border rounded px-2 py-1 text-center text-white font-mono">
+                    </div>
+                </div>
+                <div id="cfg-json" class="space-y-2 hidden">
+                    <p class="text-gray-300">Saves complete multi-layer project structure, active frames, base64 drawings, and timeline settings into a re-importable `.json` file.</p>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-2">
+                <button class="close-modal px-4 py-2 rounded bg-studio-card hover:bg-studio-hover text-gray-300 text-xs">Cancel</button>
+                <button id="btn-trigger-export" class="px-5 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs shadow-lg shadow-indigo-600/30 transition flex items-center space-x-2">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Download File</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESOLUTION SELECTOR MODAL -->
+    <div id="modal-resolution" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-studio-panel border border-studio-border rounded-xl w-96 p-5 shadow-2xl space-y-4 text-xs">
+            <div class="flex items-center justify-between border-b border-studio-border pb-3">
+                <h3 class="font-bold text-sm text-white">Canvas Resolution Preset</h3>
+                <button class="close-modal text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-2">
+                <button class="res-preset-btn w-full p-2.5 rounded bg-studio-card hover:bg-indigo-600/20 border border-studio-border text-left flex justify-between items-center" data-w="1920" data-h="1080">
+                    <span class="font-semibold text-white">1080p Full HD</span>
+                    <span class="font-mono text-gray-400">1920 x 1080</span>
+                </button>
+                <button class="res-preset-btn w-full p-2.5 rounded bg-studio-card hover:bg-indigo-600/20 border border-studio-border text-left flex justify-between items-center" data-w="1280" data-h="720">
+                    <span class="font-semibold text-white">720p HD</span>
+                    <span class="font-mono text-gray-400">1280 x 720</span>
+                </button>
+                <button class="res-preset-btn w-full p-2.5 rounded bg-studio-card hover:bg-indigo-600/20 border border-studio-border text-left flex justify-between items-center" data-w="1000" data-h="1000">
+                    <span class="font-semibold text-white">Square Canvas</span>
+                    <span class="font-mono text-gray-400">1000 x 1000</span>
+                </button>
+                <button class="res-preset-btn w-full p-2.5 rounded bg-studio-card hover:bg-indigo-600/20 border border-studio-border text-left flex justify-between items-center" data-w="512" data-h="512">
+                    <span class="font-semibold text-white">Sprite Icon</span>
+                    <span class="font-mono text-gray-400">512 x 512</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHORTCUTS HELP MODAL -->
+    <div id="modal-help" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-studio-panel border border-studio-border rounded-xl w-[500px] p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-studio-border pb-3">
+                <h3 class="font-bold text-base text-white flex items-center"><i class="fa-solid fa-keyboard text-indigo-400 mr-2"></i>Keyboard Shortcuts</h3>
+                <button class="close-modal text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Brush Tool</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">B</kbd>
+                </div>
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Eraser Tool</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">E</kbd>
+                </div>
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Fill Bucket</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">G</kbd>
+                </div>
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Shapes (Line/Rect/Circle)</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">L / R / C</kbd>
+                </div>
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Play / Pause</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">Space</kbd>
+                </div>
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Step Prev / Next Frame</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">← / →</kbd>
+                </div>
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Toggle Onion Skin</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">O</kbd>
+                </div>
+                <div class="bg-studio-card p-2.5 rounded border border-studio-border flex justify-between items-center">
+                    <span class="text-gray-300">Undo / Redo</span>
+                    <kbd class="px-2 py-0.5 rounded bg-studio-panel border border-studio-border font-mono text-indigo-300">Ctrl+Z / Ctrl+Y</kbd>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button class="close-modal w-full py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition">Got It</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Input for Importing JSON -->
+    <input id="file-input-import" type="file" accept=".json" class="hidden">
+
+    <script>
+        /**
+         * AnimateStudio Pro - Core Engine Architecture
+         */
+        const AppState = {
+            width: 1920,
+            height: 1080,
+            fps: 12,
+            isPlaying: false,
+            isLooping: true,
+            currentFrameIndex: 0,
+            activeLayerId: null,
+            zoom: 0.5,
+            panX: 0,
+            panY: 0,
+            tool: 'brush', // brush, pencil, eraser, line, rect, circle, fill, eyedropper, pan
+            
+            brush: {
+                size: 12,
+                opacity: 1.0,
+                smoothness: 0.5,
+                color: '#ffffff',
+                fillTolerance: 32
+            },
+
+            onionSkin: {
+                enabled: true,
+                prevDepth: 2,
+                nextDepth: 1,
+                prevColor: '#ff2d55',
+                nextColor: '#00e5ff',
+                opacity: 0.35
+            },
+
+            layers: [], // Array of { id, name, visible, locked, opacity }
+            frames: [], // Array of { id, layers: { [layerId]: HTMLCanvasElement } }
+            
+            undoStack: [],
+            redoStack: [],
+            
+            swatches: [
+                '#ffffff', '#000000', '#ff2d55', '#ff9500', 
+                '#ffcc00', '#34c759', '#00e5ff', '#007aff', 
+                '#5856d6', '#af52de', '#e5e5ea', '#636366'
+            ]
+        };
+
+        // DOM Element Cache
+        const DOM = {
+            viewport: document.getElementById('viewport-container'),
+            wrapper: document.getElementById('canvas-transform-wrapper'),
+            bgCanvas: document.getElementById('bg-canvas'),
+            onionCanvas: document.getElementById('onion-canvas'),
+            layersContainer: document.getElementById('layers-container'),
+            activeDrawCanvas: document.getElementById('active-draw-canvas'),
+            gizmoCanvas: document.getElementById('gizmo-canvas'),
+            
+            // Buttons & Controls
+            toolBtns: document.querySelectorAll('.tool-btn'),
+            btnPlayPause: document.getElementById('btn-play-pause'),
+            iconPlayPause: document.getElementById('icon-play-pause'),
+            btnPrevFrame: document.getElementById('btn-prev-frame'),
+            btnNextFrame: document.getElementById('btn-next-frame'),
+            btnFirstFrame: document.getElementById('btn-first-frame'),
+            btnLastFrame: document.getElementById('btn-last-frame'),
+            btnToggleLoop: document.getElementById('btn-toggle-loop'),
+            
+            btnAddFrame: document.getElementById('btn-add-frame'),
+            btnDupFrame: document.getElementById('btn-duplicate-frame'),
+            btnDelFrame: document.getElementById('btn-delete-frame'),
+            
+            sliderFps: document.getElementById('slider-fps'),
+            valFpsDisplay: document.getElementById('val-fps-display'),
+            
+            sliderBrushSize: document.getElementById('slider-brush-size'),
+            valBrushSize: document.getElementById('val-brush-size'),
+            sliderBrushOpacity: document.getElementById('slider-brush-opacity'),
+            valBrushOpacity: document.getElementById('val-brush-opacity'),
+            sliderBrushSmooth: document.getElementById('slider-brush-smooth'),
+            valBrushSmooth: document.getElementById('val-brush-smooth'),
+            sliderFillTolerance: document.getElementById('slider-fill-tolerance'),
+            valFillTolerance: document.getElementById('val-fill-tolerance'),
+            
+            mainColorPicker: document.getElementById('main-color-picker'),
+            mainHexInput: document.getElementById('main-hex-input'),
+            quickColorPicker: document.getElementById('quick-color-picker'),
+            quickColorPreview: document.getElementById('quick-color-preview'),
+            swatchesGrid: document.getElementById('swatches-grid'),
+            btnAddSwatch: document.getElementById('btn-add-swatch'),
+            
+            // Onion Skin DOM
+            chkOnionSkin: document.getElementById('chk-onion-skin'),
+            btnOnionSettings: document.getElementById('btn-onion-settings'),
+            sliderOnionPrevDepth: document.getElementById('slider-onion-prev-depth'),
+            valOnionPrevDepth: document.getElementById('val-onion-prev-depth'),
+            sliderOnionNextDepth: document.getElementById('slider-onion-next-depth'),
+            valOnionNextDepth: document.getElementById('val-onion-next-depth'),
+            sliderOnionOpacity: document.getElementById('slider-onion-opacity'),
+            valOnionOpacity: document.getElementById('val-onion-opacity'),
+            colorOnionPrev: document.getElementById('color-onion-prev'),
+            colorOnionNext: document.getElementById('color-onion-next'),
+            
+            // Timeline & Layers
+            timelineScroll: document.getElementById('timeline-scroll-container'),
+            layersList: document.getElementById('layers-list'),
+            btnAddLayer: document.getElementById('btn-add-layer'),
+            
+            // Zoom & Canvas Stats
+            zoomPercentDisplay: document.getElementById('zoom-percent-display'),
+            btnZoomIn: document.getElementById('btn-zoom-in'),
+            btnZoomOut: document.getElementById('btn-zoom-out'),
+            btnZoomReset: document.getElementById('btn-zoom-reset'),
+            chkShowGrid: document.getElementById('chk-show-grid'),
+            
+            // Undo / Redo / Clear
+            btnUndo: document.getElementById('btn-undo'),
+            btnRedo: document.getElementById('btn-redo'),
+            btnClearCanvas: document.getElementById('btn-clear-canvas'),
+            
+            // Modals
+            modalExport: document.getElementById('modal-export'),
+            modalOnionSettings: document.getElementById('modal-onion-settings'),
+            modalResolution: document.getElementById('modal-resolution'),
+            modalHelp: document.getElementById('modal-help'),
+            btnOpenExport: document.getElementById('btn-open-modal-export'),
+            btnOpenHelp: document.getElementById('btn-open-help'),
+            btnResizeCanvas: document.getElementById('btn-resize-canvas'),
+            resDisplay: document.getElementById('res-display'),
+            btnTriggerExport: document.getElementById('btn-trigger-export'),
+            btnImportProject: document.getElementById('btn-import-project'),
+            fileInputImport: document.getElementById('file-input-import'),
+            
+            currentFrameNum: document.getElementById('current-frame-num'),
+            totalFramesNum: document.getElementById('total-frames-num')
+        };
+
+        // Context References
+        const drawCtx = DOM.activeDrawCanvas.getContext('2d');
+        const gizmoCtx = DOM.gizmoCanvas.getContext('2d');
+        const onionCtx = DOM.onionCanvas.getContext('2d');
+
+
+        /**
+         * Initialize Project Defaults
+         */
+        function initApp() {
+            // Create default background layer and artwork layer
+            const layer1 = createLayerObject('Background Layer');
+            const layer2 = createLayerObject('Drawing Layer');
+            
+            AppState.layers = [layer1, layer2];
+            AppState.activeLayerId = layer2.id;
+
+            // Create initial blank frame
+            addNewFrame();
+
+            // Setup Color Swatches
+            renderSwatches();
+
+            // Center initial canvas zoom
+            fitCanvasToScreen();
+
+            // Set up DOM Event Listeners
+            bindEvents();
+
+            // Start Timeline Animation Loop
+            startPlaybackTimer();
+
+            // Render Initial Canvas Stack & Timeline
+            renderAll();
+        }
+
+        function createUniqueId() {
+            return 'id_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function createLayerObject(name) {
+            return {
+                id: createUniqueId(),
+                name: name || 'New Layer',
+                visible: true,
+                locked: false,
+                opacity: 1.0
+            };
+        }
+
+        function createFrameCanvas() {
+            const canvas = document.createElement('canvas');
+            canvas.width = AppState.width;
+            canvas.height = AppState.height;
+            return canvas;
+        }
+
+        function addNewFrame(insertAtIndex = null, copyFromIndex = null) {
+            const frameLayers = {};
+            
+            AppState.layers.forEach(layer => {
+                const cvs = createFrameCanvas();
+                if (copyFromIndex !== null && AppState.frames[copyFromIndex]) {
+                    const sourceCanvas = AppState.frames[copyFromIndex].layers[layer.id];
+                    if (sourceCanvas) {
+                        const ctx = cvs.getContext('2d');
+                        ctx.drawImage(sourceCanvas, 0, 0);
+                    }
+                }
+                frameLayers[layer.id] = cvs;
+            });
+
+            const frameObj = {
+                id: createUniqueId(),
+                layers: frameLayers
+            };
+
+            if (insertAtIndex === null) {
+                AppState.frames.push(frameObj);
+                AppState.currentFrameIndex = AppState.frames.length - 1;
+            } else {
+                AppState.frames.splice(insertAtIndex, 0, frameObj);
+                AppState.currentFrameIndex = insertAtIndex;
+            }
+
+            saveUndoState();
+            renderAll();
+        }
+
+
+        /**
+         * Master Render Cycle
+         */
+        function renderAll() {
+            renderLayerStackDOM();
+            renderOnionSkin();
+            renderGizmoGrid();
+            renderTimelineUI();
+            renderLayersUI();
+            updateStatsUI();
+        }
+
+        /**
+         * Render Active Frame Canvas Layer DOM Nodes
+         */
+        function renderLayerStackDOM() {
+            DOM.layersContainer.innerHTML = '';
+            
+            const currentFrame = AppState.frames[AppState.currentFrameIndex];
+            if (!currentFrame) return;
+
+            AppState.layers.forEach(layer => {
+                const layerCanvas = currentFrame.layers[layer.id];
+                if (layerCanvas) {
+                    layerCanvas.className = 'absolute inset-0 pointer-events-none transition-opacity duration-75';
+                    layerCanvas.style.opacity = layer.visible ? layer.opacity : 0;
+                    DOM.layersContainer.appendChild(layerCanvas);
+                }
+            });
+        }
+
+        /**
+         * Render Advanced Tinted Onion Skinning Overlay
+         */
+        function renderOnionSkin() {
+            onionCtx.clearRect(0, 0, AppState.width, AppState.height);
+            
+            if (!AppState.onionSkin.enabled || AppState.isPlaying) return;
+
+            const currIdx = AppState.currentFrameIndex;
+            const prevDepth = parseInt(AppState.onionSkin.prevDepth);
+            const nextDepth = parseInt(AppState.onionSkin.nextDepth);
+            const baseOpacity = parseFloat(AppState.onionSkin.opacity);
+
+            // Temp canvas for color tinting operation
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = AppState.width;
+            tempCanvas.height = AppState.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // 1. Render Previous Frames (Red Tint default)
+            for (let i = prevDepth; i >= 1; i--) {
+                const targetIdx = currIdx - i;
+                if (targetIdx >= 0) {
+                    const stepAlpha = baseOpacity * (1 - (i - 1) / prevDepth);
+                    drawTintedFrame(targetIdx, AppState.onionSkin.prevColor, stepAlpha, tempCtx);
+                }
+            }
+
+            // 2. Render Next Frames (Cyan Tint default)
+            for (let i = nextDepth; i >= 1; i--) {
+                const targetIdx = currIdx + i;
+                if (targetIdx < AppState.frames.length) {
+                    const stepAlpha = baseOpacity * (1 - (i - 1) / nextDepth);
+                    drawTintedFrame(targetIdx, AppState.onionSkin.nextColor, stepAlpha, tempCtx);
+                }
+            }
+        }
+
+        function drawTintedFrame(frameIndex, tintHex, opacity, tempCtx) {
+            const frame = AppState.frames[frameIndex];
+            if (!frame) return;
+
+            tempCtx.clearRect(0, 0, AppState.width, AppState.height);
+
+            // Flatten frame layers to temp context
+            AppState.layers.forEach(layer => {
+                if (layer.visible && frame.layers[layer.id]) {
+                    tempCtx.drawImage(frame.layers[layer.id], 0, 0);
+                }
+            });
+
+            // Tint pixels
+            tempCtx.globalCompositeOperation = 'source-in';
+            tempCtx.fillStyle = tintHex;
+            tempCtx.fillRect(0, 0, AppState.width, AppState.height);
+            tempCtx.globalCompositeOperation = 'source-over';
+
+            // Draw onto main onion skin canvas
+            onionCtx.globalAlpha = opacity;
+            onionCtx.drawImage(tempCanvas, 0, 0);
+            onionCtx.globalAlpha = 1.0;
+        }
+
+        /**
+         * Render Viewport Grid Overlay & Tool Cursor Preview
+         */
+        function renderGizmoGrid() {
+            gizmoCtx.clearRect(0, 0, AppState.width, AppState.height);
+
+            if (DOM.chkShowGrid.checked) {
+                gizmoCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                gizmoCtx.lineWidth = 1;
+                const gridSize = 64;
+
+                gizmoCtx.beginPath();
+                for (let x = gridSize; x < AppState.width; x += gridSize) {
+                    gizmoCtx.moveTo(x, 0);
+                    gizmoCtx.lineTo(x, AppState.height);
+                }
+                for (let y = gridSize; y < AppState.height; y += gridSize) {
+                    gizmoCtx.moveTo(0, y);
+                    gizmoCtx.lineTo(AppState.width, y);
+                }
+                gizmoCtx.stroke();
+            }
+        }
+
+
+        // Pointer Drawing State Variables
+        let isDrawing = false;
+        let isPanning = false;
+        let startPoint = { x: 0, y: 0 };
+        let points = [];
+        let panStart = { x: 0, y: 0 };
+
+        function getCanvasCoordinates(e) {
+            const rect = DOM.activeDrawCanvas.getBoundingClientRect();
+            const scaleX = AppState.width / rect.width;
+            const scaleY = AppState.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY,
+                pressure: e.pressure && e.pressure > 0 ? e.pressure : 1.0
+            };
+        }
+
+        function handlePointerDown(e) {
+            if (AppState.isPlaying) return;
+            
+            // Check if holding space or pan tool selected
+            if (e.button === 1 || AppState.tool === 'pan' || isSpacePressed) {
+                isPanning = true;
+                panStart = { x: e.clientX - AppState.panX, y: e.clientY - AppState.panY };
+                DOM.viewport.style.cursor = 'grabbing';
+                return;
+            }
+
+            if (e.button !== 0) return; // Only primary mouse click / pen touch
+
+            const activeLayer = AppState.layers.find(l => l.id === AppState.activeLayerId);
+            if (!activeLayer || !activeLayer.visible || activeLayer.locked) {
+                showToast('Current layer is locked or hidden!');
+                return;
+            }
+
+            const pt = getCanvasCoordinates(e);
+            isDrawing = true;
+            startPoint = pt;
+            points = [pt];
+
+            const currentFrame = AppState.frames[AppState.currentFrameIndex];
+            const layerCanvas = currentFrame.layers[AppState.activeLayerId];
+            const layerCtx = layerCanvas.getContext('2d');
+
+            if (AppState.tool === 'fill') {
+                floodFill(layerCtx, Math.round(pt.x), Math.round(pt.y), AppState.brush.color, AppState.brush.fillTolerance);
+                isDrawing = false;
+                onStrokeComplete();
+                return;
+            }
+
+            if (AppState.tool === 'eyedropper') {
+                sampleColorAtPoint(pt.x, pt.y);
+                isDrawing = false;
+                return;
+            }
+
+            if (AppState.tool === 'brush' || AppState.tool === 'pencil' || AppState.tool === 'eraser') {
+                drawCtx.clearRect(0, 0, AppState.width, AppState.height);
+                setupStrokeContext(drawCtx);
+                drawCtx.beginPath();
+                drawCtx.arc(pt.x, pt.y, (AppState.brush.size * pt.pressure) / 2, 0, Math.PI * 2);
+                drawCtx.fill();
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (isPanning) {
+                AppState.panX = e.clientX - panStart.x;
+                AppState.panY = e.clientY - panStart.y;
+                applyCanvasTransform();
+                return;
+            }
+
+            if (!isDrawing) return;
+
+            const pt = getCanvasCoordinates(e);
+            points.push(pt);
+
+            if (AppState.tool === 'brush' || AppState.tool === 'pencil' || AppState.tool === 'eraser') {
+                renderSmoothStroke(drawCtx, points);
+            } else if (AppState.tool === 'line' || AppState.tool === 'rect' || AppState.tool === 'circle') {
+                drawCtx.clearRect(0, 0, AppState.width, AppState.height);
+                setupStrokeContext(drawCtx);
+                drawCtx.beginPath();
+                
+                if (AppState.tool === 'line') {
+                    drawCtx.moveTo(startPoint.x, startPoint.y);
+                    drawCtx.lineTo(pt.x, pt.y);
+                } else if (AppState.tool === 'rect') {
+                    drawCtx.rect(startPoint.x, startPoint.y, pt.x - startPoint.x, pt.y - startPoint.y);
+                } else if (AppState.tool === 'circle') {
+                    const rx = Math.abs(pt.x - startPoint.x) / 2;
+                    const ry = Math.abs(pt.y - startPoint.y) / 2;
+                    const cx = startPoint.x + (pt.x - startPoint.x) / 2;
+                    const cy = startPoint.y + (pt.y - startPoint.y) / 2;
+                    drawCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                }
+                drawCtx.stroke();
+            }
+        }
+
+        function handlePointerUp(e) {
+            if (isPanning) {
+                isPanning = false;
+                DOM.viewport.style.cursor = AppState.tool === 'pan' ? 'grab' : 'crosshair';
+                return;
+            }
+
+            if (!isDrawing) return;
+            isDrawing = false;
+
+            // Commit stroke from temp draw canvas to actual frame layer
+            const currentFrame = AppState.frames[AppState.currentFrameIndex];
+            const layerCanvas = currentFrame.layers[AppState.activeLayerId];
+            const layerCtx = layerCanvas.getContext('2d');
+
+            if (AppState.tool === 'eraser') {
+                layerCtx.globalCompositeOperation = 'destination-out';
+                layerCtx.drawImage(DOM.activeDrawCanvas, 0, 0);
+                layerCtx.globalCompositeOperation = 'source-over';
+            } else {
+                layerCtx.globalCompositeOperation = 'source-over';
+                layerCtx.drawImage(DOM.activeDrawCanvas, 0, 0);
+            }
+
+            drawCtx.clearRect(0, 0, AppState.width, AppState.height);
+            onStrokeComplete();
+        }
+
+        function setupStrokeContext(ctx) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = AppState.brush.color;
+            ctx.fillStyle = AppState.brush.color;
+            ctx.lineWidth = AppState.brush.size;
+            ctx.globalAlpha = parseFloat(AppState.brush.opacity);
+
+            if (AppState.tool === 'pencil') {
+                ctx.imageSmoothingEnabled = false;
+            } else {
+                ctx.imageSmoothingEnabled = true;
+            }
+        }
+
+        function renderSmoothStroke(ctx, pts) {
+            ctx.clearRect(0, 0, AppState.width, AppState.height);
+            if (pts.length < 2) return;
+
+            setupStrokeContext(ctx);
+
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+
+            const smoothFactor = parseFloat(AppState.brush.smoothness);
+
+            if (smoothFactor > 0 && pts.length > 2) {
+                for (let i = 1; i < pts.length - 1; i++) {
+                    const xc = (pts[i].x + pts[i + 1].x) / 2;
+                    const yc = (pts[i].y + pts[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(pts[i].x, pts[i].y, xc, yc);
+                }
+                ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+            } else {
+                for (let i = 1; i < pts.length; i++) {
+                    ctx.lineTo(pts[i].x, pts[i].y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function onStrokeComplete() {
+            saveUndoState();
+            renderOnionSkin();
+            renderTimelineUI();
+        }
+
+
+        /**
+         * Fast 4-Way Queue Flood Fill Algorithm
+         */
+        function floodFill(ctx, startX, startY, fillHex, tolerance) {
+            if (startX < 0 || startX >= AppState.width || startY < 0 || startY >= AppState.height) return;
+
+            const imgData = ctx.getImageData(0, 0, AppState.width, AppState.height);
+            const data = imgData.data;
+
+            // Convert Hex to RGBA
+            const fillRgba = hexToRgba(fillHex, Math.round(AppState.brush.opacity * 255));
+            const startIdx = (startY * AppState.width + startX) * 4;
+            const targetR = data[startIdx];
+            const targetG = data[startIdx + 1];
+            const targetB = data[startIdx + 2];
+            const targetA = data[startIdx + 3];
+
+            if (colorMatch(targetR, targetG, targetB, targetA, fillRgba.r, fillRgba.g, fillRgba.b, fillRgba.a, 0)) return;
+
+            const pixelStack = [[startX, startY]];
+            const width = AppState.width;
+            const height = AppState.height;
+
+            while (pixelStack.length > 0) {
+                const [x, y] = pixelStack.pop();
+                let currentY = y;
+
+                while (currentY >= 0 && matchTarget(currentY, x)) {
+                    currentY--;
+                }
+                currentY++;
+
+                let reachLeft = false;
+                let reachRight = false;
+
+                while (currentY < height && matchTarget(currentY, x)) {
+                    const idx = (currentY * width + x) * 4;
+                    data[idx] = fillRgba.r;
+                    data[idx + 1] = fillRgba.g;
+                    data[idx + 2] = fillRgba.b;
+                    data[idx + 3] = fillRgba.a;
+
+                    if (x > 0) {
+                        if (matchTarget(currentY, x - 1)) {
+                            if (!reachLeft) {
+                                pixelStack.push([x - 1, currentY]);
+                                reachLeft = true;
+                            }
+                        } else if (reachLeft) {
+                            reachLeft = false;
+                        }
+                    }
+
+                    if (x < width - 1) {
+                        if (matchTarget(currentY, x + 1)) {
+                            if (!reachRight) {
+                                pixelStack.push([x + 1, currentY]);
+                                reachRight = true;
+                            }
+                        } else if (reachRight) {
+                            reachRight = false;
+                        }
+                    }
+
+                    currentY++;
+                }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+
+            function matchTarget(cy, cx) {
+                const idx = (cy * width + cx) * 4;
+                return colorMatch(data[idx], data[idx + 1], data[idx + 2], data[idx + 3], targetR, targetG, targetB, targetA, tolerance);
+            }
+        }
+
+        function colorMatch(r1, g1, b1, a1, r2, g2, b2, a2, tol) {
+            return Math.abs(r1 - r2) <= tol && Math.abs(g1 - g2) <= tol && Math.abs(b1 - b2) <= tol && Math.abs(a1 - a2) <= tol;
+        }
+
+        function hexToRgba(hex, alpha = 255) {
+            let c = hex.replace('#', '');
+            if (c.length === 3) c = c.split('').map(x => x + x).join('');
+            const num = parseInt(c, 16);
+            return {
+                r: (num >> 16) & 255,
+                g: (num >> 8) & 255,
+                b: num & 255,
+                a: alpha
+            };
+        }
+
+        function sampleColorAtPoint(x, y) {
+            const tempCvs = document.createElement('canvas');
+            tempCvs.width = AppState.width;
+            tempCvs.height = AppState.height;
+            const tempCtx = tempCvs.getContext('2d');
+
+            const frame = AppState.frames[AppState.currentFrameIndex];
+            AppState.layers.forEach(layer => {
+                if (layer.visible && frame.layers[layer.id]) {
+                    tempCtx.drawImage(frame.layers[layer.id], 0, 0);
+                }
+            });
+
+            const pixel = tempCtx.getImageData(Math.round(x), Math.round(y), 1, 1).data;
+            const hex = '#' + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
+            
+            updateActiveColor(hex);
+            showToast(`Sampled Color: ${hex.toUpperCase()}`);
+        }
+
+
+        /**
+         * Render Horizontal Timeline Ribbons and Frame Thumbnails
+         */
+        function renderTimelineUI() {
+            DOM.timelineScroll.innerHTML = '';
+
+            AppState.frames.forEach((frame, idx) => {
+                const card = document.createElement('div');
+                const isActive = idx === AppState.currentFrameIndex;
+                
+                card.className = `group relative shrink-0 w-24 h-24 rounded-lg border-2 cursor-pointer transition flex flex-col justify-between p-1 select-none ${
+                    isActive ? 'border-indigo-500 bg-indigo-950/40 shadow-lg shadow-indigo-500/20' : 'border-studio-border bg-studio-card hover:border-gray-500'
+                }`;
+
+                // Frame Number Tag
+                const header = document.createElement('div');
+                header.className = 'flex justify-between items-center text-[10px] font-mono text-gray-400 z-10';
+                header.innerHTML = `<span>#${idx + 1}</span>`;
+
+                // Thumbnail Canvas
+                const thumbCvs = document.createElement('canvas');
+                thumbCvs.width = AppState.width;
+                thumbCvs.height = AppState.height;
+                thumbCvs.className = 'absolute inset-0 w-full h-full object-contain p-1 rounded pointer-events-none';
+                
+                const thumbCtx = thumbCvs.getContext('2d');
+                AppState.layers.forEach(l => {
+                    if (l.visible && frame.layers[l.id]) {
+                        thumbCtx.drawImage(frame.layers[l.id], 0, 0);
+                    }
+                });
+
+                // Frame Hover Actions (Move / Duplicate)
+                const actions = document.createElement('div');
+                actions.className = 'absolute inset-0 bg-black/60 backdrop-blur-sm rounded-md opacity-0 group-hover:opacity-100 transition flex items-center justify-center space-x-1 z-20';
+                actions.innerHTML = `
+                    <button onclick="event.stopPropagation(); moveFrame(${idx}, -1)" class="w-6 h-6 rounded bg-studio-hover text-gray-200 hover:text-white flex items-center justify-center" ${idx === 0 ? 'disabled class="opacity-30"' : ''}><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                    <button onclick="event.stopPropagation(); moveFrame(${idx}, 1)" class="w-6 h-6 rounded bg-studio-hover text-gray-200 hover:text-white flex items-center justify-center" ${idx === AppState.frames.length - 1 ? 'disabled class="opacity-30"' : ''}><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                `;
+
+                card.appendChild(header);
+                card.appendChild(thumbCvs);
+                card.appendChild(actions);
+
+                card.onclick = () => {
+                    AppState.currentFrameIndex = idx;
+                    renderAll();
+                };
+
+                DOM.timelineScroll.appendChild(card);
+            });
+
+            DOM.currentFrameNum.textContent = AppState.currentFrameIndex + 1;
+            DOM.totalFramesNum.textContent = AppState.frames.length;
+        }
+
+        function moveFrame(fromIdx, direction) {
+            const toIdx = fromIdx + direction;
+            if (toIdx < 0 || toIdx >= AppState.frames.length) return;
+
+            const temp = AppState.frames[fromIdx];
+            AppState.frames[fromIdx] = AppState.frames[toIdx];
+            AppState.frames[toIdx] = temp;
+
+            if (AppState.currentFrameIndex === fromIdx) AppState.currentFrameIndex = toIdx;
+            else if (AppState.currentFrameIndex === toIdx) AppState.currentFrameIndex = fromIdx;
+
+            saveUndoState();
+            renderAll();
+        }
+
+
+        /**
+         * Render Right Sidebar Layers Stack
+         */
+        function renderLayersUI() {
+            DOM.layersList.innerHTML = '';
+
+            // Render top to bottom (reverse array)
+            [...AppState.layers].reverse().forEach((layer) => {
+                const isActive = layer.id === AppState.activeLayerId;
+                const card = document.createElement('div');
+                card.className = `p-2.5 rounded-lg border transition flex flex-col space-y-2 ${
+                    isActive ? 'bg-indigo-950/40 border-indigo-500/50' : 'bg-studio-card border-studio-border'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 cursor-pointer flex-1" onclick="setActiveLayer('${layer.id}')">
+                            <i class="fa-solid fa-layer-group text-xs ${isActive ? 'text-indigo-400' : 'text-gray-500'}"></i>
+                            <span class="font-medium text-xs text-gray-200">${layer.name}</span>
+                        </div>
+                        <div class="flex items-center space-x-1.5">
+                            <button onclick="toggleLayerVisibility('${layer.id}')" class="w-6 h-6 text-xs text-gray-400 hover:text-white">
+                                <i class="fa-solid ${layer.visible ? 'fa-eye' : 'fa-eye-slash text-red-400'}"></i>
+                            </button>
+                            <button onclick="toggleLayerLock('${layer.id}')" class="w-6 h-6 text-xs text-gray-400 hover:text-white">
+                                <i class="fa-solid ${layer.locked ? 'fa-lock text-amber-400' : 'fa-lock-open'}"></i>
+                            </button>
+                            <button onclick="deleteLayer('${layer.id}')" class="w-6 h-6 text-xs text-gray-400 hover:text-red-400" ${AppState.layers.length <= 1 ? 'disabled class="opacity-20"' : ''}>
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 text-[10px]">
+                        <span class="text-gray-400">Opacity:</span>
+                        <input type="range" min="0" max="100" value="${Math.round(layer.opacity * 100)}" oninput="setLayerOpacity('${layer.id}', this.value)" class="flex-1">
+                        <span class="font-mono text-gray-300 w-7 text-right">${Math.round(layer.opacity * 100)}%</span>
+                    </div>
+                `;
+
+                DOM.layersList.appendChild(card);
+            });
+        }
+
+        function setActiveLayer(id) {
+            AppState.activeLayerId = id;
+            renderLayersUI();
+        }
+
+        function toggleLayerVisibility(id) {
+            const layer = AppState.layers.find(l => l.id === id);
+            if (layer) {
+                layer.visible = !layer.visible;
+                renderAll();
+            }
+        }
+
+        function toggleLayerLock(id) {
+            const layer = AppState.layers.find(l => l.id === id);
+            if (layer) {
+                layer.locked = !layer.locked;
+                renderLayersUI();
+            }
+        }
+
+        function setLayerOpacity(id, val) {
+            const layer = AppState.layers.find(l => l.id === id);
+            if (layer) {
+                layer.opacity = val / 100;
+                renderLayerStackDOM();
+            }
+        }
+
+        function deleteLayer(id) {
+            if (AppState.layers.length <= 1) return;
+            
+            AppState.layers = AppState.layers.filter(l => l.id !== id);
+            if (AppState.activeLayerId === id) {
+                AppState.activeLayerId = AppState.layers[0].id;
+            }
+            saveUndoState();
+            renderAll();
+        }
+
+
+        let lastFrameTime = 0;
+
+        function startPlaybackTimer() {
+            function animLoop(timestamp) {
+                if (AppState.isPlaying) {
+                    const interval = 1000 / AppState.fps;
+                    if (timestamp - lastFrameTime >= interval) {
+                        lastFrameTime = timestamp;
+                        
+                        if (AppState.currentFrameIndex < AppState.frames.length - 1) {
+                            AppState.currentFrameIndex++;
+                        } else if (AppState.isLooping) {
+                            AppState.currentFrameIndex = 0;
+                        } else {
+                            togglePlayback(false);
+                        }
+                        renderAll();
+                    }
+                }
+                requestAnimationFrame(animLoop);
+            }
+            requestAnimationFrame(animLoop);
+        }
+
+        function togglePlayback(forceState = null) {
+            AppState.isPlaying = forceState !== null ? forceState : !AppState.isPlaying;
+            if (AppState.isPlaying) {
+                DOM.iconPlayPause.className = 'fa-solid fa-pause ml-0';
+                DOM.btnPlayPause.classList.add('bg-amber-600', 'hover:bg-amber-500');
+                DOM.btnPlayPause.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
+            } else {
+                DOM.iconPlayPause.className = 'fa-solid fa-play ml-0.5';
+                DOM.btnPlayPause.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+                DOM.btnPlayPause.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
+            }
+            renderOnionSkin();
+        }
+
+
+        function applyCanvasTransform() {
+            DOM.wrapper.style.transform = `translate(${AppState.panX}px, ${AppState.panY}px) scale(${AppState.zoom})`;
+            DOM.zoomPercentDisplay.textContent = `${Math.round(AppState.zoom * 100)}%`;
+        }
+
+        function fitCanvasToScreen() {
+            const padding = 80;
+            const availableWidth = DOM.viewport.clientWidth - padding;
+            const availableHeight = DOM.viewport.clientHeight - padding;
+            
+            const scaleX = availableWidth / AppState.width;
+            const scaleY = availableHeight / AppState.height;
+            
+            AppState.zoom = Math.min(scaleX, scaleY, 1.0);
+            AppState.panX = 0;
+            AppState.panY = 0;
+            applyCanvasTransform();
+        }
+
+        function updateActiveColor(hex) {
+            AppState.brush.color = hex;
+            DOM.mainColorPicker.value = hex;
+            DOM.mainHexInput.value = hex.toUpperCase();
+            DOM.quickColorPicker.value = hex;
+            DOM.quickColorPreview.style.backgroundColor = hex;
+        }
+
+        function renderSwatches() {
+            DOM.swatchesGrid.innerHTML = '';
+            AppState.swatches.forEach(hex => {
+                const btn = document.createElement('button');
+                btn.className = 'w-6 h-6 rounded border border-studio-border hover:scale-110 transition shadow';
+                btn.style.backgroundColor = hex;
+                btn.onclick = () => updateActiveColor(hex);
+                DOM.swatchesGrid.appendChild(btn);
+            });
+        }
+
+
+        async function exportWebMVideo() {
+            showToast('Generating WebM Video Stream...');
+
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = AppState.width;
+            exportCanvas.height = AppState.height;
+            const ctx = exportCanvas.getContext('2d');
+
+            const stream = exportCanvas.captureStream(AppState.fps);
+            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            const chunks = [];
+
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${getProjectTitle()}.webm`;
+                a.click();
+                showToast('WebM Export Complete!');
+            };
+
+            recorder.start();
+
+            // Sequentially render frames to canvas
+            for (let i = 0; i < AppState.frames.length; i++) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, AppState.width, AppState.height);
+                
+                const frame = AppState.frames[i];
+                AppState.layers.forEach(layer => {
+                    if (layer.visible && frame.layers[layer.id]) {
+                        ctx.drawImage(frame.layers[layer.id], 0, 0);
+                    }
+                });
+
+                await new Promise(r => setTimeout(r, 1000 / AppState.fps));
+            }
+
+            recorder.stop();
+        }
+
+        function exportSpritesheet() {
+            const cols = parseInt(document.getElementById('num-sprite-cols').value) || 5;
+            const totalFrames = AppState.frames.length;
+            const rows = Math.ceil(totalFrames / cols);
+
+            const sheetCanvas = document.createElement('canvas');
+            sheetCanvas.width = cols * AppState.width;
+            sheetCanvas.height = rows * AppState.height;
+            const ctx = sheetCanvas.getContext('2d');
+
+            AppState.frames.forEach((frame, idx) => {
+                const col = idx % cols;
+                const row = Math.floor(idx / cols);
+                const x = col * AppState.width;
+                const y = row * AppState.height;
+
+                AppState.layers.forEach(layer => {
+                    if (layer.visible && frame.layers[layer.id]) {
+                        ctx.drawImage(frame.layers[layer.id], x, y);
+                    }
+                });
+            });
+
+            const url = sheetCanvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${getProjectTitle()}_spritesheet.png`;
+            a.click();
+            showToast('Spritesheet Exported Successfully!');
+        }
+
+        function exportProjectJSON() {
+            const projectData = {
+                title: getProjectTitle(),
+                width: AppState.width,
+                height: AppState.height,
+                fps: AppState.fps,
+                layers: AppState.layers,
+                frames: AppState.frames.map(f => {
+                    const frameData = {};
+                    Object.keys(f.layers).forEach(layerId => {
+                        frameData[layerId] = f.layers[layerId].toDataURL();
+                    });
+                    return { id: f.id, layers: frameData };
+                })
+            };
+
+            const jsonStr = JSON.stringify(projectData);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${getProjectTitle()}.json`;
+            a.click();
+            showToast('Project JSON Exported!');
+        }
+
+        function importProjectJSON(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    AppState.width = data.width || 1920;
+                    AppState.height = data.height || 1080;
+                    AppState.fps = data.fps || 12;
+                    AppState.layers = data.layers || [];
+                    
+                    document.getElementById('project-title').value = data.title || 'Imported Project';
+                    DOM.resDisplay.textContent = `${AppState.width}x${AppState.height}`;
+
+                    // Resize internal canvases
+                    [DOM.bgCanvas, DOM.onionCanvas, DOM.activeDrawCanvas, DOM.gizmoCanvas].forEach(c => {
+                        c.width = AppState.width;
+                        c.height = AppState.height;
+                    });
+                    DOM.wrapper.style.width = `${AppState.width}px`;
+                    DOM.wrapper.style.height = `${AppState.height}px`;
+
+                    // Reconstruct Frames
+                    AppState.frames = [];
+                    let loadedFrames = 0;
+
+                    data.frames.forEach(f => {
+                        const frameObj = { id: f.id, layers: {} };
+                        Object.keys(f.layers).forEach(layerId => {
+                            const cvs = createFrameCanvas();
+                            const ctx = cvs.getContext('2d');
+                            const img = new Image();
+                            img.onload = () => {
+                                ctx.drawImage(img, 0, 0);
+                                loadedFrames++;
+                                if (loadedFrames === data.frames.length * AppState.layers.length) {
+                                    AppState.currentFrameIndex = 0;
+                                    fitCanvasToScreen();
+                                    renderAll();
+                                    showToast('Project Loaded Successfully!');
+                                }
+                            };
+                            img.src = f.layers[layerId];
+                            frameObj.layers[layerId] = cvs;
+                        });
+                        AppState.frames.push(frameObj);
+                    });
+                } catch (err) {
+                    showToast('Invalid JSON file format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function getProjectTitle() {
+            return document.getElementById('project-title').value.trim() || 'MyAnimation';
+        }
+
+
+        function saveUndoState() {
+            // Snapshot current frame layer state
+            const snapshot = AppState.frames.map(f => {
+                const layerSnap = {};
+                Object.keys(f.layers).forEach(lId => {
+                    const cvs = createFrameCanvas();
+                    cvs.getContext('2d').drawImage(f.layers[lId], 0, 0);
+                    layerSnap[lId] = cvs;
+                });
+                return { id: f.id, layers: layerSnap };
+            });
+
+            AppState.undoStack.push(snapshot);
+            if (AppState.undoStack.length > 25) AppState.undoStack.shift();
+            AppState.redoStack = [];
+            updateUndoButtons();
+        }
+
+        function undo() {
+            if (AppState.undoStack.length <= 1) return;
+            
+            const currentSnap = AppState.undoStack.pop();
+            AppState.redoStack.push(currentSnap);
+
+            const prevSnap = AppState.undoStack[AppState.undoStack.length - 1];
+            restoreSnapshot(prevSnap);
+            updateUndoButtons();
+        }
+
+        function redo() {
+            if (AppState.redoStack.length === 0) return;
+
+            const nextSnap = AppState.redoStack.pop();
+            AppState.undoStack.push(nextSnap);
+            restoreSnapshot(nextSnap);
+            updateUndoButtons();
+        }
+
+        function restoreSnapshot(snapshot) {
+            AppState.frames = snapshot.map(f => {
+                const layerRestored = {};
+                Object.keys(f.layers).forEach(lId => {
+                    const cvs = createFrameCanvas();
+                    cvs.getContext('2d').drawImage(f.layers[lId], 0, 0);
+                    layerRestored[lId] = cvs;
+                });
+                return { id: f.id, layers: layerRestored };
+            });
+
+            if (AppState.currentFrameIndex >= AppState.frames.length) {
+                AppState.currentFrameIndex = AppState.frames.length - 1;
+            }
+            renderAll();
+        }
+
+        function updateUndoButtons() {
+            DOM.btnUndo.disabled = AppState.undoStack.length <= 1;
+            DOM.btnRedo.disabled = AppState.redoStack.length === 0;
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-16 left-1/2 -translate-x-1/2 bg-studio-panel/95 text-white text-xs px-4 py-2 rounded-lg border border-studio-border shadow-2xl z-50 transition-all duration-300 opacity-0 translate-y-[-10px]';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-0', 'translate-y-[-10px]');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        function updateStatsUI() {
+            DOM.valFpsDisplay.textContent = AppState.fps;
+            DOM.sliderFps.value = AppState.fps;
+        }
+
+
+        let isSpacePressed = false;
+
+        function bindEvents() {
+            // Pointer Event Handlers for Canvas Drawing
+            DOM.activeDrawCanvas.addEventListener('pointerdown', handlePointerDown);
+            window.addEventListener('pointermove', handlePointerMove);
+            window.addEventListener('pointerup', handlePointerUp);
+
+            // Wheel Zoom & Pan
+            DOM.viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.ctrlKey || e.metaKey) {
+                    const zoomDelta = e.deltaY < 0 ? 1.1 : 0.9;
+                    AppState.zoom = Math.min(Math.max(AppState.zoom * zoomDelta, 0.1), 5.0);
+                } else {
+                    AppState.panX -= e.deltaX;
+                    AppState.panY -= e.deltaY;
+                }
+                applyCanvasTransform();
+            }, { passive: false });
+
+            // Tool Switching
+            DOM.toolBtns.forEach(btn => {
+                btn.onclick = () => {
+                    DOM.toolBtns.forEach(b => b.classList.remove('active', 'bg-indigo-600', 'text-white'));
+                    btn.classList.add('active', 'bg-indigo-600', 'text-white');
+                    AppState.tool = btn.dataset.tool;
+
+                    document.getElementById('current-tool-title').textContent = `${AppState.tool.toUpperCase()} TOOL`;
+                    
+                    // Toggle fill tolerance panel
+                    if (AppState.tool === 'fill') {
+                        document.getElementById('group-fill-tolerance').classList.remove('hidden');
+                    } else {
+                        document.getElementById('group-fill-tolerance').classList.add('hidden');
+                    }
+                };
+            });
+
+            // Sliders Binding
+            DOM.sliderBrushSize.oninput = (e) => {
+                AppState.brush.size = e.target.value;
+                DOM.valBrushSize.textContent = `${e.target.value} px`;
+            };
+            DOM.sliderBrushOpacity.oninput = (e) => {
+                AppState.brush.opacity = e.target.value / 100;
+                DOM.valBrushOpacity.textContent = `${e.target.value}%`;
+            };
+            DOM.sliderBrushSmooth.oninput = (e) => {
+                AppState.brush.smoothness = e.target.value / 100;
+                DOM.valBrushSmooth.textContent = `${e.target.value}%`;
+            };
+            DOM.sliderFillTolerance.oninput = (e) => {
+                AppState.brush.fillTolerance = parseInt(e.target.value);
+                DOM.valFillTolerance.textContent = e.target.value;
+            };
+
+            DOM.sliderFps.oninput = (e) => {
+                AppState.fps = parseInt(e.target.value);
+                DOM.valFpsDisplay.textContent = AppState.fps;
+            };
+
+            // Color Pickers
+            DOM.mainColorPicker.oninput = (e) => updateActiveColor(e.target.value);
+            DOM.quickColorPicker.oninput = (e) => updateActiveColor(e.target.value);
+            DOM.mainHexInput.onchange = (e) => updateActiveColor(e.target.value);
+
+            DOM.btnAddSwatch.onclick = () => {
+                if (!AppState.swatches.includes(AppState.brush.color)) {
+                    AppState.swatches.push(AppState.brush.color);
+                    renderSwatches();
+                }
+            };
+
+            // Playback Actions
+            DOM.btnPlayPause.onclick = () => togglePlayback();
+            DOM.btnPrevFrame.onclick = () => {
+                togglePlayback(false);
+                AppState.currentFrameIndex = Math.max(0, AppState.currentFrameIndex - 1);
+                renderAll();
+            };
+            DOM.btnNextFrame.onclick = () => {
+                togglePlayback(false);
+                AppState.currentFrameIndex = Math.min(AppState.frames.length - 1, AppState.currentFrameIndex + 1);
+                renderAll();
+            };
+            DOM.btnFirstFrame.onclick = () => {
+                AppState.currentFrameIndex = 0;
+                renderAll();
+            };
+            DOM.btnLastFrame.onclick = () => {
+                AppState.currentFrameIndex = AppState.frames.length - 1;
+                renderAll();
+            };
+
+            DOM.btnAddFrame.onclick = () => addNewFrame();
+            DOM.btnDupFrame.onclick = () => addNewFrame(AppState.currentFrameIndex + 1, AppState.currentFrameIndex);
+            DOM.btnDelFrame.onclick = () => {
+                if (AppState.frames.length <= 1) return;
+                AppState.frames.splice(AppState.currentFrameIndex, 1);
+                if (AppState.currentFrameIndex >= AppState.frames.length) {
+                    AppState.currentFrameIndex = AppState.frames.length - 1;
+                }
+                saveUndoState();
+                renderAll();
+            };
+
+            // Zoom Controls
+            DOM.btnZoomIn.onclick = () => { AppState.zoom *= 1.2; applyCanvasTransform(); };
+            DOM.btnZoomOut.onclick = () => { AppState.zoom /= 1.2; applyCanvasTransform(); };
+            DOM.btnZoomReset.onclick = () => fitCanvasToScreen();
+            DOM.chkShowGrid.onchange = () => renderGizmoGrid();
+
+            // Undo / Redo / Clear
+            DOM.btnUndo.onclick = () => undo();
+            DOM.btnRedo.onclick = () => redo();
+            DOM.btnClearCanvas.onclick = () => {
+                const currentFrame = AppState.frames[AppState.currentFrameIndex];
+                const layerCanvas = currentFrame.layers[AppState.activeLayerId];
+                if (layerCanvas) {
+                    layerCanvas.getContext('2d').clearRect(0, 0, AppState.width, AppState.height);
+                    saveUndoState();
+                    renderAll();
+                }
+            };
+
+            // Onion Skin Toggle & Settings
+            DOM.chkOnionSkin.onchange = (e) => {
+                AppState.onionSkin.enabled = e.target.checked;
+                renderOnionSkin();
+            };
+            DOM.btnOnionSettings.onclick = () => DOM.modalOnionSettings.classList.remove('hidden');
+
+            DOM.sliderOnionPrevDepth.oninput = (e) => {
+                AppState.onionSkin.prevDepth = e.target.value;
+                DOM.valOnionPrevDepth.textContent = `${e.target.value} frames`;
+                renderOnionSkin();
+            };
+            DOM.sliderOnionNextDepth.oninput = (e) => {
+                AppState.onionSkin.nextDepth = e.target.value;
+                DOM.valOnionNextDepth.textContent = `${e.target.value} frames`;
+                renderOnionSkin();
+            };
+            DOM.sliderOnionOpacity.oninput = (e) => {
+                AppState.onionSkin.opacity = e.target.value / 100;
+                DOM.valOnionOpacity.textContent = `${e.target.value}%`;
+                renderOnionSkin();
+            };
+            DOM.colorOnionPrev.oninput = (e) => {
+                AppState.onionSkin.prevColor = e.target.value;
+                renderOnionSkin();
+            };
+            DOM.colorOnionNext.oninput = (e) => {
+                AppState.onionSkin.nextColor = e.target.value;
+                renderOnionSkin();
+            };
+
+            // Modals Logic
+            DOM.btnOpenExport.onclick = () => DOM.modalExport.classList.remove('hidden');
+            DOM.btnOpenHelp.onclick = () => DOM.modalHelp.classList.remove('hidden');
+            DOM.btnResizeCanvas.onclick = () => DOM.modalResolution.classList.remove('hidden');
+
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.onclick = () => {
+                    DOM.modalExport.classList.add('hidden');
+                    DOM.modalOnionSettings.classList.add('hidden');
+                    DOM.modalResolution.classList.add('hidden');
+                    DOM.modalHelp.classList.add('hidden');
+                };
+            });
+
+            // Export Options Selector
+            let selectedExportType = 'webm';
+            document.querySelectorAll('.export-type-card').forEach(card => {
+                card.onclick = () => {
+                    document.querySelectorAll('.export-type-card').forEach(c => c.classList.remove('border-indigo-500'));
+                    card.classList.add('border-indigo-500');
+                    
+                    document.getElementById('cfg-webm').classList.add('hidden');
+                    document.getElementById('cfg-spritesheet').classList.add('hidden');
+                    document.getElementById('cfg-json').classList.add('hidden');
+
+                    if (card.id === 'opt-export-webm') {
+                        selectedExportType = 'webm';
+                        document.getElementById('cfg-webm').classList.remove('hidden');
+                    } else if (card.id === 'opt-export-spritesheet') {
+                        selectedExportType = 'spritesheet';
+                        document.getElementById('cfg-spritesheet').classList.remove('hidden');
+                    } else {
+                        selectedExportType = 'json';
+                        document.getElementById('cfg-json').classList.remove('hidden');
+                    }
+                };
+            });
+
+            DOM.btnTriggerExport.onclick = () => {
+                DOM.modalExport.classList.add('hidden');
+                if (selectedExportType === 'webm') exportWebMVideo();
+                else if (selectedExportType === 'spritesheet') exportSpritesheet();
+                else if (selectedExportType === 'json') exportProjectJSON();
+            };
+
+            // Import Actions
+            DOM.btnImportProject.onclick = () => DOM.fileInputImport.click();
+            DOM.fileInputImport.onchange = (e) => {
+                if (e.target.files.length > 0) {
+                    importProjectJSON(e.target.files[0]);
+                }
+            };
+
+            // Canvas Resolution Presets
+            document.querySelectorAll('.res-preset-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const w = parseInt(btn.dataset.w);
+                    const h = parseInt(btn.dataset.h);
+                    AppState.width = w;
+                    AppState.height = h;
+                    DOM.resDisplay.textContent = `${w}x${h}`;
+
+                    [DOM.bgCanvas, DOM.onionCanvas, DOM.activeDrawCanvas, DOM.gizmoCanvas].forEach(c => {
+                        c.width = w;
+                        c.height = h;
+                    });
+                    DOM.wrapper.style.width = `${w}px`;
+                    DOM.wrapper.style.height = `${h}px`;
+
+                    // Resize existing frames
+                    AppState.frames.forEach(f => {
+                        Object.keys(f.layers).forEach(lId => {
+                            const temp = createFrameCanvas();
+                            temp.getContext('2d').drawImage(f.layers[lId], 0, 0);
+                            f.layers[lId].width = w;
+                            f.layers[lId].height = h;
+                            f.layers[lId].getContext('2d').drawImage(temp, 0, 0);
+                        });
+                    });
+
+                    DOM.modalResolution.classList.add('hidden');
+                    fitCanvasToScreen();
+                    renderAll();
+                    showToast(`Resized to ${w}x${h}`);
+                };
+            });
+
+            // Tabs Switch
+            document.getElementById('tab-btn-properties').onclick = () => {
+                document.getElementById('tab-content-properties').classList.remove('hidden');
+                document.getElementById('tab-content-layers').classList.add('hidden');
+                document.getElementById('tab-btn-properties').className = 'flex-1 py-3 text-center border-b-2 border-indigo-500 text-indigo-400 font-semibold bg-studio-card/50';
+                document.getElementById('tab-btn-layers').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200';
+            };
+            document.getElementById('tab-btn-layers').onclick = () => {
+                document.getElementById('tab-content-layers').classList.remove('hidden');
+                document.getElementById('tab-content-properties').classList.add('hidden');
+                document.getElementById('tab-btn-layers').className = 'flex-1 py-3 text-center border-b-2 border-indigo-500 text-indigo-400 font-semibold bg-studio-card/50';
+                document.getElementById('tab-btn-properties').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200';
+            };
+
+            DOM.btnAddLayer.onclick = () => {
+                const newLayer = createLayerObject(`Layer ${AppState.layers.length + 1}`);
+                AppState.layers.push(newLayer);
+                
+                // Add layer canvas to all frames
+                AppState.frames.forEach(f => {
+                    f.layers[newLayer.id] = createFrameCanvas();
+                });
+
+                AppState.activeLayerId = newLayer.id;
+                saveUndoState();
+                renderAll();
+            };
+
+            // Keyboard Shortcuts
+            window.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    if (!isSpacePressed) {
+                        isSpacePressed = true;
+                        DOM.viewport.style.cursor = 'grab';
+                    }
+                } else if (e.code === 'KeyB') {
+                    document.querySelector('[data-tool="brush"]').click();
+                } else if (e.code === 'KeyE') {
+                    document.querySelector('[data-tool="eraser"]').click();
+                } else if (e.code === 'KeyG') {
+                    document.querySelector('[data-tool="fill"]').click();
+                } else if (e.code === 'KeyL') {
+                    document.querySelector('[data-tool="line"]').click();
+                } else if (e.code === 'KeyR') {
+                    document.querySelector('[data-tool="rect"]').click();
+                } else if (e.code === 'KeyC') {
+                    document.querySelector('[data-tool="circle"]').click();
+                } else if (e.code === 'KeyI') {
+                    document.querySelector('[data-tool="eyedropper"]').click();
+                } else if (e.code === 'KeyO') {
+                    DOM.chkOnionSkin.checked = !DOM.chkOnionSkin.checked;
+                    DOM.chkOnionSkin.dispatchEvent(new Event('change'));
+                } else if (e.code === 'ArrowLeft') {
+                    DOM.btnPrevFrame.click();
+                } else if (e.code === 'ArrowRight') {
+                    DOM.btnNextFrame.click();
+                } else if (e.ctrlKey && e.code === 'KeyZ') {
+                    undo();
+                } else if (e.ctrlKey && (e.code === 'KeyY' || (e.shiftKey && e.code === 'KeyZ'))) {
+                    redo();
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    isSpacePressed = false;
+                    DOM.viewport.style.cursor = AppState.tool === 'pan' ? 'grab' : 'crosshair';
+                }
+            });
+
+            // Window Resize Auto Fit
+            window.addEventListener('resize', () => {
+                fitCanvasToScreen();
+            });
+        }
+
+        // Initialize App on Window Load
+        window.onload = () => {
+            initApp();
+        };
+    </script>
+</body>
+</html>
